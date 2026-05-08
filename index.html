@@ -947,6 +947,14 @@
     if (!I18N[LANG]) LANG = 'en';
     const t = (k) => (I18N[LANG][k] || I18N.en[k] || k);
 
+    // ── Theme-redraw hook registry (hoisted) ────────────────
+    // Several scene-setup blocks below push canvas-redraw functions onto
+    // this list at module-load time. The const must be declared above
+    // all of those blocks or each push hits the temporal-dead-zone and
+    // halts the whole module — black screen, no scene, no canvas.
+    const _themeRedrawHooks = [];
+    function registerThemedRedraw(fn) { _themeRedrawHooks.push(fn); fn(); }
+
     function applyLang() {
       document.body.dataset.lang = LANG;
       document.documentElement.lang = LANG;
@@ -1744,6 +1752,10 @@
       btnCanvas.width = 384; btnCanvas.height = 80;
       const btnCtx2 = btnCanvas.getContext('2d');
 
+      // Texture must exist before the initial paint — otherwise the
+      // `if (btnTex)` truthiness check inside the redraw fn hits TDZ.
+      const btnTex = new THREE.CanvasTexture(btnCanvas);
+      btnTex.colorSpace = THREE.SRGBColorSpace;
       function drawPomoBtnTexture() {
         const tc = themeColors();
         btnCtx2.fillStyle = tc.bgCss;
@@ -1754,11 +1766,9 @@
         btnCtx2.textBaseline = 'middle';
         btnCtx2.letterSpacing = '0.32em';
         btnCtx2.fillText('▷  POMODORO', 192, 44);
-        if (btnTex) btnTex.needsUpdate = true;
+        btnTex.needsUpdate = true;
       }
       drawPomoBtnTexture();
-      const btnTex = new THREE.CanvasTexture(btnCanvas);
-      btnTex.colorSpace = THREE.SRGBColorSpace;
       _themeRedrawHooks.push(drawPomoBtnTexture);
 
       const btnPlane = new THREE.Mesh(
@@ -2630,10 +2640,11 @@
 
     // ════════════════════════════════════════════════════════
     // Theme toggle (chandelier click) — dark ↔ light
+    // (Hooks array + helper hoisted to the top of the module — see
+    //  the early `const _themeRedrawHooks` near the I18N block. Multiple
+    //  scene-setup blocks push to this list at module-load time, so the
+    //  declaration must live above them, not down here.)
     // ════════════════════════════════════════════════════════
-    const _themeRedrawHooks = []; // canvases that need redrawing on theme change
-    function registerThemedRedraw(fn) { _themeRedrawHooks.push(fn); fn(); }
-
     function applyTheme(t) {
       CURRENT_THEME = t;
       const c = THEMES[t];
