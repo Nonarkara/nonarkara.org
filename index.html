@@ -26,6 +26,17 @@
   <link rel="icon" type="image/svg+xml" href="icon.svg">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
 
+  <!-- Service worker — turns this site into an offline-capable OS.
+       First visit: pre-caches the shell + all 10 MP3s (~52 MB). Every
+       visit after: room and music play with no network. -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      });
+    }
+  </script>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Latin: Josefin Sans + Source Sans 3, Mono: JetBrains Mono.
