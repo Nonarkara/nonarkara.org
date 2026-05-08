@@ -61,9 +61,16 @@
       font-family: 'Josefin Sans', sans-serif;
       font-weight: 700; font-size: 18px;
       letter-spacing: 0.05em;
-      opacity: 0; transition: opacity 1.6s ease 1.2s;
+      opacity: 0;
+      transition: opacity 1.6s ease 1.2s, color 0.2s ease, transform 0.15s ease;
+      cursor: pointer;
+      pointer-events: auto;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
     .brand.in { opacity: 1; }
+    .brand.tap { color: var(--amber); transform: scale(0.96); }
 
     .caption {
       position: absolute; top: 54px; left: 32px;
@@ -1804,8 +1811,6 @@
       { lines: ['good coffee', 'good question', 'good morning'],                tag: 'EN · ritual' },
       { lines: ['records of a life', 'made in three languages', 'and good coffee'], tag: 'EN · self' },
     ];
-    const KONAMI_SEQ = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
-    let konamiBuf = [];
     function showHaiku() {
       const k = HAIKUS[Math.floor(Math.random() * HAIKUS.length)];
       const html = k.lines.map((l) => `<div>${l}</div>`).join('') +
@@ -1816,8 +1821,29 @@
       overlay.classList.add('in');
       setTimeout(() => overlay.classList.remove('in'), 6500);
     }
+
+    // Tap "NON" three times quickly to summon a haiku.
+    // Works the same on mouse, keyboard, and thumbs.
+    let brandTaps = 0;
+    let brandResetTimer = null;
+    const brandEl = document.querySelector('.brand');
+    brandEl.addEventListener('click', () => {
+      brandTaps++;
+      brandEl.classList.add('tap');
+      setTimeout(() => brandEl.classList.remove('tap'), 140);
+      clearTimeout(brandResetTimer);
+      brandResetTimer = setTimeout(() => { brandTaps = 0; }, 1800);
+      if (brandTaps >= 3) {
+        brandTaps = 0;
+        clearTimeout(brandResetTimer);
+        showHaiku();
+      }
+    });
+
+    // Keep the classic Konami sequence for desktop power users.
+    const KONAMI_SEQ = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+    let konamiBuf = [];
     window.addEventListener('keydown', (e) => {
-      // Allow B and A in any case, ignore modifiers
       const k = (e.key || '').length === 1 ? e.key.toLowerCase() : e.key;
       konamiBuf.push(k);
       if (konamiBuf.length > KONAMI_SEQ.length) konamiBuf = konamiBuf.slice(-KONAMI_SEQ.length);
