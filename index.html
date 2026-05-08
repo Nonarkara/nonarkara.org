@@ -772,6 +772,49 @@
       plate.position.set(PANEL_X, PANEL_Y, PANEL_Z);
       scene.add(plate);
 
+      // Permanent label plate — canvas texture so the password is visible
+      // even without hovering. Mounted on the inner face of the panel.
+      {
+        const labelCanvas = document.createElement('canvas');
+        labelCanvas.width = 384; labelCanvas.height = 540;
+        const lctx = labelCanvas.getContext('2d');
+        lctx.fillStyle = '#000';
+        lctx.fillRect(0, 0, 384, 540);
+        lctx.fillStyle = '#f5f5f0';
+        lctx.textAlign = 'center';
+        lctx.textBaseline = 'middle';
+
+        // Top switch label
+        lctx.font = '300 38px "JetBrains Mono", monospace';
+        lctx.fillText('TKC', 192, 130);
+        // Bottom switch label
+        lctx.fillText('TKCX', 192, 410);
+        // Center separator + password (the persistent reminder)
+        lctx.strokeStyle = 'rgba(245, 245, 240, 0.25)';
+        lctx.lineWidth = 1;
+        lctx.beginPath(); lctx.moveTo(60, 270); lctx.lineTo(324, 270); lctx.stroke();
+        lctx.fillStyle = 'rgba(245, 158, 11, 0.85)';
+        lctx.font = '400 24px "JetBrains Mono", monospace';
+        lctx.fillText('🔒 696969', 192, 270);
+
+        const labelTex = new THREE.CanvasTexture(labelCanvas);
+        labelTex.colorSpace = THREE.SRGBColorSpace;
+        const labelMat = new THREE.MeshBasicMaterial({
+          map: labelTex, transparent: true, opacity: 0,
+          side: THREE.FrontSide, depthWrite: false
+        });
+        const labelPlane = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.30, 0.45), labelMat
+        );
+        // Just outside the plate face, facing into the room (toward -X)
+        labelPlane.position.set(PANEL_X - 0.025, PANEL_Y, PANEL_Z);
+        labelPlane.rotation.y = Math.PI / 2;  // face -X (toward camera/room)
+        scene.add(labelPlane);
+        // Fade the label plate in on reveal
+        window.__pomoLabelPlanes = window.__pomoLabelPlanes || [];
+        window.__pomoLabelPlanes.push(labelPlane);
+      }
+
       TKC_LINKS.forEach((link, i) => {
         // Each switch is a clickable mini-toggle
         const sy = PANEL_Y + (i === 0 ? 0.10 : -0.10); // top + bottom
@@ -1445,6 +1488,10 @@
       rainMat.opacity = ease * 0.18;
       // Pomodoro button plane fades in alongside everything else
       if (window.__pomoBtnPlane) window.__pomoBtnPlane.material.opacity = ease * 0.7;
+      // Switch panel label plate fades in alongside everything else
+      if (window.__pomoLabelPlanes) {
+        window.__pomoLabelPlanes.forEach(p => p.material.opacity = ease * 0.85);
+      }
 
       raycaster.setFromCamera(mouse, camera);
       const hits = raycaster.intersectObjects(INTERACTABLES.map(o => o.userData.hit));
