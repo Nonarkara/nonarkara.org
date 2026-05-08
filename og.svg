@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#000000"/>
+
+  <!-- thin perspective hint at the top edge — same architectural language as the 3D room -->
+  <g stroke="rgba(245,245,240,0.10)" stroke-width="1" fill="none">
+    <line x1="0" y1="80" x2="1200" y2="80"/>
+    <line x1="0" y1="540" x2="1200" y2="540"/>
+  </g>
+
+  <!-- NON wordmark, with the O as a hollow amber circle -->
+  <g font-family="Josefin Sans, system-ui, sans-serif" font-weight="700">
+    <text x="80" y="290" fill="#f5f5f0" font-size="200" letter-spacing="8">N</text>
+    <text x="450" y="290" fill="#f5f5f0" font-size="200" letter-spacing="8">N</text>
+  </g>
+  <circle cx="345" cy="222" r="58" fill="none" stroke="#f59e0b" stroke-width="6"/>
+
+  <!-- name + role -->
+  <g font-family="JetBrains Mono, ui-monospace, monospace" fill="#f5f5f0">
+    <text x="80" y="380" font-size="30" font-weight="400" letter-spacing="2">DR NON ARKARAPRASERTKUL</text>
+  </g>
+  <g font-family="JetBrains Mono, ui-monospace, monospace" fill="rgba(245,245,240,0.55)" font-size="22" font-weight="300" letter-spacing="1">
+    <text x="80" y="425">architect (MIT) · anthropologist (Harvard)</text>
+    <text x="80" y="460">smart-city specialist · depa thailand</text>
+  </g>
+
+  <!-- url + tagline -->
+  <text x="80" y="595" font-family="JetBrains Mono, ui-monospace, monospace" fill="#f59e0b" font-size="22" font-weight="400" letter-spacing="3">NONARKARA.ORG</text>
+  <text x="1120" y="595" text-anchor="end" font-family="JetBrains Mono, ui-monospace, monospace" fill="rgba(245,245,240,0.45)" font-size="18" font-weight="300" letter-spacing="2">a memory palace · plan view</text>
+</svg>
