@@ -4,16 +4,13 @@ compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
 account_id = "74ad6bf8dfaaccf82de6f0847f7d2d54"
 
-# Cron — ping every 5 minutes, store latest in KV
 [triggers]
 crons = ["*/5 * * * *"]
 
-# KV binding
 [[kv_namespaces]]
 binding = "STATUS"
 id = "08c721ac2a1341e4b2266eeb8eae8fc9"
 
-# Custom domain — Workers handles DNS+SSL automatically
 [[routes]]
 pattern = "api.nonarkara.org"
 custom_domain = true

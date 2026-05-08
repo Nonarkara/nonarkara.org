@@ -12,10 +12,12 @@
 
 const DOMAINS = [
   "nonarkara.org",
+  "ninja.nonarkara.org",
   "axiom.nonarkara.org",
   "slic.nonarkara.org",
   "sciti.nonarkara.org",
   "tkc.nonarkara.org",
+  "tkcx.nonarkara.org",
   "tkc-digital-twin.fly.dev",
   "monitor.nonarkara.org",
   "conflict.nonarkara.org",

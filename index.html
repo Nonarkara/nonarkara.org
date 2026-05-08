@@ -881,21 +881,29 @@
     // Status dots — fetch /.health/latest.json and color dots
     // ════════════════════════════════════════════════════════
     async function refreshStatus() {
-      try {
-        const r = await fetch('health/latest.json?t=' + Date.now(), { cache: 'no-store' });
-        if (!r.ok) return;
-        const data = await r.json();
-        TVs.forEach(grp => {
-          const dom = grp.userData.project.dom;
-          const entry = dom && data.sites && data.sites[dom];
-          if (!entry) {
-            grp.userData.dotMat.color.setHex(0x666666); // unknown grey
-            return;
-          }
-          const ok = entry.code === 200 || entry.code === 301 || entry.code === 302;
-          grp.userData.dotMat.color.setHex(ok ? 0x33ff66 : 0xff3344);
-        });
-      } catch (e) { /* silently ignore */ }
+      // Prefer the Cloudflare Worker (fresher: 5-min cron) — fall back to GH Actions JSON.
+      const sources = [
+        'https://api.nonarkara.org/status',
+        'health/latest.json?t=' + Date.now(),
+      ];
+      let data = null;
+      for (const src of sources) {
+        try {
+          const r = await fetch(src, { cache: 'no-store' });
+          if (r.ok) { data = await r.json(); break; }
+        } catch (_) { /* try next */ }
+      }
+      if (!data) return;
+      TVs.forEach(grp => {
+        const dom = grp.userData.project.dom;
+        const entry = dom && data.sites && data.sites[dom];
+        if (!entry) {
+          grp.userData.dotMat.color.setHex(0x666666); // unknown grey
+          return;
+        }
+        const ok = entry.code === 200 || entry.code === 301 || entry.code === 302;
+        grp.userData.dotMat.color.setHex(ok ? 0x33ff66 : 0xff3344);
+      });
     }
     refreshStatus();
     setInterval(refreshStatus, 60_000);
