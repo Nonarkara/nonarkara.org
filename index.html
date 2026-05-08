@@ -825,6 +825,220 @@
       color: var(--dim);
     }
 
+    /* ── PLAN view (2D dashboard) ─────────────────────────────
+       Default mobile entry point. Geometric, mono-accent, hairline
+       borders, three text sizes only. Tap targets ≥ 44 px. The
+       3D room is opt-in via the ENTER ROOM button at the bottom.
+       Same modals, same handlers, same data. */
+    body[data-view="plan"] #canvas-root,
+    body[data-view="plan"] .overlay,
+    body[data-view="plan"] .menu-btn,
+    body[data-view="plan"] .tip { display: none !important; }
+    body[data-view="room"] #plan { display: none; }
+
+    #plan {
+      position: fixed; inset: 0; z-index: 5;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'JetBrains Mono', monospace;
+      padding: calc(20px + var(--sat)) calc(20px + var(--sar)) calc(28px + var(--sab)) calc(20px + var(--sal));
+    }
+    body[data-lang="th"] #plan { font-family: 'IBM Plex Sans Thai', 'JetBrains Mono', monospace; }
+    body[data-lang="zh"] #plan { font-family: 'Noto Sans SC', 'JetBrains Mono', monospace; }
+
+    .plan-head {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 16px; margin-bottom: 28px;
+    }
+    .plan-head .brand-blk {
+      display: flex; flex-direction: column;
+    }
+    .plan-head .brand-mark {
+      font-family: 'Josefin Sans', sans-serif; font-weight: 700;
+      font-size: 18px; letter-spacing: 0.05em;
+    }
+    .plan-head .brand-cap {
+      font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
+      color: var(--dim); margin-top: 4px;
+    }
+    .plan-lang { display: flex; gap: 0; align-items: center; }
+    .plan-lang button {
+      background: transparent; border: 1px solid transparent;
+      color: var(--white); cursor: pointer;
+      padding: 6px 8px; font-size: 11px; letter-spacing: 0.08em;
+      font-family: inherit; opacity: 0.55;
+      min-height: 32px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .plan-lang button.on { color: var(--amber); border-color: var(--amber); opacity: 1; }
+    .plan-lang .sep { color: var(--dim); font-size: 10px; padding: 0 2px; }
+
+    .plan-clock {
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 18px 0 16px;
+      margin-bottom: 22px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+    .plan-clock .time {
+      font-size: 44px; font-weight: 300;
+      letter-spacing: 0.04em;
+      line-height: 1;
+      color: var(--fg);
+    }
+    .plan-clock .meta {
+      margin-top: 10px;
+      font-size: 9px; letter-spacing: 0.32em;
+      text-transform: uppercase; color: var(--dim);
+    }
+
+    .plan-stat {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; margin-bottom: 22px;
+      font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    }
+    .plan-stat .label { color: var(--dim); }
+    .plan-stat .value { color: var(--fg); font-variant-numeric: tabular-nums; }
+
+    .plan-section { margin-bottom: 26px; }
+    .plan-section-label {
+      font-size: 10px; letter-spacing: 0.32em;
+      text-transform: uppercase; color: var(--dim);
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 12px;
+    }
+
+    /* Project grid — 3 cols on phone (21 = 3×7, no orphan rows), 7 cols
+       on tablet+ (21 = 7×3). Each cell: code + status dot. Hairlines via
+       per-cell borders so partial rows don't expose container bg. */
+    .plan-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-top:  1px solid var(--line);
+      border-left: 1px solid var(--line);
+    }
+    .plan-cell {
+      background: var(--bg);
+      border: 0;
+      border-right:  1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      color: var(--fg);
+      cursor: pointer;
+      min-height: 64px;
+      padding: 10px 12px;
+      display: flex; flex-direction: column;
+      align-items: flex-start; justify-content: space-between;
+      font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+      transition: color 0.12s, background 0.12s;
+    }
+    .plan-cell:active { background: rgba(245, 158, 11, 0.08); }
+    .plan-cell:hover { color: var(--amber); }
+    .plan-cell .code {
+      font-size: 11px; letter-spacing: 0.18em;
+      color: inherit; line-height: 1.15;
+      word-break: break-word;
+    }
+    .plan-cell .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;             /* true circle — Codex Incident exception */
+      background: rgba(245, 245, 240, 0.18); /* unknown */
+      align-self: flex-start;
+    }
+    .plan-cell[data-status="ok"]   .dot { background: var(--amber); }
+    .plan-cell[data-status="fail"] .dot { background: #c44; }
+    @media (min-width: 720px) {
+      .plan-grid { grid-template-columns: repeat(7, 1fr); }
+    }
+
+    /* List rows — furniture, private, cities. Same border-collapse pattern. */
+    .plan-list {
+      display: flex; flex-direction: column;
+      border-top: 1px solid var(--line);
+      border-left: 1px solid var(--line);
+      border-right: 1px solid var(--line);
+    }
+    .plan-row {
+      display: flex; align-items: center; gap: 14px;
+      background: var(--bg); border: 0;
+      border-bottom: 1px solid var(--line);
+      color: var(--fg); cursor: pointer;
+      min-height: 52px; padding: 10px 14px;
+      font-family: inherit;
+      text-align: left;
+      -webkit-tap-highlight-color: transparent;
+      transition: color 0.12s, background 0.12s;
+    }
+    .plan-row:hover { color: var(--amber); }
+    .plan-row:active { background: rgba(245, 158, 11, 0.08); }
+    .plan-row .glyph {
+      flex: none; width: 28px; font-size: 14px;
+      color: var(--amber);
+    }
+    .plan-row .title { flex: 1; font-size: 13px; letter-spacing: 0.02em; }
+    .plan-row .meta { font-size: 10px; letter-spacing: 0.16em; color: var(--dim); text-transform: uppercase; font-variant-numeric: tabular-nums; }
+    .plan-row .lock  { font-size: 10px; color: var(--dim); }
+
+    .plan-foot {
+      margin-top: 14px;
+      padding-top: 22px;
+      border-top: 1px solid var(--line);
+      display: flex; gap: 1px;
+      background: var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .plan-foot button {
+      flex: 1 1 auto;
+      background: var(--bg);
+      border: 0;
+      color: var(--fg);
+      cursor: pointer;
+      min-height: 56px;
+      padding: 0 14px;
+      font-family: inherit;
+      font-size: 11px; letter-spacing: 0.32em;
+      text-transform: uppercase;
+      -webkit-tap-highlight-color: transparent;
+      transition: color 0.12s, background 0.12s;
+    }
+    .plan-foot button:hover { color: var(--amber); }
+    .plan-foot .room { color: var(--amber); }      /* primary CTA */
+
+    /* Floating ROOM/PLAN toggle — visible in room view, sits next to MENU */
+    .view-toggle {
+      position: fixed;
+      right: calc(18px + var(--sar));
+      bottom: calc(82px + var(--sab));   /* sits above MENU */
+      min-width: 88px; height: 44px;
+      padding: 0 14px;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      color: var(--fg);
+      cursor: pointer; z-index: 30;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; letter-spacing: 0.32em;
+      text-transform: uppercase;
+      opacity: 0; pointer-events: none;
+      transition: opacity 1.5s ease 1.7s, color 0.15s, border-color 0.15s, background 0.6s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .view-toggle.in { opacity: 0.85; pointer-events: auto; }
+    .view-toggle:hover { color: var(--amber); border-color: var(--amber); }
+    body[data-view="plan"] .view-toggle { display: none; }   /* in plan, the footer button takes over */
+    @media (max-width: 600px) {
+      .view-toggle {
+        right: calc(14px + var(--sar));
+        bottom: calc(80px + var(--sab));
+        min-width: 64px; height: 40px;
+        padding: 0 10px;
+        font-size: 9px;
+      }
+    }
+
     @media (max-width: 600px) {
       .brand   { font-size: 16px; top: calc(18px + var(--sat)); left: calc(20px + var(--sal)); }
       .caption { font-size: 8px; top: calc(42px + var(--sat)); left: calc(20px + var(--sal)); }
@@ -920,6 +1134,61 @@
 
   <!-- ── Floating MENU button (mobile-friendly escape; one click → see everything) ── -->
   <button class="menu-btn" id="menu-btn" aria-label="Open menu">MENU</button>
+  <button class="view-toggle" id="view-toggle" aria-label="Switch to plan view">▢ PLAN</button>
+
+  <!-- ── PLAN view (2D dashboard) ─────────────────────────────
+       Default phone entry point. The 3D room is opt-in. -->
+  <div id="plan" aria-hidden="true">
+    <header class="plan-head">
+      <div class="brand-blk">
+        <div class="brand-mark">NON</div>
+        <div class="brand-cap" data-i18n="palace">memory palace</div>
+      </div>
+      <div class="plan-lang" id="plan-lang">
+        <button data-l="en">EN</button>
+        <span class="sep">·</span>
+        <button data-l="th">ไทย</button>
+        <span class="sep">·</span>
+        <button data-l="zh">中文</button>
+      </div>
+    </header>
+
+    <section class="plan-clock">
+      <div class="time" id="plan-time">--:--:--</div>
+      <div class="meta" id="plan-date">— · BANGKOK · GMT+7</div>
+    </section>
+
+    <section class="plan-stat">
+      <span class="label" data-i18n="plan_status">FLEET STATUS</span>
+      <span class="value" id="plan-stat-summary">— / —</span>
+    </section>
+
+    <section class="plan-section">
+      <div class="plan-section-label" data-i18n="plan_projects">PROJECTS</div>
+      <div class="plan-grid" id="plan-projects"></div>
+    </section>
+
+    <section class="plan-section">
+      <div class="plan-section-label" data-i18n="plan_personal">PERSONAL</div>
+      <div class="plan-list" id="plan-personal"></div>
+    </section>
+
+    <section class="plan-section">
+      <div class="plan-section-label" data-i18n="plan_private">PRIVATE · 🔒 696969</div>
+      <div class="plan-list" id="plan-private"></div>
+    </section>
+
+    <section class="plan-section">
+      <div class="plan-section-label" data-i18n="plan_world">WORLD · TIME</div>
+      <div class="plan-list" id="plan-cities"></div>
+    </section>
+
+    <footer class="plan-foot">
+      <button id="plan-theme" aria-label="Toggle theme">☼  THEME</button>
+      <button id="plan-room"  class="room" aria-label="Enter 3D room">▦  ENTER ROOM</button>
+    </footer>
+  </div>
+
 
   <!-- ── Drawer (slides up from bottom, populated dynamically) ── -->
   <div class="drawer" id="drawer" aria-hidden="true">
@@ -983,6 +1252,19 @@
         music_title:     'made on suno.ai',
         music_now:       'NOW PLAYING',
         music_count:     '10 tracks · made with suno',
+        plan_status:     'fleet status',
+        plan_projects:   'projects',
+        plan_personal:   'personal',
+        plan_private:    'private · 🔒 696969',
+        plan_world:      'world · time',
+        plan_room:       '▦  enter room',
+        plan_theme:      'theme',
+        cv_title_short:  'curriculum vitae',
+        li_title_short:  'professional network',
+        co_title_short:  'contact · vCard',
+        music_short:     'suno music · 10 tracks',
+        pomo_short:      'pomodoro · 25 / 5',
+        sabai_short:     'sabai sabai · easter egg',
       },
       th: {
         palace:  'ห้องความทรงจำ',
@@ -1005,6 +1287,19 @@
         music_title:     'แต่งบน suno.ai',
         music_now:       'กำลังเล่น',
         music_count:     '10 เพลง · แต่งด้วย suno',
+        plan_status:     'สถานะระบบ',
+        plan_projects:   'โครงการ',
+        plan_personal:   'ส่วนตัว',
+        plan_private:    'ส่วนปิด · 🔒 696969',
+        plan_world:      'เวลาโลก',
+        plan_room:       '▦  เข้าห้อง',
+        plan_theme:      'ธีม',
+        cv_title_short:  'ประวัติย่อ',
+        li_title_short:  'เครือข่ายวิชาชีพ',
+        co_title_short:  'นามบัตร',
+        music_short:     'เพลง suno · 10 เพลง',
+        pomo_short:      'โพโมโดโร · 25 / 5',
+        sabai_short:     'สบายๆ · อีสเตอร์เอ้ก',
       },
       zh: {
         palace:  '记忆宫殿',
@@ -1027,6 +1322,19 @@
         music_title:     'suno.ai 作品',
         music_now:       '正在播放',
         music_count:     '10 首 · suno 作曲',
+        plan_status:     '系统状态',
+        plan_projects:   '项目',
+        plan_personal:   '个人',
+        plan_private:    '私密 · 🔒 696969',
+        plan_world:      '世界时间',
+        plan_room:       '▦  进入房间',
+        plan_theme:      '主题',
+        cv_title_short:  '个人履历',
+        li_title_short:  '职业网络',
+        co_title_short:  '联系方式',
+        music_short:     'suno 音乐 · 10 首',
+        pomo_short:      '番茄钟 · 25 / 5',
+        sabai_short:     'sabai · 彩蛋',
       },
     };
 
@@ -1052,6 +1360,17 @@
       document.querySelectorAll('#lang button').forEach(b => {
         b.classList.toggle('on', b.dataset.l === LANG);
       });
+      // Mirror the highlight on the plan-view lang switcher
+      document.querySelectorAll('#plan-lang button').forEach(b => {
+        b.classList.toggle('on', b.dataset.l === LANG);
+      });
+      // If plan view has been initialised, re-render so dynamic strings
+      // update too. Guarded by a window flag because the plan block runs
+      // far below this — applyLang is called once at boot before the plan
+      // consts exist (TDZ).
+      if (window.__planReady) {
+        try { renderPlan(); } catch (_) {}
+      }
     }
     document.querySelectorAll('#lang button').forEach(b => {
       b.addEventListener('click', () => {
@@ -2872,6 +3191,202 @@
     document.getElementById('drawer-close').addEventListener('click', closeDrawer);
     drawerEl.addEventListener('click', (e) => { if (e.target.dataset.close === '1') closeDrawer(); });
     window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && drawerEl.classList.contains('in')) closeDrawer(); });
+
+    // ════════════════════════════════════════════════════════
+    // PLAN view — 2D dashboard. Same data as the room, no Three.js
+    // rendering, designed for one-thumb navigation on a phone.
+    // The 3D room is opt-in via the "ENTER ROOM" button.
+    // ════════════════════════════════════════════════════════
+    const planEl  = document.getElementById('plan');
+    const planProjEl = document.getElementById('plan-projects');
+    const planPersEl = document.getElementById('plan-personal');
+    const planPrivEl = document.getElementById('plan-private');
+    const planCityEl = document.getElementById('plan-cities');
+    const planTimeEl = document.getElementById('plan-time');
+    const planDateEl = document.getElementById('plan-date');
+    const planStatEl = document.getElementById('plan-stat-summary');
+
+    // Default view: phone → plan, desktop → room. Persisted in localStorage.
+    function chooseDefaultView() {
+      const saved = localStorage.getItem('nonarkara.view');
+      if (saved === 'plan' || saved === 'room') return saved;
+      return matchMedia('(max-width: 768px)').matches ? 'plan' : 'room';
+    }
+    function setView(v) {
+      document.body.dataset.view = v;
+      localStorage.setItem('nonarkara.view', v);
+      planEl.setAttribute('aria-hidden', v === 'plan' ? 'false' : 'true');
+      // When entering plan, repaint dynamic content; when entering room,
+      // make sure the renderer keeps drawing (it never stopped).
+      if (v === 'plan') { renderPlan(); refreshStatus(); }
+    }
+    document.body.dataset.view = chooseDefaultView();
+    planEl.setAttribute('aria-hidden', document.body.dataset.view === 'plan' ? 'false' : 'true');
+
+    function renderPlan() {
+      // Projects → tap target grid
+      planProjEl.innerHTML = PROJECTS.map(p => `
+        <button class="plan-cell" data-code="${p.code}">
+          <span class="dot"></span>
+          <span class="code">${p.code}</span>
+        </button>
+      `).join('');
+      planProjEl.querySelectorAll('.plan-cell').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const p = PROJECTS.find(x => x.code === btn.dataset.code);
+          if (p) openUrlModal(p.code, p.title, p.url, p.locked ? { password: '696969' } : {});
+        });
+      });
+
+      // Personal — CV / LinkedIn / Contact / Music / Pomodoro / Sabai
+      const personal = [
+        { glyph: '▢',  key: 'bookshelf',  title: t('cv_title_short'),  meta: 'CV',       click: () => openFurnitureModal('bookshelf') },
+        { glyph: '◯',  key: 'pedestal',   title: t('li_title_short'),  meta: 'LINKEDIN', click: () => openFurnitureModal('pedestal') },
+        { glyph: '☕', key: 'coffee',     title: t('co_title_short'),  meta: 'CONTACT',  click: () => openFurnitureModal('coffee') },
+        { glyph: '◯',  key: 'music',      title: t('music_short'),     meta: 'MUSIC',    click: () => openMusicModal() },
+        { glyph: '▷',  key: 'pomodoro',   title: t('pomo_short'),      meta: 'TIMER',    click: () => openPomodoro() },
+        { glyph: '·',  key: 'cup',        title: t('sabai_short'),     meta: '· · ·',    click: () => openFurnitureModal('cup') },
+      ];
+      planPersEl.innerHTML = personal.map((row, i) => `
+        <button class="plan-row" data-i="${i}">
+          <span class="glyph">${row.glyph}</span>
+          <span class="title">${row.title}</span>
+          <span class="meta">${row.meta}</span>
+        </button>
+      `).join('');
+      planPersEl.querySelectorAll('.plan-row').forEach((btn, i) => {
+        btn.addEventListener('click', personal[i].click);
+      });
+
+      // Private (TKC, TKCX)
+      planPrivEl.innerHTML = TKC_LINKS.map(l => `
+        <button class="plan-row" data-key="${l.sw}">
+          <span class="glyph">🔒</span>
+          <span class="title">${l.label === 'TKC' ? 'TKC Digital Twin' : 'TKC Command Center'}</span>
+          <span class="meta">${l.label}</span>
+        </button>
+      `).join('');
+      planPrivEl.querySelectorAll('.plan-row').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const l = TKC_LINKS.find(x => x.sw === btn.dataset.key);
+          if (l) openUrlModal(l.label, l.label === 'TKC' ? 'TKC Digital Twin' : 'TKC Command', l.url, { password: '696969' });
+        });
+      });
+
+      // Cities
+      planCityEl.innerHTML = CITIES.map(c => `
+        <button class="plan-row plan-city" data-name="${c.name}" data-tz="${c.tz}">
+          <span class="glyph">${c.home ? '●' : '○'}</span>
+          <span class="title">${c.name}</span>
+          <span class="meta" data-city-time>—:—</span>
+        </button>
+      `).join('');
+      planCityEl.querySelectorAll('.plan-row').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const c = CITIES.find(x => x.name === btn.dataset.name);
+          if (c) openCityModal(c);
+        });
+      });
+
+      // Status dots (paint from cached data if present, else dim)
+      paintPlanStatus(window.__lastStatusData || null);
+    }
+
+    // Live clock — always running, painted on both views
+    function tickPlanClock() {
+      const now = new Date();
+      const fmt = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Bangkok', hour12: false,
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+      }).format(now);
+      const dfmt = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Bangkok',
+        weekday: 'short', day: '2-digit', month: 'short', year: 'numeric',
+      }).format(now).toUpperCase();
+      if (planTimeEl) planTimeEl.textContent = fmt;
+      if (planDateEl) planDateEl.textContent = `${dfmt} · BANGKOK · GMT+7`;
+      // City rows
+      planCityEl?.querySelectorAll('.plan-city').forEach(btn => {
+        const tz = btn.dataset.tz;
+        const out = btn.querySelector('[data-city-time]');
+        if (!out) return;
+        try {
+          out.textContent = new Intl.DateTimeFormat('en-GB', {
+            timeZone: tz, hour12: false, hour: '2-digit', minute: '2-digit',
+          }).format(now);
+        } catch { /* bad tz */ }
+      });
+    }
+    setInterval(tickPlanClock, 1000);
+
+    function paintPlanStatus(data) {
+      if (!planProjEl) return;
+      let okCount = 0, total = 0;
+      planProjEl.querySelectorAll('.plan-cell').forEach(cell => {
+        const code = cell.dataset.code;
+        const p = PROJECTS.find(x => x.code === code);
+        if (!p) return;
+        const entry = data?.sites?.[p.dom];
+        if (!entry) {
+          cell.removeAttribute('data-status');
+          return;
+        }
+        total++;
+        const ok = entry.code === 200 || entry.code === 301 || entry.code === 302;
+        cell.dataset.status = ok ? 'ok' : 'fail';
+        if (ok) okCount++;
+      });
+      // Summary across all monitored sites (not just TVs)
+      if (data?.sites) {
+        const all = Object.values(data.sites);
+        const ok2 = all.filter(s => s.code === 200 || s.code === 301 || s.code === 302).length;
+        if (planStatEl) planStatEl.textContent = `${ok2} / ${all.length}`;
+      } else if (planStatEl) {
+        planStatEl.textContent = '— / —';
+      }
+    }
+
+    // Hook into the existing refreshStatus pipeline so the plan repaints
+    // alongside the room. Wraps without breaking the original.
+    const _origRefreshStatus = refreshStatus;
+    window.refreshStatus = async function () {
+      // Inline-fetch (independent of TVs) so plan view works even if
+      // the 3D scene fails to init for any reason.
+      const sources = ['https://api.nonarkara.org/status', 'health/latest.json?t=' + Date.now()];
+      for (const src of sources) {
+        try {
+          const r = await fetch(src, { cache: 'no-store' });
+          if (r.ok) { window.__lastStatusData = await r.json(); break; }
+        } catch (_) { /* try next */ }
+      }
+      paintPlanStatus(window.__lastStatusData);
+      try { await _origRefreshStatus(); } catch (_) {}
+    };
+    setInterval(window.refreshStatus, 60_000);
+
+    // Wire toggle buttons
+    const viewToggleBtn = document.getElementById('view-toggle');
+    document.getElementById('plan-room').addEventListener('click', () => setView('room'));
+    viewToggleBtn.addEventListener('click', () => setView('plan'));
+
+    // Plan-view lang switcher mirrors the in-room one
+    document.querySelectorAll('#plan-lang button').forEach(b => {
+      b.addEventListener('click', () => {
+        LANG = b.dataset.l;
+        localStorage.setItem('nonarkara.lang', LANG);
+        applyLang();
+        renderPlan();
+      });
+    });
+
+    // Plan-view theme button — same toggle as the chandelier
+    document.getElementById('plan-theme').addEventListener('click', toggleTheme);
+
+    // Initial paint + reveal-in pulse for the floating ROOM/PLAN toggle
+    renderPlan();
+    tickPlanClock();
+    window.__planReady = true;
+    setTimeout(() => viewToggleBtn.classList.add('in'), 200);
 
     // Tap "NON" three times quickly to summon a haiku.
     // Works the same on mouse, keyboard, and thumbs.
