@@ -334,6 +334,123 @@
       color: rgba(245, 245, 240, 0.6);
     }
 
+    /* ── Music player (modal variant) ── */
+    .modal-card.music { padding: 56px 32px 28px; max-width: 460px; }
+    .music-now {
+      font-size: 11px;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: var(--dim);
+      text-align: center;
+      margin-bottom: 4px;
+    }
+    .music-title-cur {
+      font-family: 'Josefin Sans', 'IBM Plex Sans Thai', sans-serif;
+      font-weight: 400;
+      font-size: 22px;
+      letter-spacing: 0.02em;
+      text-align: center;
+      color: var(--fg);
+      margin-bottom: 4px;
+      min-height: 30px;
+    }
+    .music-title-alt {
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      text-align: center;
+      color: var(--dim);
+      margin-bottom: 18px;
+      min-height: 14px;
+    }
+    .music-progress {
+      position: relative;
+      height: 2px;
+      background: rgba(245, 245, 240, 0.18);
+      cursor: pointer;
+      margin: 4px 0 6px;
+    }
+    body[data-theme="light"] .music-progress { background: rgba(26, 26, 26, 0.18); }
+    .music-progress-bar {
+      position: absolute; top: 0; left: 0;
+      height: 100%;
+      width: 0%;
+      background: var(--amber);
+      transition: width 0.18s linear;
+    }
+    .music-time {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      letter-spacing: 0.16em;
+      color: var(--dim);
+      margin-bottom: 18px;
+      font-variant-numeric: tabular-nums;
+    }
+    .music-controls {
+      display: flex;
+      gap: 1px;
+      justify-content: center;
+      background: var(--line);
+      margin-bottom: 22px;
+    }
+    .music-controls button {
+      flex: 0 0 auto;
+      min-width: 56px;
+      min-height: 48px;
+      background: var(--bg);
+      border: none;
+      color: var(--fg);
+      cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      letter-spacing: 0.1em;
+      transition: color 0.15s, background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .music-controls button:hover { color: var(--amber); }
+    .music-controls .play { min-width: 80px; font-size: 16px; }
+    .music-controls .play.playing { color: var(--amber); }
+    .music-tracks {
+      max-height: 38vh;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      border-top: 1px solid var(--line);
+    }
+    .music-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      min-height: 48px;
+      padding: 10px 6px;
+      background: transparent;
+      border: 0;
+      border-bottom: 1px solid rgba(245, 245, 240, 0.08);
+      color: var(--fg);
+      cursor: pointer;
+      font-family: 'JetBrains Mono', 'IBM Plex Sans Thai', monospace;
+      font-size: 12px;
+      font-weight: 300;
+      text-align: left;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body[data-theme="light"] .music-row { border-bottom-color: rgba(26, 26, 26, 0.10); }
+    .music-row:hover, .music-row.active { color: var(--amber); }
+    .music-row .num {
+      flex: none; width: 28px;
+      font-size: 10px; letter-spacing: 0.18em; color: var(--dim);
+      font-variant-numeric: tabular-nums;
+    }
+    .music-row .name { flex: 1; }
+    .music-row .alt {
+      flex: none;
+      font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--dim);
+    }
+    .music-row.active .num { color: var(--amber); }
+    .music-row.playing .num::before { content: '▶ '; }
+
     /* ── Pomodoro full-screen mode ── */
     .pomodoro {
       position: fixed; inset: 0;
@@ -775,6 +892,10 @@
         contact_role:    'Senior Expert · Smart City Promotion',
         contact_org:     'Digital Economy Promotion Agency',
         password:        'password',
+        music_eyebrow:   'NONSUNO · MUSIC',
+        music_title:     'made on suno.ai',
+        music_now:       'NOW PLAYING',
+        music_count:     '10 tracks · made with suno',
       },
       th: {
         palace:  'ห้องความทรงจำ',
@@ -793,6 +914,10 @@
         contact_role:    'ผู้เชี่ยวชาญอาวุโส · การส่งเสริมเมืองอัจฉริยะ',
         contact_org:     'สำนักงานส่งเสริมเศรษฐกิจดิจิทัล',
         password:        'รหัสผ่าน',
+        music_eyebrow:   'นนซูโน่ · เพลง',
+        music_title:     'แต่งบน suno.ai',
+        music_now:       'กำลังเล่น',
+        music_count:     '10 เพลง · แต่งด้วย suno',
       },
       zh: {
         palace:  '记忆宫殿',
@@ -811,6 +936,10 @@
         contact_role:    '高级专家 · 智慧城市推广',
         contact_org:     '数字经济促进局',
         password:        '密码',
+        music_eyebrow:   '诺·音乐',
+        music_title:     'suno.ai 作品',
+        music_now:       '正在播放',
+        music_count:     '10 首 · suno 作曲',
       },
     };
 
@@ -1085,6 +1214,97 @@
         book.position.set(0.05, -0.7, -0.5 + i * 0.18);
         group.add(book); lines.push(book);
       }
+    }
+
+    // ── Record player (Suno music collection) ────────────────
+    // Wireframe console table + a turntable disc on top + a tonearm.
+    // Click → opens the music player modal with all tracks.
+    const SONGS = [
+      { file: 'music/track-01.mp3', title: 'Texts Across The Line',           alt: '' },
+      { file: 'music/track-02.mp3', title: 'กระจายความรัก',                     alt: 'Spread the Love' },
+      { file: 'music/track-03.mp3', title: 'ของเล่นของคุณผู้หญิง',                 alt: '' },
+      { file: 'music/track-04.mp3', title: 'ของเล่นชั้นล่าง',                     alt: '' },
+      { file: 'music/track-05.mp3', title: 'ของเล่นไฮโซ',                       alt: '' },
+      { file: 'music/track-06.mp3', title: 'คืนเดียวที่สิงคโปร์',                  alt: 'One Night in Singapore' },
+      { file: 'music/track-07.mp3', title: 'ทำไมเราไม่รักให้สุด',                  alt: '' },
+      { file: 'music/track-08.mp3', title: 'หมาคาบไปแดก (alt)',                 alt: '' },
+      { file: 'music/track-09.mp3', title: 'หมาคาบไปแดก',                       alt: '' },
+      { file: 'music/track-10.mp3', title: 'เราไม่รู้เหี้ยอะไรเลย',                alt: '' },
+    ];
+
+    let RECORD_DISC = null;  // exposed for spin animation
+    {
+      // Console table — sits in the front-right area, between the lamp and the front
+      const X = 4.6, Y = 0.78, Z = 4.0;
+      const consoleTop = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(1.4, 0.04, 0.7)), matFurni);
+      consoleTop.position.set(X, Y, Z); scene.add(consoleTop);
+      [[-0.65, -0.30], [0.65, -0.30], [-0.65, 0.30], [0.65, 0.30]].forEach(([dx, dz]) => {
+        const leg = new THREE.LineSegments(
+          new THREE.EdgesGeometry(new THREE.BoxGeometry(0.04, 0.78, 0.04)), matFurni);
+        leg.position.set(X + dx, Y - 0.39, Z + dz);
+        scene.add(leg);
+      });
+
+      // Group for the player itself (clickable)
+      const group = new THREE.Group();
+      group.position.set(X, Y + 0.04, Z);
+
+      // Turntable plinth
+      const plinth = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(1.0, 0.08, 0.6)), matFurni);
+      plinth.position.set(0, 0.04, 0); group.add(plinth);
+
+      // Vinyl disc — wireframe ring (torus thin tube)
+      const discOuter = new THREE.TorusGeometry(0.30, 0.005, 4, 64);
+      const disc = new THREE.LineSegments(new THREE.WireframeGeometry(discOuter), matBright);
+      disc.rotation.x = Math.PI / 2;
+      disc.position.set(0, 0.10, 0);
+      group.add(disc);
+      // Inner spindle ring + label ring
+      const spindle = new THREE.LineSegments(
+        new THREE.WireframeGeometry(new THREE.TorusGeometry(0.06, 0.004, 3, 24)),
+        matBright);
+      spindle.rotation.x = Math.PI / 2; spindle.position.set(0, 0.10, 0);
+      group.add(spindle);
+      const labelRing = new THREE.LineSegments(
+        new THREE.WireframeGeometry(new THREE.TorusGeometry(0.13, 0.003, 3, 32)),
+        matFurni);
+      labelRing.rotation.x = Math.PI / 2; labelRing.position.set(0, 0.10, 0);
+      group.add(labelRing);
+
+      // Tonearm — a small line from upper-right corner of plinth angled across
+      const armPts = [
+        new THREE.Vector3( 0.42, 0.10, -0.22),  // pivot
+        new THREE.Vector3( 0.20, 0.10, -0.05),  // mid
+        new THREE.Vector3( 0.05, 0.10,  0.15),  // tip on disc
+      ];
+      const armGeom = new THREE.BufferGeometry().setFromPoints(armPts);
+      const arm = new THREE.Line(armGeom, matBright);
+      group.add(arm);
+      // Tonearm pivot dot
+      const pivot = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(0.06, 0.05, 0.06)), matFurni);
+      pivot.position.set(0.42, 0.10, -0.22);
+      group.add(pivot);
+
+      // Hit volume — bigger than visible so it's tap-able
+      const hit = new THREE.Mesh(
+        new THREE.BoxGeometry(1.2, 0.45, 0.78),
+        new THREE.MeshBasicMaterial({ visible: false })
+      );
+      hit.position.set(0, 0.15, 0);
+      group.add(hit);
+
+      group.userData = {
+        kind: 'record',
+        lines: [plinth, disc, spindle, labelRing, arm, pivot],
+        hit,
+        baseMaterial: matFurni,
+      };
+      scene.add(group);
+      INTERACTABLES.push(group);
+      RECORD_DISC = disc;
     }
 
     // ── Cubical chandelier (theme toggle) ────────────────────
@@ -1978,6 +2198,8 @@
         openPomodoro();
       } else if (ud.kind === 'chandelier') {
         toggleTheme();
+      } else if (ud.kind === 'record') {
+        openMusicModal();
       }
     }
     window.addEventListener('click', onClick);
@@ -2076,6 +2298,112 @@
         <div class="modal-domain"><a href="${url}" target="_blank" rel="noopener">${url.replace(/^https?:\/\//, '')}</a></div>
       `;
       showModal(eyebrow, title, html);
+    }
+
+    // ────────── Music player ──────────
+    // Single shared <audio>; the modal just rebinds UI to it.
+    const audio = new Audio();
+    audio.preload = 'metadata';
+    let musicIdx = 0;
+    let musicPaintRAF = 0;
+
+    function fmtTime(s) {
+      if (!isFinite(s) || s < 0) s = 0;
+      const m = Math.floor(s / 60), r = Math.floor(s % 60);
+      return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+    }
+
+    function buildMusicHTML() {
+      const cur = SONGS[musicIdx];
+      const rows = SONGS.map((s, i) => `
+        <button class="music-row${i === musicIdx ? ' active' : ''}${i === musicIdx && !audio.paused ? ' playing' : ''}" data-idx="${i}">
+          <span class="num">${String(i + 1).padStart(2, '0')}</span>
+          <span class="name">${s.title}</span>
+          ${s.alt ? `<span class="alt">${s.alt}</span>` : ''}
+        </button>
+      `).join('');
+      return `
+        <div class="music-now">${t('music_now')}</div>
+        <div class="music-title-cur" id="music-title-cur">${cur.title}</div>
+        <div class="music-title-alt" id="music-title-alt">${cur.alt || '·'}</div>
+        <div class="music-progress" id="music-progress" role="slider" aria-label="seek">
+          <div class="music-progress-bar" id="music-bar"></div>
+        </div>
+        <div class="music-time">
+          <span id="music-elapsed">00:00</span>
+          <span id="music-duration">00:00</span>
+        </div>
+        <div class="music-controls">
+          <button id="music-prev" aria-label="previous">⏮</button>
+          <button id="music-play" class="play${!audio.paused ? ' playing' : ''}" aria-label="play / pause">${audio.paused ? '▶' : '⏸'}</button>
+          <button id="music-next" aria-label="next">⏭</button>
+        </div>
+        <div class="music-tracks" id="music-tracks">${rows}</div>
+      `;
+    }
+
+    function paintMusicUI() {
+      if (!modal.classList.contains('in')) { cancelAnimationFrame(musicPaintRAF); musicPaintRAF = 0; return; }
+      const bar = document.getElementById('music-bar');
+      const el  = document.getElementById('music-elapsed');
+      const du  = document.getElementById('music-duration');
+      if (bar && audio.duration) bar.style.width = ((audio.currentTime / audio.duration) * 100).toFixed(2) + '%';
+      if (el) el.textContent = fmtTime(audio.currentTime);
+      if (du) du.textContent = fmtTime(audio.duration);
+      musicPaintRAF = requestAnimationFrame(paintMusicUI);
+    }
+
+    function refreshMusicHeader() {
+      const cur = SONGS[musicIdx];
+      const tEl = document.getElementById('music-title-cur');
+      const aEl = document.getElementById('music-title-alt');
+      const pl  = document.getElementById('music-play');
+      if (tEl) tEl.textContent = cur.title;
+      if (aEl) aEl.textContent = cur.alt || '·';
+      if (pl) {
+        pl.textContent = audio.paused ? '▶' : '⏸';
+        pl.classList.toggle('playing', !audio.paused);
+      }
+      // active/playing row state
+      document.querySelectorAll('#music-tracks .music-row').forEach((r, i) => {
+        r.classList.toggle('active', i === musicIdx);
+        r.classList.toggle('playing', i === musicIdx && !audio.paused);
+      });
+    }
+
+    function loadTrack(idx, autoplay = true) {
+      musicIdx = (idx + SONGS.length) % SONGS.length;
+      audio.src = SONGS[musicIdx].file;
+      if (autoplay) audio.play().catch(() => {});
+      refreshMusicHeader();
+    }
+
+    audio.addEventListener('ended', () => loadTrack(musicIdx + 1, true));
+    audio.addEventListener('play',  refreshMusicHeader);
+    audio.addEventListener('pause', refreshMusicHeader);
+
+    function openMusicModal() {
+      // Lazy-load the first track on first open without auto-playing
+      if (!audio.src) audio.src = SONGS[musicIdx].file;
+      showModal(t('music_eyebrow'), t('music_title'), buildMusicHTML(), 'music');
+
+      // Wire controls
+      document.getElementById('music-play').addEventListener('click', () => {
+        if (audio.paused) audio.play().catch(() => {}); else audio.pause();
+      });
+      document.getElementById('music-prev').addEventListener('click', () => loadTrack(musicIdx - 1, true));
+      document.getElementById('music-next').addEventListener('click', () => loadTrack(musicIdx + 1, true));
+      document.getElementById('music-progress').addEventListener('click', (e) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        const pct = (e.clientX - r.left) / r.width;
+        if (audio.duration) audio.currentTime = pct * audio.duration;
+      });
+      document.querySelectorAll('#music-tracks .music-row').forEach(row => {
+        row.addEventListener('click', () => loadTrack(parseInt(row.dataset.idx, 10), true));
+      });
+
+      cancelAnimationFrame(musicPaintRAF);
+      musicPaintRAF = requestAnimationFrame(paintMusicUI);
     }
 
     function openCityModal(city) {
@@ -2391,6 +2719,9 @@
         <button class="drawer-item" data-kind="pomodoro">
           <span class="code">▷</span><span class="title">Pomodoro · 25 / 5</span>
         </button>
+        <button class="drawer-item" data-kind="record">
+          <span class="code">◯</span><span class="title">Music · ${SONGS.length} suno tracks</span>
+        </button>
         <button class="drawer-item" data-kind="furniture" data-key="cup">
           <span class="code">☕</span><span class="title">· · ·</span>
         </button>
@@ -2418,6 +2749,8 @@
               if (c) openCityModal(c);
             } else if (kind === 'pomodoro') {
               openPomodoro();
+            } else if (kind === 'record') {
+              openMusicModal();
             }
           }, 180);
         });
@@ -2503,6 +2836,8 @@
 
       // Chandelier — slow Y rotation; click to toggle theme
       if (CHAND_GROUP) CHAND_GROUP.rotation.y += 0.0035;
+      // Vinyl disc — spins only while music is playing (33⅓ rpm in spirit)
+      if (RECORD_DISC && !audio.paused) RECORD_DISC.rotation.z -= 0.04;
       // Pomodoro button plane fades in alongside everything else
       if (window.__pomoBtnPlane) window.__pomoBtnPlane.material.opacity = ease * 0.7;
       // Switch panel label plate fades in alongside everything else
@@ -2559,6 +2894,9 @@
           } else if (ud.kind === 'chandelier') {
             ud.lines.forEach(l => l.material = matHover);
             tip.innerHTML = `${CURRENT_THEME === 'dark' ? '☼' : '☾'}  CHANDELIER<span class="url">tap to switch theme · ${CURRENT_THEME === 'dark' ? 'dark' : 'light'}</span>`;
+          } else if (ud.kind === 'record') {
+            ud.lines.forEach(l => l.material = matHover);
+            tip.innerHTML = `◯ MUSIC<span class="url">${t('music_count')}</span>`;
           }
           tip.classList.add('in');
           document.body.style.cursor = 'pointer';
