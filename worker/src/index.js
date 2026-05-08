@@ -1,0 +1,130 @@
+// nonarkara-status — Cloudflare Worker
+// Cron pings every nonarkara.org subdomain every 5 minutes, stores the
+// snapshot in KV. The /status endpoint returns the latest snapshot.
+//
+// Bindings (set in wrangler.toml):
+//   STATUS — KV namespace
+//
+// Endpoints:
+//   GET  /              — status JSON (CORS open)
+//   GET  /status        — same as /
+//   GET  /now           — server time (ISO + Bangkok local) for sanity-checking
+
+const DOMAINS = [
+  "nonarkara.org",
+  "axiom.nonarkara.org",
+  "slic.nonarkara.org",
+  "sciti.nonarkara.org",
+  "tkc.nonarkara.org",
+  "tkc-digital-twin.fly.dev",
+  "monitor.nonarkara.org",
+  "conflict.nonarkara.org",
+  "mem.nonarkara.org",
+  "geo.nonarkara.org",
+  "cdp.nonarkara.org",
+  "phuket.nonarkara.org",
+  "bus.nonarkara.org",
+  "kuching.nonarkara.org",
+  "solomon.nonarkara.org",
+  "ascn.nonarkara.org",
+  "asean.nonarkara.org",
+  "scl.nonarkara.org",
+  "solitude.nonarkara.org",
+  "oil.nonarkara.org",
+  "bot.nonarkara.org",
+  "brain.nonarkara.org",
+];
+
+const STATUS_KEY = "snapshot:v1";
+
+async function probe(d) {
+  const start = Date.now();
+  try {
+    const r = await fetch(`https://${d}`, {
+      method: "GET",
+      redirect: "follow",
+      cf: { cacheTtl: 0, cacheEverything: false },
+      // Worker can wait, but cap us so a single bad host doesn't stall the run
+      signal: AbortSignal.timeout(10_000),
+    });
+    return { code: r.status, ms: Date.now() - start };
+  } catch (_) {
+    return { code: 0, ms: Date.now() - start };
+  }
+}
+
+async function snapshot() {
+  const ts = new Date().toISOString();
+  const sites = {};
+  // Pings in parallel — we have ~22 hosts, that's fine for a single Worker invocation
+  const results = await Promise.all(
+    DOMAINS.map(async (d) => [d, await probe(d)])
+  );
+  for (const [d, v] of results) sites[d] = v;
+  return { ts, sites };
+}
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Cache-Control": "public, max-age=30",
+};
+
+export default {
+  // ── Scheduled handler (cron */5) ────────────────────────────
+  async scheduled(_event, env, ctx) {
+    const data = await snapshot();
+    ctx.waitUntil(
+      env.STATUS.put(STATUS_KEY, JSON.stringify(data), {
+        // KV TTL — the next cron will overwrite anyway, but keep around 30 min
+        // in case the cron mis-fires.
+        expirationTtl: 60 * 30,
+      })
+    );
+  },
+
+  // ── HTTP handler ───────────────────────────────────────────
+  async fetch(req, env) {
+    const url = new URL(req.url);
+
+    if (req.method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders });
+    }
+
+    if (url.pathname === "/now") {
+      const now = new Date();
+      const bkk = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Bangkok",
+        hour12: false,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      }).format(now);
+      return new Response(
+        JSON.stringify({ utc: now.toISOString(), bangkok: bkk }, null, 2),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (url.pathname === "/" || url.pathname === "/status" || url.pathname === "/status.json") {
+      let data = await env.STATUS.get(STATUS_KEY, "json");
+      // If KV is empty (first deploy, before cron has run), do an inline probe
+      if (!data) {
+        data = await snapshot();
+        // Don't await — let the response go out, populate KV in the background
+        env.STATUS.put(STATUS_KEY, JSON.stringify(data), { expirationTtl: 60 * 30 }).catch(() => {});
+      }
+      return new Response(JSON.stringify(data, null, 2), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response("nonarkara-status · /status · /now", {
+      headers: { ...corsHeaders, "Content-Type": "text/plain" },
+    });
+  },
+};

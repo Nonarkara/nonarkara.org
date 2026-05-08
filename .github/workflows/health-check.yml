@@ -55,9 +55,16 @@ jobs:
             echo "|---|---|---|---|"
           } > .health/latest.md
 
+          # Start JSON (also written for the live status dots on nonarkara.org)
+          {
+            echo "{"
+            echo "  \"ts\": \"$ts\","
+            echo "  \"sites\": {"
+          } > .health/latest.json
+          first_json=1
+
           failed=()
           for d in "${DOMAINS[@]}"; do
-            # Two attempts; pick the better
             best_code=000
             best_ms=99999
             for try in 1 2; do
@@ -79,7 +86,18 @@ jobs:
               failed+=("$d ($best_code)")
             fi
             echo "| $d | $best_code | $best_ms | $status |" >> .health/latest.md
+
+            # JSON entry
+            [ $first_json -eq 0 ] && echo "," >> .health/latest.json
+            first_json=0
+            printf "    \"%s\": { \"code\": %d, \"ms\": %d }" "$d" "$best_code" "$best_ms" >> .health/latest.json
           done
+
+          {
+            echo ""
+            echo "  }"
+            echo "}"
+          } >> .health/latest.json
 
           # Append history
           {
