@@ -296,11 +296,12 @@
   <script type="module">
     import * as THREE from 'three';
 
-    // ── Project metadata (TV grid: 4 cols × 3 rows = 12) ─────
+    // ── Project metadata (TV grid: 5 cols × 3 rows = 15) ─────
     const PROJECTS = [
       { code: 'AXIOM',    title: 'Axiom Consultancy',           url: 'https://axiom.nonarkara.org',    img: 'screenshots/axiom.jpg' },
       { code: 'SLIC',     title: 'SLIC Index v3',               url: 'https://slic.nonarkara.org',     img: 'screenshots/slic.jpg' },
       { code: 'SCITI',    title: 'Smart City Thailand Index',   url: 'https://sciti.nonarkara.org',    img: 'screenshots/sciti.jpg' },
+      { code: 'TKC',      title: 'TKC Digital Twin',            url: 'https://tkc.nonarkara.org',      img: 'screenshots/tkc.jpg' },
       { code: 'TOMASITY', title: 'Muang Thong Thani',           url: 'https://monitor.nonarkara.org',  img: 'screenshots/monitor.jpg' },
       { code: 'CONFLICT', title: 'Global Political Monitor',    url: 'https://conflict.nonarkara.org', img: 'screenshots/conflict.jpg' },
       { code: 'MEM',      title: 'Middle Eastern Monitor',      url: 'https://mem.nonarkara.org',      img: 'screenshots/mem.jpg' },
@@ -308,6 +309,8 @@
       { code: 'CDP v2',   title: 'CD Data Platform',            url: 'https://cdp.nonarkara.org',      img: 'screenshots/cdp.jpg' },
       { code: 'PHUKET',   title: 'Phuket Dashboard',            url: 'https://phuket.nonarkara.org',   img: 'screenshots/phuket.jpg' },
       { code: 'BUS',      title: 'Phuket Smart Bus',            url: 'https://bus.nonarkara.org',      img: 'screenshots/bus.jpg' },
+      { code: 'KUCHING',  title: 'Greater Kuching IOC',         url: 'https://kuching.nonarkara.org',  img: 'screenshots/kuching.jpg' },
+      { code: 'SOLOMON',  title: 'Solomon Islands · UN DESA',   url: 'https://solomon.nonarkara.org',  img: 'screenshots/solomon.jpg' },
       { code: 'NOVELS',   title: 'Substack · Novels',           url: 'https://substack.com/@nonarkara', img: 'screenshots/substack.jpg' },
       { code: 'ESSAYS',   title: 'Medium · Essays',             url: 'https://nonsmartcity.medium.com/', img: 'screenshots/medium.jpg' },
     ];
@@ -515,10 +518,10 @@
       scene.add(wire);
     }
 
-    // ── TVs at far wall (4 × 3 grid = 12) ────────────────────
-    const TV_W = 1.5, TV_H = 0.94;
-    const GAP_X = 0.3, GAP_Y = 0.4;
-    const COLS = 4;
+    // ── TVs at far wall (5 × 3 grid = 15) ────────────────────
+    const TV_W = 1.32, TV_H = 0.83;
+    const GAP_X = 0.22, GAP_Y = 0.32;
+    const COLS = 5;
     const tvLoader = new THREE.TextureLoader();
 
     PROJECTS.forEach((p, i) => {
