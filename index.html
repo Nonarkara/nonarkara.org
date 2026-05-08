@@ -34,15 +34,20 @@
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
       });
-      // When a new SW takes over (after a deploy), force one reload so the
-      // page picks up fresh HTML + JS instead of running stale cached
-      // markup against new logic.
-      let __refreshing = false;
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (__refreshing) return;
-        __refreshing = true;
-        location.reload();
-      });
+      // When a NEW SW takes over after a deploy, force one reload so HTML
+      // and JS are always from the same version. Critical guard: only
+      // listen if a controller already exists. On the very first visit
+      // the page is uncontrolled, gets controlled, fires controllerchange,
+      // and reloading there → fires it again → infinite loop, frozen tab,
+      // black screen. (We hit exactly that on phones.)
+      if (navigator.serviceWorker.controller) {
+        let __refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (__refreshing) return;
+          __refreshing = true;
+          location.reload();
+        });
+      }
     }
   </script>
 

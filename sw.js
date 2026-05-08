@@ -18,7 +18,7 @@
  * the old cache is dropped on activate.
  */
 
-const CACHE_VERSION = 'non-2026-05-09-03';
+const CACHE_VERSION = 'non-2026-05-09-04';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 // Same-origin shell files — must all 200 from Pages.
