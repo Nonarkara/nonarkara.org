@@ -390,8 +390,6 @@
       { code: 'SCITI',    title: 'Smart City Thailand Index',         url: 'https://sciti.nonarkara.org',                       img: 'screenshots/sciti.jpg',     dom: 'sciti.nonarkara.org' },
       { code: 'TOMASITY', title: 'Muang Thong Thani',                 url: 'https://monitor.nonarkara.org',                     img: 'screenshots/monitor.jpg',   dom: 'monitor.nonarkara.org' },
       { code: 'CDP v2',   title: 'CD Data Platform',                  url: 'https://cdp.nonarkara.org',                         img: 'screenshots/cdp.jpg',       dom: 'cdp.nonarkara.org' },
-      { code: 'TKC',      title: 'TKC Digital Twin · Showcase',       url: 'https://tkc.nonarkara.org',                         img: 'screenshots/tkc.jpg',       dom: 'tkc.nonarkara.org', locked: true },
-      { code: 'TKC OPS',  title: 'TKC · Command Center',              url: 'https://tkc-digital-twin.fly.dev/command-center',   img: 'screenshots/tkc-cc.jpg',    dom: 'tkc-digital-twin.fly.dev', locked: true },
       { code: 'CONFLICT', title: 'Global Political Monitor',          url: 'https://conflict.nonarkara.org',                    img: 'screenshots/conflict.jpg',  dom: 'conflict.nonarkara.org' },
       { code: 'MEM',      title: 'Middle Eastern Monitor',            url: 'https://mem.nonarkara.org',                         img: 'screenshots/mem.jpg',       dom: 'mem.nonarkara.org' },
       { code: 'GEO',      title: 'Thailand Geopolitical Watch',       url: 'https://geo.nonarkara.org',                         img: 'screenshots/geo.jpg',       dom: 'geo.nonarkara.org' },
@@ -606,6 +604,58 @@
       const wire = new THREE.LineSegments(new THREE.WireframeGeometry(cone), matFurni);
       wire.position.set(x0, 2.55, z0);
       scene.add(wire);
+    }
+
+    // ── Light switch panel (right wall, near lamp) ───────────
+    // Two switches; each one routes to a private TKC URL.
+    // Positioned on the right wall at ~eye level, just behind the lamp.
+    const TKC_LINKS = [
+      { sw: 'tkc',  label: 'TKC',  url: 'https://tkc.nonarkara.org' },
+      { sw: 'tkcx', label: 'TKCX', url: 'https://tkcx.nonarkara.org' },
+    ];
+    {
+      const PANEL_X = 9.4, PANEL_Y = 1.6, PANEL_Z = 1.4;
+      // Backplate (cosmetic)
+      const plate = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(0.04, 0.55, 0.36)), matFurni);
+      plate.position.set(PANEL_X, PANEL_Y, PANEL_Z);
+      scene.add(plate);
+
+      TKC_LINKS.forEach((link, i) => {
+        // Each switch is a clickable mini-toggle
+        const sy = PANEL_Y + (i === 0 ? 0.10 : -0.10); // top + bottom
+        const group = new THREE.Group();
+        group.position.set(PANEL_X - 0.04, sy, PANEL_Z);
+        const lines = [];
+
+        // Switch toggle box (sticks out from the wall)
+        const tog = new THREE.LineSegments(
+          new THREE.EdgesGeometry(new THREE.BoxGeometry(0.06, 0.06, 0.10)), matFurni);
+        group.add(tog); lines.push(tog);
+
+        // A tiny dot beside the switch
+        const dotG = new THREE.SphereGeometry(0.012, 8, 6);
+        const dot = new THREE.LineSegments(new THREE.WireframeGeometry(dotG), matFurni);
+        dot.position.z = -0.10;
+        group.add(dot); lines.push(dot);
+
+        // Hit volume — bigger than visible toggle so it's actually clickable
+        const hit = new THREE.Mesh(
+          new THREE.BoxGeometry(0.20, 0.20, 0.30),
+          new THREE.MeshBasicMaterial({ visible: false })
+        );
+        group.add(hit);
+
+        group.userData = {
+          kind: 'switch',
+          link,
+          lines,
+          hit,
+          baseMaterial: matFurni,
+        };
+        scene.add(group);
+        INTERACTABLES.push(group);
+      });
     }
 
     // ════════════════════════════════════════════════════════
@@ -884,6 +934,8 @@
         openFurnitureModal(ud.key);
       } else if (ud.kind === 'city') {
         openCityModal(ud.city);
+      } else if (ud.kind === 'switch') {
+        if (ud.link?.url) window.open(ud.link.url, '_blank', 'noopener');
       }
     }
     window.addEventListener('click', onClick);
@@ -1048,6 +1100,9 @@
           } else if (ud.kind === 'city') {
             ud.lines.forEach(l => l.material = matHover);
             tip.innerHTML = `${ud.city.name.toUpperCase()}<span class="url">${ud.city.tz}</span>`;
+          } else if (ud.kind === 'switch') {
+            ud.lines.forEach(l => l.material = matHover);
+            tip.innerHTML = `${ud.link.label}<span class="url">🔒 ${t('password')}: 696969</span>`;
           }
           tip.classList.add('in');
           document.body.style.cursor = 'pointer';
