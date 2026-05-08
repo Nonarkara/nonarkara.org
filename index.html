@@ -439,6 +439,59 @@
       50% { opacity: 0.65; }
     }
 
+    /* ── Drifting whispers — random philosophy fragments rise + fade ── */
+    .whisper {
+      position: fixed;
+      pointer-events: none;
+      z-index: 8;
+      font-family: 'JetBrains Mono', 'IBM Plex Sans Thai', 'Noto Sans SC', monospace;
+      font-size: 10px;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: rgba(245, 245, 240, 0.45);
+      white-space: nowrap;
+      opacity: 0;
+      transform: translateY(0);
+      transition: opacity 3s ease, transform 14s linear;
+      will-change: transform, opacity;
+    }
+    .whisper.in    { opacity: 0.55; }
+    .whisper.drift { transform: translateY(-22vh); }
+    .whisper.out   { opacity: 0; }
+
+    /* ── Konami-code haiku reveal ── */
+    .konami {
+      position: fixed; inset: 0;
+      z-index: 250;
+      pointer-events: none;
+      display: grid; place-items: center;
+      background: rgba(0, 0, 0, 0);
+      transition: background 0.7s ease;
+    }
+    .konami.in { background: rgba(0, 0, 0, 0.92); }
+    .haiku {
+      font-family: 'IBM Plex Sans Thai', 'Noto Sans SC', 'JetBrains Mono', monospace;
+      font-weight: 300;
+      font-size: clamp(24px, 4.4vw, 52px);
+      line-height: 1.6;
+      letter-spacing: 0.04em;
+      text-align: center;
+      color: var(--white);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 1.2s ease 0.3s, transform 1.2s ease 0.3s;
+      max-width: 90vw;
+    }
+    .konami.in .haiku { opacity: 1; transform: translateY(0); }
+    .haiku-source {
+      display: block;
+      margin-top: 28px;
+      font-size: 11px;
+      letter-spacing: 0.45em;
+      text-transform: uppercase;
+      color: var(--dim);
+    }
+
     @media (max-width: 600px) {
       .brand { font-size: 16px; top: 20px; left: 20px; }
       .caption { font-size: 8px; top: 44px; left: 20px; }
@@ -487,6 +540,11 @@
       <div class="modal-title" id="modal-title"></div>
       <div id="modal-body"></div>
     </div>
+  </div>
+
+  <!-- ── Konami code haiku overlay ── -->
+  <div class="konami" id="konami" aria-hidden="true">
+    <div class="haiku" id="haiku"></div>
   </div>
 
   <!-- ── Pomodoro full-screen mode ── -->
@@ -1672,6 +1730,101 @@
       // Visual feedback: briefly flash the label.
       holdLabel().classList.add('in');
       setTimeout(() => holdLabel().classList.remove('in'), 1500);
+    });
+
+    // ════════════════════════════════════════════════════════
+    // Surprise — drifting whispers
+    // Random philosophy fragments rise and fade. Trilingual mix.
+    // ════════════════════════════════════════════════════════
+    const WHISPERS = [
+      'the wheel hasn’t arrived yet',
+      'subtract before adding',
+      'questions over answers',
+      'the lens matters more than the frame',
+      'live to the end',
+      'the fun is in the flow',
+      'help others first',
+      'reality may be a simulation',
+      'wabi-sabi · kodawari',
+      'good coffee · good question',
+      'ผม',
+      'สบายๆ',
+      'อยู่กับปัจจุบัน',
+      '安静地工作',
+      '记忆宫殿',
+      '中道',
+      'twenty years · still asking why',
+      'every photo unique',
+      'every number sourced',
+      'mundane · then philosophy',
+      'ikigai',
+      '· · ·',
+    ];
+
+    function spawnWhisper() {
+      // Don't spawn while a modal/Pomodoro is open
+      if (document.getElementById('modal').classList.contains('in')) return;
+      if (document.getElementById('pomodoro').classList.contains('in')) return;
+      if (document.getElementById('konami').classList.contains('in')) return;
+
+      const text = WHISPERS[Math.floor(Math.random() * WHISPERS.length)];
+      const el = document.createElement('div');
+      el.className = 'whisper';
+      el.textContent = text;
+      // Place between 8% and 78% from left, starting near the bottom 20%
+      el.style.left = (8 + Math.random() * 70) + '%';
+      el.style.bottom = '14%';
+      document.body.appendChild(el);
+
+      // Sequence: fade in → drift up → fade out → remove
+      requestAnimationFrame(() => {
+        el.classList.add('in');
+        // Start drifting on next frame so the transitions register
+        requestAnimationFrame(() => el.classList.add('drift'));
+      });
+      setTimeout(() => el.classList.add('out'), 9500);
+      setTimeout(() => el.remove(), 13500);
+    }
+    // First whisper a bit early; then every ~80–100s with jitter
+    setTimeout(spawnWhisper, 25_000);
+    setInterval(() => {
+      if (Math.random() < 0.85) spawnWhisper();
+    }, 60_000 + Math.random() * 40_000);
+
+    // ════════════════════════════════════════════════════════
+    // Surprise — Konami code → haiku reveal
+    // ↑↑↓↓←→←→ B A
+    // ════════════════════════════════════════════════════════
+    const HAIKUS = [
+      { lines: ['twenty years', 'one city after another', 'still asking why'], tag: 'EN · 5–7–5' },
+      { lines: ['ผม ทำงาน', 'กับเมือง  กับข้อมูล', 'อย่างเงียบ ๆ'],          tag: 'TH · ผม' },
+      { lines: ['subtract first', 'before you add anything', 'it always works'], tag: 'EN · 4–6–4' },
+      { lines: ['the wheel', 'has not arrived yet', 'sit with it'],             tag: 'EN · stoic' },
+      { lines: ['城市  数据', '安静地  思考', '二十年'],                         tag: 'ZH · 三行' },
+      { lines: ['good coffee', 'good question', 'good morning'],                tag: 'EN · ritual' },
+      { lines: ['records of a life', 'made in three languages', 'and good coffee'], tag: 'EN · self' },
+    ];
+    const KONAMI_SEQ = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+    let konamiBuf = [];
+    function showHaiku() {
+      const k = HAIKUS[Math.floor(Math.random() * HAIKUS.length)];
+      const html = k.lines.map((l) => `<div>${l}</div>`).join('') +
+        `<span class="haiku-source">— ${k.tag}</span>`;
+      const overlay = document.getElementById('konami');
+      const stage = document.getElementById('haiku');
+      stage.innerHTML = html;
+      overlay.classList.add('in');
+      setTimeout(() => overlay.classList.remove('in'), 6500);
+    }
+    window.addEventListener('keydown', (e) => {
+      // Allow B and A in any case, ignore modifiers
+      const k = (e.key || '').length === 1 ? e.key.toLowerCase() : e.key;
+      konamiBuf.push(k);
+      if (konamiBuf.length > KONAMI_SEQ.length) konamiBuf = konamiBuf.slice(-KONAMI_SEQ.length);
+      if (konamiBuf.length === KONAMI_SEQ.length && konamiBuf.every((v, i) => v === KONAMI_SEQ[i])) {
+        konamiBuf = [];
+        showHaiku();
+      }
     });
 
     // ════════════════════════════════════════════════════════
