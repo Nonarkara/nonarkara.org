@@ -50,7 +50,8 @@
     body[data-lang="th"] { font-family: 'IBM Plex Sans Thai', 'JetBrains Mono', monospace; }
     body[data-lang="zh"] { font-family: 'Noto Sans SC', 'JetBrains Mono', monospace; }
 
-    canvas { display: block; }
+    canvas { display: block; touch-action: none; }
+    #canvas-root { touch-action: none; }
 
     /* ── Overlay UI ── */
     .overlay { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
@@ -466,6 +467,145 @@
     .whisper.drift { transform: translateY(-22vh); }
     .whisper.out   { opacity: 0; }
 
+    /* ── Floating menu button (mobile-first nav) ── */
+    .menu-btn {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      width: 52px;
+      height: 52px;
+      background: rgba(0, 0, 0, 0.85);
+      border: 1px solid rgba(245, 245, 240, 0.55);
+      color: var(--white);
+      cursor: pointer;
+      z-index: 30;
+      display: grid;
+      place-items: center;
+      gap: 5px;
+      grid-template-rows: 2px 2px 2px;
+      padding: 14px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 1.5s ease 1.5s, border-color 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .menu-btn.in { opacity: 0.92; pointer-events: auto; }
+    .menu-btn span {
+      display: block;
+      width: 22px;
+      height: 1.5px;
+      background: currentColor;
+    }
+    .menu-btn:hover { border-color: var(--amber); color: var(--amber); }
+
+    /* ── Drawer (slides up from bottom, fits portrait) ── */
+    .drawer {
+      position: fixed;
+      inset: 0;
+      z-index: 150;
+      display: none;
+    }
+    .drawer.in { display: block; }
+    .drawer-bg {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.86);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+      animation: fadeBg 0.3s ease;
+    }
+    .drawer-panel {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      max-height: 92vh;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      background: var(--black);
+      border-top: 1px solid rgba(245, 245, 240, 0.4);
+      padding: 18px 0 24px;
+      animation: drawerUp 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    @keyframes drawerUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to   { transform: translateY(0); opacity: 1; }
+    }
+    .drawer-handle {
+      width: 36px;
+      height: 3px;
+      background: rgba(245, 245, 240, 0.35);
+      margin: 0 auto 14px;
+    }
+    .drawer-close {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 44px;
+      height: 44px;
+      background: transparent;
+      color: var(--white);
+      border: 1px solid rgba(245, 245, 240, 0.55);
+      cursor: pointer;
+      font-size: 18px;
+      font-family: 'JetBrains Mono', monospace;
+      display: grid;
+      place-items: center;
+      transition: border-color 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .drawer-close:hover { border-color: var(--amber); color: var(--amber); }
+
+    .drawer-label {
+      font-size: 9px;
+      letter-spacing: 0.45em;
+      text-transform: uppercase;
+      color: var(--amber);
+      padding: 18px 24px 8px;
+    }
+    .drawer-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+      min-height: 52px;
+      padding: 12px 24px;
+      background: transparent;
+      border: 0;
+      border-top: 1px solid rgba(245, 245, 240, 0.08);
+      color: var(--white);
+      cursor: pointer;
+      font-family: 'JetBrains Mono', 'IBM Plex Sans Thai', 'Noto Sans SC', monospace;
+      font-size: 13px;
+      font-weight: 300;
+      letter-spacing: 0.06em;
+      text-align: left;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.12s, color 0.12s;
+    }
+    .drawer-item:hover, .drawer-item:active {
+      background: rgba(245, 158, 11, 0.06);
+      color: var(--amber);
+    }
+    .drawer-item .code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.32em;
+      color: var(--amber);
+      width: 88px;
+      text-transform: uppercase;
+      flex: none;
+    }
+    .drawer-item .title {
+      flex: 1;
+      color: rgba(245, 245, 240, 0.85);
+    }
+    .drawer-item .lock {
+      font-size: 11px;
+      color: var(--amber);
+      margin-left: auto;
+    }
+
     /* ── Konami-code haiku reveal ── */
     .konami {
       position: fixed; inset: 0;
@@ -502,13 +642,21 @@
     @media (max-width: 600px) {
       .brand { font-size: 16px; top: 20px; left: 20px; }
       .caption { font-size: 8px; top: 44px; left: 20px; }
-      .hint { font-size: 8px; bottom: 20px; left: 20px; letter-spacing: 0.18em; }
-      .meta { right: 20px; bottom: 20px; gap: 14px; font-size: 8px; }
-      .lang { top: 20px; right: 20px; }
-      .modal-card { padding: 48px 24px 32px; }
+      /* On phones, default desktop hint reads as "click any screen…" — change copy + move so it doesn't crowd the menu button */
+      .hint { font-size: 7px; bottom: 84px; left: 20px; letter-spacing: 0.16em; max-width: 60vw; }
+      .meta { right: auto; left: 20px; bottom: 20px; gap: 14px; font-size: 8px; }
+      .lang { top: 20px; right: 20px; gap: 0; }
+      .lang button { padding: 4px 6px; font-size: 10px; }
+      .modal-card { padding: 48px 20px 28px; max-width: calc(100vw - 28px); }
       .modal-qr { width: 220px; height: 220px; }
       .modal-title { font-size: 22px; }
       .city-time { font-size: 40px; }
+      .menu-btn { right: 14px; bottom: 14px; width: 56px; height: 56px; }
+    }
+    /* True portrait on any size (phones, tablets) — slightly bigger touch targets */
+    @media (orientation: portrait) {
+      .modal-visit { padding: 16px 30px; min-height: 48px; font-size: 12px; }
+      .modal-close { width: 48px; height: 48px; }
     }
   </style>
 </head>
@@ -546,6 +694,21 @@
       <div class="modal-eyebrow" id="modal-eyebrow"></div>
       <div class="modal-title" id="modal-title"></div>
       <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- ── Floating menu button (mobile-friendly nav) ── -->
+  <button class="menu-btn" id="menu-btn" aria-label="Open menu">
+    <span></span><span></span><span></span>
+  </button>
+
+  <!-- ── Drawer (slides up from bottom, populated dynamically) ── -->
+  <div class="drawer" id="drawer" aria-hidden="true">
+    <div class="drawer-bg" data-close="1"></div>
+    <div class="drawer-panel" id="drawer-panel">
+      <div class="drawer-handle"></div>
+      <button class="drawer-close" id="drawer-close" aria-label="Close menu">✕</button>
+      <div id="drawer-body"></div>
     </div>
   </div>
 
@@ -731,8 +894,28 @@
     const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 100);
     camera.position.set(0, 1.7, 7.5);
     camera.lookAt(0, 2.6, -10);
-    const baseRotX = camera.rotation.x;
-    const baseRotY = camera.rotation.y;
+    let baseRotX = camera.rotation.x;
+    let baseRotY = camera.rotation.y;
+
+    // Camera framing adapts to portrait phones — pull back, widen FOV,
+    // tilt slightly down so the TV grid centers in the screen.
+    function applyCameraFraming() {
+      const aspect = window.innerWidth / window.innerHeight;
+      camera.aspect = aspect;
+      if (aspect < 0.85) {
+        camera.fov = 70;
+        camera.position.set(0, 1.95, 5.5);
+        camera.lookAt(0, 2.4, -10);
+      } else {
+        camera.fov = 58;
+        camera.position.set(0, 1.7, 7.5);
+        camera.lookAt(0, 2.6, -10);
+      }
+      baseRotX = camera.rotation.x;
+      baseRotY = camera.rotation.y;
+      camera.updateProjectionMatrix();
+    }
+    applyCameraFraming();
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -1636,21 +1819,66 @@
     const target = { x: 0, y: 0 };
     let hovered = null;
 
-    function onPointerMove(e) {
-      const x = (e.touches ? e.touches[0].clientX : e.clientX);
-      const y = (e.touches ? e.touches[0].clientY : e.clientY);
-      mouse.x = (x / window.innerWidth) * 2 - 1;
-      mouse.y = -(y / window.innerHeight) * 2 + 1;
+    // ── Mouse: position-based parallax (subtle, hover camera) ──
+    function onMouseMove(e) {
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
       target.y = -mouse.x * 0.06;
       target.x =  mouse.y * 0.04;
       const tip = document.getElementById('tip');
-      if (hovered) { tip.style.left = x + 'px'; tip.style.top = y + 'px'; }
+      if (hovered) { tip.style.left = e.clientX + 'px'; tip.style.top = e.clientY + 'px'; }
     }
-    window.addEventListener('mousemove', onPointerMove, { passive: true });
-    window.addEventListener('touchmove', onPointerMove, { passive: true });
+    window.addEventListener('mousemove', onMouseMove, { passive: true });
 
-    function onClick() {
+    // ── Touch: drag-to-rotate camera + tap detection
+    // (a "tap" is a touchend with very little drag, handled by onClick)
+    let touchAnchor = null;       // {x, y, targetX, targetY}
+    let touchMoved = false;
+    let touchStartTs = 0;
+    function onTouchStart(e) {
+      if (e.touches.length !== 1) return;
+      const t = e.touches[0];
+      touchAnchor = {
+        x: t.clientX, y: t.clientY,
+        targetX: target.x, targetY: target.y,
+      };
+      touchMoved = false;
+      touchStartTs = Date.now();
+      // Update mouse for any potential immediate raycast
+      mouse.x = (t.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(t.clientY / window.innerHeight) * 2 + 1;
+    }
+    function onTouchMove(e) {
+      if (!touchAnchor || e.touches.length !== 1) return;
+      const t = e.touches[0];
+      const dx = (t.clientX - touchAnchor.x) / window.innerWidth;
+      const dy = (t.clientY - touchAnchor.y) / window.innerHeight;
+      if (Math.abs(dx) > 0.015 || Math.abs(dy) > 0.015) touchMoved = true;
+      // Touch drag rotates further than mouse parallax — feels like swiping the room
+      target.y = touchAnchor.targetY - dx * 0.85;
+      target.x = touchAnchor.targetX + dy * 0.55;
+      // clamp gently so you can't spin around forever
+      target.y = Math.max(-0.7, Math.min(0.7, target.y));
+      target.x = Math.max(-0.45, Math.min(0.45, target.x));
+      // Update mouse for ongoing raycast (so the city/tv they're sliding over highlights)
+      mouse.x = (t.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(t.clientY / window.innerHeight) * 2 + 1;
+    }
+    function onTouchEnd() {
+      touchAnchor = null;
+    }
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
+    window.addEventListener('touchmove',  onTouchMove,  { passive: true });
+    window.addEventListener('touchend',   onTouchEnd,   { passive: true });
+    window.addEventListener('touchcancel',onTouchEnd,   { passive: true });
+
+    function onClick(e) {
+      // If this came from a touchend that involved a drag, treat as rotate-only
+      if (e && e.type === 'touchend' && touchMoved) return;
       if (document.getElementById('modal').classList.contains('in')) return;
+      if (document.getElementById('drawer').classList.contains('in')) return;
+      if (document.getElementById('pomodoro').classList.contains('in')) return;
+      if (document.getElementById('konami').classList.contains('in')) return;
       raycaster.setFromCamera(mouse, camera);
       const hits = raycaster.intersectObjects(INTERACTABLES.map(o => o.userData.hit));
       if (!hits.length) return;
@@ -1678,9 +1906,11 @@
     window.addEventListener('touchend', onClick);
 
     window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
+      applyCameraFraming();
       renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+    window.addEventListener('orientationchange', () => {
+      setTimeout(() => { applyCameraFraming(); renderer.setSize(window.innerWidth, window.innerHeight); }, 100);
     });
 
     // ════════════════════════════════════════════════════════
@@ -1991,6 +2221,105 @@
       setTimeout(() => overlay.classList.remove('in'), 6500);
     }
 
+    // ════════════════════════════════════════════════════════
+    // Drawer — thumb-friendly index of everything clickable
+    // Same destinations as the 3D scene, just listed for fingers.
+    // ════════════════════════════════════════════════════════
+    const drawerEl = document.getElementById('drawer');
+    const drawerBody = document.getElementById('drawer-body');
+    const menuBtnEl = document.getElementById('menu-btn');
+
+    function buildDrawer() {
+      const sections = [];
+
+      // Projects
+      const projItems = PROJECTS.map(p => {
+        const lock = p.locked ? '<span class="lock">🔒</span>' : '';
+        return `<button class="drawer-item" data-kind="tv" data-code="${p.code}">
+          <span class="code">${p.code}</span>
+          <span class="title">${p.title}</span>${lock}
+        </button>`;
+      }).join('');
+      sections.push(`<div class="drawer-label">PROJECTS · ${PROJECTS.length}</div>${projItems}`);
+
+      // Private (TKC switches)
+      const tkcItems = TKC_LINKS.map(l => `
+        <button class="drawer-item" data-kind="switch" data-key="${l.sw}">
+          <span class="code">${l.label}</span>
+          <span class="title">${l.label === 'TKC' ? 'TKC Digital Twin' : 'TKC · Command Center'}</span>
+          <span class="lock">🔒</span>
+        </button>`).join('');
+      sections.push(`<div class="drawer-label">PRIVATE · 🔒 696969</div>${tkcItems}`);
+
+      // People (furniture modals)
+      sections.push(`<div class="drawer-label">PEOPLE</div>
+        <button class="drawer-item" data-kind="furniture" data-key="bookshelf">
+          <span class="code">CV</span><span class="title">Curriculum Vitae</span>
+        </button>
+        <button class="drawer-item" data-kind="furniture" data-key="pedestal">
+          <span class="code">LINKEDIN</span><span class="title">Professional Network</span>
+        </button>
+        <button class="drawer-item" data-kind="furniture" data-key="coffee">
+          <span class="code">CONTACT</span><span class="title">Dr Non Arkara · vCard</span>
+        </button>
+      `);
+
+      // Cities (world map)
+      const cityItems = CITIES.map(c => {
+        const home = c.home ? '<span class="lock">●</span>' : '';
+        return `<button class="drawer-item" data-kind="city" data-name="${c.name}">
+          <span class="code">${c.tz.split('/')[1].slice(0, 6).toUpperCase()}</span>
+          <span class="title">${c.name}</span>${home}
+        </button>`;
+      }).join('');
+      sections.push(`<div class="drawer-label">TIME · WORLD</div>${cityItems}`);
+
+      // Tools
+      sections.push(`<div class="drawer-label">TOOLS</div>
+        <button class="drawer-item" data-kind="pomodoro">
+          <span class="code">▷</span><span class="title">Pomodoro · 25 / 5</span>
+        </button>
+        <button class="drawer-item" data-kind="furniture" data-key="cup">
+          <span class="code">☕</span><span class="title">· · ·</span>
+        </button>
+      `);
+
+      drawerBody.innerHTML = sections.join('');
+
+      // Wire item clicks
+      drawerBody.querySelectorAll('.drawer-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const kind = btn.dataset.kind;
+          closeDrawer();
+          // Slight delay so drawer fade-out animation reads cleanly before modal fade-in
+          setTimeout(() => {
+            if (kind === 'tv') {
+              const p = PROJECTS.find(x => x.code === btn.dataset.code);
+              if (p) openUrlModal(p.code, p.title, p.url, p.locked ? { password: '696969' } : {});
+            } else if (kind === 'switch') {
+              const l = TKC_LINKS.find(x => x.sw === btn.dataset.key);
+              if (l) openUrlModal(l.label, l.label === 'TKC' ? 'TKC Digital Twin' : 'TKC Command', l.url, { password: '696969' });
+            } else if (kind === 'furniture') {
+              openFurnitureModal(btn.dataset.key);
+            } else if (kind === 'city') {
+              const c = CITIES.find(x => x.name === btn.dataset.name);
+              if (c) openCityModal(c);
+            } else if (kind === 'pomodoro') {
+              openPomodoro();
+            }
+          }, 180);
+        });
+      });
+    }
+
+    function openDrawer() { buildDrawer(); drawerEl.classList.add('in'); drawerEl.setAttribute('aria-hidden', 'false'); }
+    function closeDrawer() { drawerEl.classList.remove('in'); drawerEl.setAttribute('aria-hidden', 'true'); }
+
+    menuBtnEl.addEventListener('click', openDrawer);
+    document.getElementById('drawer-close').addEventListener('click', closeDrawer);
+    drawerEl.addEventListener('click', (e) => { if (e.target.dataset.close === '1') closeDrawer(); });
+    window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && drawerEl.classList.contains('in')) closeDrawer(); });
+
     // Tap "NON" three times quickly to summon a haiku.
     // Works the same on mouse, keyboard, and thumbs.
     let brandTaps = 0;
@@ -2033,6 +2362,7 @@
       document.querySelector('.hint').classList.add('in');
       document.querySelector('.meta').classList.add('in');
       document.querySelector('.lang').classList.add('in');
+      document.getElementById('menu-btn').classList.add('in');
     }, 200);
 
     function animate() {
