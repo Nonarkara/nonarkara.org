@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NON — nonarkara.org</title>
+  <meta name="description" content="Urbanism · Data · Intelligence. Bangkok · Chiang Mai · everywhere with good coffee.">
+  <meta property="og:title" content="NON — nonarkara.org">
+  <meta property="og:description" content="Urbanism · Data · Intelligence.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://nonarkara.org">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;700&family=Source+Sans+3:wght@300;400&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --black:   #080808;
+      --white:   #F5F5F0;
+      --amber:   #F59E0B;
+      --border:  rgba(245, 245, 240, 0.10);
+      --text-display: 32px;
+      --text-body:    14px;
+      --text-micro:   11px;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background: var(--black);
+      color: var(--white);
+      font-family: 'Source Sans 3', sans-serif;
+      font-size: var(--text-body);
+      font-weight: 300;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ── HERO ──────────────────────────────────────── */
+
+    .hero {
+      min-height: 100svh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 16px 80px;
+      text-align: center;
+      gap: 28px;
+      position: relative;
+    }
+
+    .letters {
+      display: flex;
+      align-items: baseline;
+      gap: clamp(8px, 2.5vw, 40px);
+      font-family: 'Josefin Sans', sans-serif;
+      font-weight: 700;
+      font-size: clamp(88px, 22vw, 300px);
+      line-height: 0.88;
+      letter-spacing: -0.02em;
+      user-select: none;
+    }
+
+    .letter-n {
+      color: var(--white);
+      transition: color 0.2s ease;
+    }
+
+    .letter-o {
+      color: transparent;
+      -webkit-text-stroke: 2px var(--white);
+      transition: -webkit-text-stroke-color 0.2s ease;
+    }
+
+    .letters:hover .letter-n {
+      color: var(--white);
+    }
+
+    .letters:hover .letter-o {
+      -webkit-text-stroke-color: var(--amber);
+    }
+
+    .hero-sub {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .tagline {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: var(--text-body);
+      font-weight: 300;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      opacity: 0.55;
+    }
+
+    .location {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--text-micro);
+      letter-spacing: 0.12em;
+      opacity: 0.28;
+    }
+
+    .scroll-hint {
+      position: absolute;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--text-micro);
+      letter-spacing: 0.28em;
+      opacity: 0.28;
+      white-space: nowrap;
+      animation: breathe 2.4s ease-in-out infinite;
+    }
+
+    @keyframes breathe {
+      0%, 100% { opacity: 0.20; }
+      50%       { opacity: 0.55; }
+    }
+
+    /* ── SECTION WRAPPER ───────────────────────────── */
+
+    .section {
+      max-width: min(1080px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 72px 0;
+    }
+
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--text-micro);
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: var(--amber);
+      margin-bottom: 28px;
+    }
+
+    /* ── OBSERVATORY GRID ──────────────────────────── */
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+    }
+
+    @media (min-width: 600px) {
+      .grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .card {
+      display: block;
+      background: var(--black);
+      padding: 22px 24px 20px;
+      text-decoration: none;
+      color: inherit;
+      transition: background 0.12s ease;
+      min-height: 44px;
+    }
+
+    .card:hover {
+      background: rgba(245, 158, 11, 0.035);
+    }
+
+    .card-code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--text-micro);
+      letter-spacing: 0.18em;
+      color: var(--white);
+      opacity: 0.30;
+      margin-bottom: 5px;
+      transition: opacity 0.12s ease, color 0.12s ease;
+    }
+
+    .card:hover .card-code {
+      color: var(--amber);
+      opacity: 1;
+    }
+
+    .card-name {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: var(--text-display);
+      font-weight: 400;
+      line-height: 1.1;
+      margin-bottom: 6px;
+    }
+
+    .card-desc {
+      font-size: var(--text-body);
+      font-weight: 300;
+      opacity: 0.45;
+      line-height: 1.45;
+    }
+
+    /* ── DIVIDER ───────────────────────────────────── */
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      max-width: min(1080px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    /* ── ABOUT ─────────────────────────────────────── */
+
+    .about-text {
+      font-size: var(--text-body);
+      font-weight: 300;
+      line-height: 1.85;
+      max-width: 560px;
+      opacity: 0.65;
+    }
+
+    /* ── FOOTER ────────────────────────────────────── */
+
+    footer {
+      border-top: 1px solid var(--border);
+    }
+
+    .footer-inner {
+      max-width: min(1080px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 28px;
+      flex-wrap: wrap;
+    }
+
+    footer a {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--text-micro);
+      letter-spacing: 0.08em;
+      color: var(--white);
+      opacity: 0.32;
+      text-decoration: none;
+      transition: opacity 0.15s ease;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    footer a:hover {
+      opacity: 0.85;
+    }
+
+    .footer-copy {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--text-micro);
+      letter-spacing: 0.06em;
+      opacity: 0.18;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── HERO ── -->
+  <section class="hero">
+    <div class="letters" aria-label="NON">
+      <span class="letter-n">N</span>
+      <span class="letter-o">O</span>
+      <span class="letter-n">N</span>
+    </div>
+    <div class="hero-sub">
+      <p class="tagline">urbanism &middot; data &middot; intelligence</p>
+      <p class="location">Bangkok &nbsp;&middot;&nbsp; Chiang Mai &nbsp;&middot;&nbsp; everywhere with good coffee</p>
+    </div>
+    <span class="scroll-hint">&#8595;&nbsp; OBSERVATORY</span>
+  </section>
+
+  <!-- ── OBSERVATORY ── -->
+  <section class="section" id="observatory">
+    <p class="section-label">Observatory</p>
+    <div class="grid">
+
+      <a class="card" href="https://slic.nonarkara.org">
+        <div class="card-code">SLIC</div>
+        <div class="card-name">Smart City Index</div>
+        <div class="card-desc">157 cities. 5 pillars. Who is actually smart.</div>
+      </a>
+
+      <a class="card" href="https://conflict.nonarkara.org">
+        <div class="card-code">CONFLICT</div>
+        <div class="card-name">Global Monitor</div>
+        <div class="card-desc">Live conflict tracking — ACLED, GDELT, FIRMS.</div>
+      </a>
+
+      <a class="card" href="https://geo.nonarkara.org">
+        <div class="card-code">GEO</div>
+        <div class="card-name">ASEAN Geopolitics</div>
+        <div class="card-desc">Command center for Southeast Asia.</div>
+      </a>
+
+      <a class="card" href="https://phuket.nonarkara.org">
+        <div class="card-code">PHUKET</div>
+        <div class="card-name">Phuket Dashboard</div>
+        <div class="card-desc">Real-time city intelligence. Governor demo.</div>
+      </a>
+
+      <a class="card" href="https://sciti.nonarkara.org">
+        <div class="card-code">SCITI</div>
+        <div class="card-name">Thailand Smart City</div>
+        <div class="card-desc">76 provinces. 7 pillars. Red Dot contender.</div>
+      </a>
+
+      <a class="card" href="https://oil.nonarkara.org">
+        <div class="card-code">OIL26</div>
+        <div class="card-name">2026 Oil Crisis</div>
+        <div class="card-desc">Monitoring what nobody wants to see.</div>
+      </a>
+
+      <a class="card" href="https://bus.nonarkara.org">
+        <div class="card-code">BUS</div>
+        <div class="card-name">Phuket Smart Bus</div>
+        <div class="card-desc">Rider prototype. Real routes. Actually useful.</div>
+      </a>
+
+      <a class="card" href="https://monitor.nonarkara.org">
+        <div class="card-code">MONITOR</div>
+        <div class="card-name">Smart City Monitor</div>
+        <div class="card-desc">Thailand's smart city pulse. Live data.</div>
+      </a>
+
+      <a class="card" href="https://kuching.nonarkara.org">
+        <div class="card-code">KUCHING</div>
+        <div class="card-name">Greater Kuching IOC</div>
+        <div class="card-desc">Intelligence Operations Center, Malaysia.</div>
+      </a>
+
+      <a class="card" href="https://axiom.nonarkara.org">
+        <div class="card-code">AXIOM</div>
+        <div class="card-name">Innovation as a Service</div>
+        <div class="card-desc">The consultancy. For cities that mean it.</div>
+      </a>
+
+      <a class="card" href="https://solomon.nonarkara.org">
+        <div class="card-code">SOLOMON</div>
+        <div class="card-name">Solomon Islands</div>
+        <div class="card-desc">UN DESA smart city workshop report.</div>
+      </a>
+
+      <a class="card" href="https://brain.nonarkara.org">
+        <div class="card-code">BRAIN</div>
+        <div class="card-name">Second Brain</div>
+        <div class="card-desc">Personal AI memory. Not open source.</div>
+      </a>
+
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ── ABOUT ── -->
+  <section class="section">
+    <p class="section-label">&#172;&#172;</p>
+    <p class="about-text">
+      I build dashboards that show you what is happening in cities you have never visited
+      and crises you cannot ignore. Architecture by training. Data by necessity.
+      The O in NON is hollow because the lens matters more than the frame.
+    </p>
+  </section>
+
+  <!-- ── FOOTER ── -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-links">
+        <a href="mailto:nonsmartcity@gmail.com">nonsmartcity@gmail.com</a>
+        <a href="https://github.com/nonarkara" target="_blank" rel="noopener noreferrer">github.com/nonarkara</a>
+      </div>
+      <span class="footer-copy">nonarkara.org</span>
+    </div>
+  </footer>
+
+</body>
+</html>
