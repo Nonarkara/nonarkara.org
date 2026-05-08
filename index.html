@@ -14,6 +14,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400&family=Josefin+Sans:wght@300;700&display=swap" rel="stylesheet">
 
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+
   <script type="importmap">
   {
     "imports": {
@@ -146,12 +148,118 @@
     }
     .veil.gone { opacity: 0; }
 
+    /* ── Modal (CV / LinkedIn / Contact) ── */
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .modal.in { display: flex; }
+    .modal-bg {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.94);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+      animation: fadeBg 0.3s ease;
+    }
+    @keyframes fadeBg { from { opacity: 0; } to { opacity: 1; } }
+
+    .modal-card {
+      position: relative;
+      width: 100%;
+      max-width: 480px;
+      border: 1px solid rgba(245, 245, 240, 0.4);
+      background: var(--black);
+      padding: 56px 40px 40px;
+      animation: rise 0.35s ease;
+    }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 32px;
+      height: 32px;
+      background: transparent;
+      border: 1px solid rgba(245, 245, 240, 0.3);
+      color: var(--white);
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      font-family: 'JetBrains Mono', monospace;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .modal-close:hover { border-color: var(--amber); color: var(--amber); }
+
+    .modal-eyebrow {
+      font-size: 10px;
+      letter-spacing: 0.4em;
+      text-transform: uppercase;
+      color: var(--amber);
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    .modal-title {
+      font-family: 'Josefin Sans', sans-serif;
+      font-weight: 700;
+      font-size: 28px;
+      letter-spacing: 0.04em;
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .modal-qr {
+      width: 256px;
+      height: 256px;
+      margin: 0 auto 24px;
+      background: var(--white);
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-qr canvas, .modal-qr img { width: 100%; height: 100%; image-rendering: pixelated; }
+    .modal-cap {
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      text-align: center;
+      color: var(--dim);
+      margin-bottom: 22px;
+    }
+    .modal-meta {
+      font-size: 11px;
+      line-height: 1.85;
+      text-align: center;
+      color: rgba(245, 245, 240, 0.7);
+      letter-spacing: 0.05em;
+    }
+    .modal-meta a {
+      color: inherit;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(245, 245, 240, 0.25);
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .modal-meta a:hover { color: var(--amber); border-color: var(--amber); }
+    .modal-meta .row { display: block; }
+
     /* Mobile constraints */
     @media (max-width: 600px) {
       .brand { font-size: 16px; top: 20px; left: 20px; }
       .caption { font-size: 8px; top: 44px; left: 20px; }
       .hint { font-size: 8px; bottom: 20px; left: 20px; letter-spacing: 0.18em; }
       .meta { right: 20px; bottom: 20px; gap: 14px; font-size: 8px; }
+      .modal-card { padding: 48px 24px 32px; }
+      .modal-qr { width: 220px; height: 220px; }
+      .modal-title { font-size: 22px; }
     }
   </style>
 </head>
@@ -162,7 +270,7 @@
   <div class="overlay">
     <div class="brand">NON</div>
     <div class="caption">memory palace</div>
-    <div class="hint">click any screen · move to look around</div>
+    <div class="hint">click any screen or piece of furniture · move to look around</div>
     <div class="meta">
       <a href="mailto:nonsmartcity@gmail.com">contact</a>
       <a href="https://github.com/nonarkara" target="_blank" rel="noopener">github</a>
@@ -172,10 +280,23 @@
   <div class="tip" id="tip"></div>
   <div class="veil"></div>
 
+  <!-- ── Modal ── -->
+  <div class="modal" id="modal" role="dialog" aria-modal="true">
+    <div class="modal-bg" data-close="1"></div>
+    <div class="modal-card">
+      <button class="modal-close" id="modal-close" aria-label="Close">✕</button>
+      <div class="modal-eyebrow" id="modal-eyebrow"></div>
+      <div class="modal-title" id="modal-title"></div>
+      <div class="modal-qr" id="modal-qr"></div>
+      <div class="modal-cap" id="modal-cap"></div>
+      <div class="modal-meta" id="modal-meta"></div>
+    </div>
+  </div>
+
   <script type="module">
     import * as THREE from 'three';
 
-    // ── Project metadata (TVs map 1:1 to these) ──────────────
+    // ── Project metadata (TV grid) ───────────────────────────
     const PROJECTS = [
       { code: 'AXIOM',    title: 'Axiom Consultancy',         url: 'https://axiom.nonarkara.org',    img: 'screenshots/axiom.jpg' },
       { code: 'SLIC',     title: 'SLIC Index v3',             url: 'https://slic.nonarkara.org',     img: 'screenshots/slic.jpg' },
@@ -187,6 +308,53 @@
       { code: 'TOMASITY', title: 'Muang Thong Thani',         url: 'https://monitor.nonarkara.org',  img: 'screenshots/monitor.jpg' },
       { code: 'CDP v2',   title: 'CD Data Platform',          url: 'https://cdp.nonarkara.org',      img: 'screenshots/cdp.jpg' },
     ];
+
+    // ── Furniture identities (modal payloads) ────────────────
+    const VCARD = [
+      'BEGIN:VCARD',
+      'VERSION:3.0',
+      'N:Arkara;Non;;;PhD',
+      'FN:Non Arkara',
+      'TITLE:Senior Expert · Smart City Strategy',
+      'ORG:Digital Economy Promotion Agency',
+      'EMAIL;type=PERSONAL:nonsmartcity@gmail.com',
+      'EMAIL;type=WORK:non.ar@depa.or.th',
+      'TEL;type=CELL:+66657095258',
+      'URL:https://nonarkara.org',
+      'URL:https://linkedin.com/in/drnon',
+      'ADR;type=WORK:;;;Bangkok;;;Thailand',
+      'END:VCARD'
+    ].join('\n');
+
+    const FURNITURE = {
+      bookshelf: {
+        eyebrow: 'CV',
+        title:   'Curriculum Vitae',
+        qrData:  'https://nonarkara.org/cv.pdf',
+        cap:     'scan to download · or tap to open',
+        meta: `<a class="row" href="cv.pdf" target="_blank" rel="noopener">cv.pdf · 3 pages · march 2026</a>`
+      },
+      pedestal: {
+        eyebrow: 'LINKEDIN',
+        title:   'Professional Network',
+        qrData:  'https://www.linkedin.com/in/drnon',
+        cap:     'scan to view · or tap to open',
+        meta: `<a class="row" href="https://www.linkedin.com/in/drnon" target="_blank" rel="noopener">linkedin.com/in/drnon</a>`
+      },
+      coffee: {
+        eyebrow: 'CONTACT',
+        title:   'Non Arkara, PhD',
+        qrData:  VCARD,
+        cap:     'scan to add to your contacts',
+        qrLevel: 'L',
+        meta: `
+          <span class="row">non.ar@depa.or.th</span>
+          <span class="row">nonsmartcity@gmail.com</span>
+          <span class="row">+66 65 709 5258</span>
+          <span class="row">Bangkok · Thailand</span>
+        `
+      }
+    };
 
     // ── Scene basics ─────────────────────────────────────────
     const scene = new THREE.Scene();
@@ -215,28 +383,23 @@
       { mat: matFurni,  target: 0.50 },
     ];
 
-    // ── Helpers ──────────────────────────────────────────────
     const wirebox = (w, h, d, mat = matFurni) =>
       new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, d)), mat);
 
     const placeAt = (obj, x, y, z) => { obj.position.set(x, y, z); return obj; };
 
-    // ── Floor grid (infinite via fog) ────────────────────────
+    // ── Floor / ceiling / walls ──────────────────────────────
     {
       const grid = new THREE.GridHelper(120, 60, 0xf5f5f0, 0xf5f5f0);
       grid.material = matDim;
       scene.add(grid);
     }
-
-    // ── Ceiling grid ─────────────────────────────────────────
     {
       const ceiling = new THREE.GridHelper(120, 30, 0xf5f5f0, 0xf5f5f0);
       ceiling.material = matDim;
       ceiling.position.y = 5.0;
       scene.add(ceiling);
     }
-
-    // ── Walls (left + right, fade with fog) ──────────────────
     [-9, 9].forEach(x => {
       const geom = new THREE.PlaneGeometry(60, 5, 30, 5);
       const wire = new THREE.LineSegments(new THREE.WireframeGeometry(geom), matDim);
@@ -245,74 +408,102 @@
       scene.add(wire);
     });
 
-    // ── Furniture: coffee table ──────────────────────────────
-    scene.add(placeAt(wirebox(2.0, 0.05, 1.0), 0, 0.42, 1.5));
-    [-0.9, 0.9].forEach(dx => [-0.4, 0.4].forEach(dz => {
-      scene.add(placeAt(wirebox(0.04, 0.4, 0.04), dx, 0.21, 1.5 + dz));
-    }));
-    // a wireframe "coffee cup" — small cylinder
-    {
-      const cyl = new THREE.CylinderGeometry(0.06, 0.06, 0.12, 12);
-      const wire = new THREE.LineSegments(new THREE.WireframeGeometry(cyl), matFurni);
-      wire.position.set(0.4, 0.51, 1.5);
-      scene.add(wire);
+    // ── Reusable: build a clickable furniture group ──────────
+    const INTERACTABLES = [];
+
+    function makeClickableGroup(key, hitW, hitH, hitD, x, y, z) {
+      const group = new THREE.Group();
+      group.position.set(x, y, z);
+      const lines = []; // wireframe child meshes whose material we toggle on hover
+      const hit = new THREE.Mesh(
+        new THREE.BoxGeometry(hitW, hitH, hitD),
+        new THREE.MeshBasicMaterial({ visible: false })
+      );
+      group.add(hit);
+      group.userData = {
+        kind: 'furniture',
+        key,
+        lines,
+        hit,
+        baseMaterial: matFurni,
+      };
+      scene.add(group);
+      INTERACTABLES.push(group);
+      return { group, lines };
     }
 
-    // ── Furniture: a chair (left side) ───────────────────────
+    // ── Furniture: coffee table → CONTACT ────────────────────
+    {
+      const { group, lines } = makeClickableGroup('coffee', 2.4, 0.7, 1.2, 0, 0.4, 1.5);
+      // table top
+      const top = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(2.0, 0.05, 1.0)), matFurni);
+      top.position.set(0, 0.02, 0); group.add(top); lines.push(top);
+      // legs
+      [-0.9, 0.9].forEach(dx => [-0.4, 0.4].forEach(dz => {
+        const leg = new THREE.LineSegments(
+          new THREE.EdgesGeometry(new THREE.BoxGeometry(0.04, 0.4, 0.04)), matFurni);
+        leg.position.set(dx, -0.21, dz);
+        group.add(leg); lines.push(leg);
+      }));
+      // coffee cup
+      const cyl = new THREE.CylinderGeometry(0.06, 0.06, 0.12, 12);
+      const cup = new THREE.LineSegments(new THREE.WireframeGeometry(cyl), matFurni);
+      cup.position.set(0.4, 0.11, 0); group.add(cup); lines.push(cup);
+    }
+
+    // ── Furniture: chair (decoration only — not clickable) ───
     {
       const x0 = -3.5, z0 = 1.7;
-      scene.add(placeAt(wirebox(0.55, 0.05, 0.55), x0, 0.5, z0));        // seat
-      scene.add(placeAt(wirebox(0.55, 0.7, 0.05),  x0, 0.85, z0 + 0.25)); // back
+      scene.add(placeAt(wirebox(0.55, 0.05, 0.55), x0, 0.5, z0));
+      scene.add(placeAt(wirebox(0.55, 0.7, 0.05),  x0, 0.85, z0 + 0.25));
       [-0.22, 0.22].forEach(dx => [-0.22, 0.22].forEach(dz => {
         scene.add(placeAt(wirebox(0.04, 0.5, 0.04), x0 + dx, 0.25, z0 + dz));
       }));
     }
 
-    // ── Furniture: pedestal + globe (right side) ─────────────
+    // ── Furniture: pedestal + globe → LINKEDIN ───────────────
     {
-      const x0 = 3.4, z0 = -2;
-      scene.add(placeAt(wirebox(0.4, 1.5, 0.4), x0, 0.75, z0));
-      const sphere = new THREE.SphereGeometry(0.32, 18, 12);
-      const wire = new THREE.LineSegments(new THREE.WireframeGeometry(sphere), matFurni);
-      wire.position.set(x0, 1.82, z0);
-      scene.add(wire);
+      const { group, lines } = makeClickableGroup('pedestal', 0.9, 2.5, 0.9, 3.4, 1.0, -2);
+      // pedestal box
+      const box = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(0.4, 1.5, 0.4)), matFurni);
+      box.position.set(0, -0.25, 0); group.add(box); lines.push(box);
+      // wireframe sphere
+      const sph = new THREE.LineSegments(
+        new THREE.WireframeGeometry(new THREE.SphereGeometry(0.32, 18, 12)), matFurni);
+      sph.position.set(0, 0.82, 0); group.add(sph); lines.push(sph);
     }
 
-    // ── Furniture: bookshelf (left wall) ─────────────────────
+    // ── Furniture: bookshelf → CV ────────────────────────────
     {
-      const x0 = -6.5, z0 = -2.2;
-      scene.add(placeAt(wirebox(0.45, 3.2, 1.6), x0, 1.6, z0));
-      // shelves (horizontal lines inside)
+      const { group, lines } = makeClickableGroup('bookshelf', 0.8, 3.4, 1.8, -6.5, 1.6, -2.2);
+      const shell = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(0.45, 3.2, 1.6)), matFurni);
+      group.add(shell); lines.push(shell);
       for (let i = 1; i < 5; i++) {
-        const shelf = new THREE.LineSegments(
-          new THREE.EdgesGeometry(new THREE.BoxGeometry(0.43, 0.02, 1.55)),
-          matFurni
-        );
-        shelf.position.set(x0, i * 0.6 + 0.1, z0);
-        scene.add(shelf);
+        const sh = new THREE.LineSegments(
+          new THREE.EdgesGeometry(new THREE.BoxGeometry(0.43, 0.02, 1.55)), matFurni);
+        sh.position.y = i * 0.6 - 1.5;
+        group.add(sh); lines.push(sh);
       }
-      // a few "books" hinted as tiny boxes
       for (let i = 0; i < 4; i++) {
         const w = 0.12 + Math.random() * 0.06;
         const h = 0.32 + Math.random() * 0.06;
         const book = new THREE.LineSegments(
-          new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, 0.18)),
-          matFurni
-        );
-        book.position.set(x0 + 0.05, 0.9, z0 - 0.5 + i * 0.18);
-        scene.add(book);
+          new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, 0.18)), matFurni);
+        book.position.set(0.05, -0.7, -0.5 + i * 0.18);
+        group.add(book); lines.push(book);
       }
     }
 
-    // ── Lamp (subtle vertical line + cone, far corner) ───────
+    // ── Lamp (decoration) ────────────────────────────────────
     {
       const x0 = 5.5, z0 = 0.5;
-      // pole
       const poleG = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(x0, 0, z0), new THREE.Vector3(x0, 2.4, z0)
       ]);
       scene.add(new THREE.Line(poleG, matFurni));
-      // shade (cone)
       const cone = new THREE.ConeGeometry(0.3, 0.35, 12, 1, true);
       const wire = new THREE.LineSegments(new THREE.WireframeGeometry(cone), matFurni);
       wire.position.set(x0, 2.55, z0);
@@ -320,7 +511,6 @@
     }
 
     // ── TVs at far wall (3 × 3 grid) ─────────────────────────
-    const TVs = [];
     const TV_W = 1.6, TV_H = 1.0;
     const GAP_X = 0.4, GAP_Y = 0.5;
     const COLS = 3;
@@ -336,17 +526,13 @@
       const grp = new THREE.Group();
       grp.position.set(cx, cy, cz);
 
-      // wireframe frame (a thin slab)
       const frame = new THREE.LineSegments(
         new THREE.EdgesGeometry(new THREE.BoxGeometry(TV_W, TV_H, 0.06)),
         matBright
       );
       grp.add(frame);
 
-      // screen: textured plane, low opacity, with subtle wireframe on top
-      const tex = tvLoader.load(p.img, (t) => {
-        t.colorSpace = THREE.SRGBColorSpace;
-      });
+      const tex = tvLoader.load(p.img, (t) => { t.colorSpace = THREE.SRGBColorSpace; });
       const screenMat = new THREE.MeshBasicMaterial({
         map: tex, transparent: true, opacity: 0,
         side: THREE.FrontSide, depthWrite: false
@@ -355,19 +541,26 @@
       screen.position.z = 0.04;
       grp.add(screen);
 
-      // hover-tracking cube (invisible but raycast-friendly), bigger than frame
       const hit = new THREE.Mesh(
         new THREE.BoxGeometry(TV_W, TV_H, 0.08),
         new THREE.MeshBasicMaterial({ visible: false })
       );
       grp.add(hit);
 
-      grp.userData = { project: p, frame, screen, hit, screenTargetOpacity: 0.45 };
+      grp.userData = {
+        kind: 'tv',
+        project: p,
+        frame,
+        screen,
+        hit,
+        screenTargetOpacity: 0.45,
+        baseMaterial: matBright,
+      };
       scene.add(grp);
-      TVs.push(grp);
+      INTERACTABLES.push(grp);
     });
 
-    // ── Mouse parallax + raycasting ──────────────────────────
+    // ── Mouse / touch handling ───────────────────────────────
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
     const target = { x: 0, y: 0 };
@@ -380,27 +573,59 @@
       mouse.y = -(y / window.innerHeight) * 2 + 1;
       target.y = -mouse.x * 0.06;
       target.x =  mouse.y * 0.04;
-
       const tip = document.getElementById('tip');
-      if (hovered) {
-        tip.style.left = x + 'px';
-        tip.style.top  = y + 'px';
-      }
+      if (hovered) { tip.style.left = x + 'px'; tip.style.top = y + 'px'; }
     }
     window.addEventListener('mousemove', onPointerMove, { passive: true });
     window.addEventListener('touchmove', onPointerMove, { passive: true });
 
     function onClick(e) {
+      // Don't intercept if a modal is open
+      if (document.getElementById('modal').classList.contains('in')) return;
       raycaster.setFromCamera(mouse, camera);
-      const hits = raycaster.intersectObjects(TVs.flatMap(t => [t.userData.hit]));
-      if (hits.length) {
-        const grp = hits[0].object.parent;
-        const p = grp.userData.project;
-        if (p && p.url) window.open(p.url, '_blank', 'noopener');
+      const hits = raycaster.intersectObjects(INTERACTABLES.map(o => o.userData.hit));
+      if (!hits.length) return;
+      const grp = hits[0].object.parent;
+      const ud = grp.userData;
+      if (ud.kind === 'tv') {
+        if (ud.project?.url) window.open(ud.project.url, '_blank', 'noopener');
+      } else if (ud.kind === 'furniture') {
+        openModal(ud.key);
       }
     }
     window.addEventListener('click', onClick);
     window.addEventListener('touchend', onClick);
+
+    // ── Modal logic ──────────────────────────────────────────
+    function buildQR(data, level = 'M') {
+      const qr = window.qrcode(0, level);
+      qr.addData(data);
+      qr.make();
+      return qr.createDataURL(8, 0);
+    }
+
+    const modal = document.getElementById('modal');
+    function openModal(key) {
+      const cfg = FURNITURE[key];
+      if (!cfg) return;
+      document.getElementById('modal-eyebrow').textContent = cfg.eyebrow;
+      document.getElementById('modal-title').textContent   = cfg.title;
+      document.getElementById('modal-cap').textContent     = cfg.cap;
+      document.getElementById('modal-meta').innerHTML      = cfg.meta;
+      // Build QR
+      const qrUrl = buildQR(cfg.qrData, cfg.qrLevel || 'M');
+      document.getElementById('modal-qr').innerHTML = `<img src="${qrUrl}" alt="QR code">`;
+      modal.classList.add('in');
+    }
+    function closeModal() { modal.classList.remove('in'); }
+
+    document.getElementById('modal-close').addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target.dataset.close === '1') closeModal();
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
 
     // ── Resize ───────────────────────────────────────────────
     window.addEventListener('resize', () => {
@@ -409,63 +634,74 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    // ── Reveal sequence ──────────────────────────────────────
+    // ── Reveal ───────────────────────────────────────────────
     const startTime = performance.now();
     document.querySelector('.veil').classList.add('gone');
-    setTimeout(() => document.querySelector('.brand').classList.add('in'), 200);
-    setTimeout(() => document.querySelector('.caption').classList.add('in'), 200);
-    setTimeout(() => document.querySelector('.hint').classList.add('in'), 200);
-    setTimeout(() => document.querySelector('.meta').classList.add('in'), 200);
+    setTimeout(() => {
+      document.querySelector('.brand').classList.add('in');
+      document.querySelector('.caption').classList.add('in');
+      document.querySelector('.hint').classList.add('in');
+      document.querySelector('.meta').classList.add('in');
+    }, 200);
 
     // ── Render loop ──────────────────────────────────────────
-    const clock = new THREE.Clock();
-
     function animate() {
       requestAnimationFrame(animate);
       const t = (performance.now() - startTime) / 1000;
 
-      // fade in materials over 3s
       const fadeT = Math.min(t / 3.5, 1);
       const ease = 1 - Math.pow(1 - fadeT, 3);
       FADE_TARGETS.forEach(({ mat, target }) => mat.opacity = target * ease);
 
-      // raycast for TV hover
+      // Hover detection
       raycaster.setFromCamera(mouse, camera);
-      const hits = raycaster.intersectObjects(TVs.flatMap(t => [t.userData.hit]));
+      const hits = raycaster.intersectObjects(INTERACTABLES.map(o => o.userData.hit));
       const hit = hits[0]?.object?.parent || null;
 
-      // update hover state
       if (hit !== hovered) {
+        // Restore previous
         if (hovered) {
-          hovered.userData.frame.material = matBright;
-          hovered.userData.screenTargetOpacity = 0.45;
+          const ud = hovered.userData;
+          if (ud.kind === 'tv') {
+            ud.frame.material = matBright;
+            ud.screenTargetOpacity = 0.45;
+          } else if (ud.kind === 'furniture') {
+            ud.lines.forEach(l => l.material = ud.baseMaterial);
+          }
         }
         hovered = hit;
+        const tip = document.getElementById('tip');
         if (hovered) {
-          hovered.userData.frame.material = matHover;
-          hovered.userData.screenTargetOpacity = 0.85;
-          const tip = document.getElementById('tip');
-          tip.innerHTML = `${hovered.userData.project.code}<span class="url">${hovered.userData.project.title.toLowerCase()}</span>`;
+          const ud = hovered.userData;
+          if (ud.kind === 'tv') {
+            ud.frame.material = matHover;
+            ud.screenTargetOpacity = 0.85;
+            tip.innerHTML = `${ud.project.code}<span class="url">${ud.project.title.toLowerCase()}</span>`;
+          } else if (ud.kind === 'furniture') {
+            ud.lines.forEach(l => l.material = matHover);
+            const cfg = FURNITURE[ud.key];
+            tip.innerHTML = `${cfg.eyebrow}<span class="url">${cfg.title.toLowerCase()}</span>`;
+          }
           tip.classList.add('in');
           document.body.style.cursor = 'pointer';
         } else {
-          document.getElementById('tip').classList.remove('in');
+          tip.classList.remove('in');
           document.body.style.cursor = 'crosshair';
         }
       }
 
-      // smooth screen opacity
-      TVs.forEach(grp => {
-        const m = grp.userData.screen.material;
-        const tgt = grp.userData.screenTargetOpacity * ease;
-        m.opacity += (tgt - m.opacity) * 0.12;
+      // Smooth screen opacity (TVs only)
+      INTERACTABLES.forEach(grp => {
+        if (grp.userData.kind === 'tv') {
+          const m = grp.userData.screen.material;
+          const tgt = grp.userData.screenTargetOpacity * ease;
+          m.opacity += (tgt - m.opacity) * 0.12;
+        }
       });
 
-      // smooth camera rotation (parallax)
+      // Camera parallax
       camera.rotation.y += (target.y + baseRotY - camera.rotation.y) * 0.04;
       camera.rotation.x += (target.x + baseRotX - camera.rotation.x) * 0.04;
-
-      // very subtle "breathing" — camera rises/falls 3cm on a slow sine
       camera.position.y = 1.7 + Math.sin(t * 0.4) * 0.015;
 
       renderer.render(scene, camera);
