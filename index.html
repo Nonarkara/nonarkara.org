@@ -522,7 +522,8 @@
 
     // ── Furniture: coffee table → CONTACT ────────────────────
     {
-      const { group, lines } = makeClickableGroup('furniture', 'coffee', 2.4, 0.7, 1.2, 0, 0.4, 1.5);
+      // Hit volume shorter on Y so the cup that sits on top can stick above and intercept clicks
+      const { group, lines } = makeClickableGroup('furniture', 'coffee', 2.0, 0.45, 1.0, 0, 0.4, 1.5);
       const top = new THREE.LineSegments(
         new THREE.EdgesGeometry(new THREE.BoxGeometry(2.0, 0.05, 1.0)), matFurni);
       top.position.set(0, 0.02, 0); group.add(top); lines.push(top);
@@ -536,9 +537,11 @@
     }
     {
       const { group: cupGrp, lines: cupLines } = makeClickableGroup(
-        'furniture', 'cup', 0.30, 0.30, 0.30,  // hit volume — bigger than visible cup
-        0.4, 0.51, 1.5  // world position (was on the coffee table)
+        'furniture', 'cup', 0.32, 0.42, 0.32,
+        0.4, 0.51, 1.5  // group origin sits where the visible cup is
       );
+      // Raise the invisible hit cube above the table-top so it intercepts clicks
+      cupGrp.userData.hit.position.y = 0.15;  // → world y from 0.45 to 0.87 (table tops out at 0.625)
       const cylG = new THREE.CylinderGeometry(0.06, 0.06, 0.12, 12);
       const cyl = new THREE.LineSegments(new THREE.WireframeGeometry(cylG), matFurni);
       cupGrp.add(cyl); cupLines.push(cyl);
@@ -606,15 +609,17 @@
       scene.add(wire);
     }
 
-    // ── Light switch panel (right wall, near lamp) ───────────
+    // ── Light switch panel (right side, in line of sight) ────
     // Two switches; each one routes to a private TKC URL.
-    // Positioned on the right wall at ~eye level, just behind the lamp.
+    // The right wall is at x=9.5 but the camera FOV doesn't reach it
+    // until z<-2.7. So we mount the panel on the right wall near the
+    // back-right corner where it's actually visible.
     const TKC_LINKS = [
       { sw: 'tkc',  label: 'TKC',  url: 'https://tkc.nonarkara.org' },
       { sw: 'tkcx', label: 'TKCX', url: 'https://tkcx.nonarkara.org' },
     ];
     {
-      const PANEL_X = 9.4, PANEL_Y = 1.6, PANEL_Z = 1.4;
+      const PANEL_X = 9.4, PANEL_Y = 1.85, PANEL_Z = -5.0;
       // Backplate (cosmetic)
       const plate = new THREE.LineSegments(
         new THREE.EdgesGeometry(new THREE.BoxGeometry(0.04, 0.55, 0.36)), matFurni);
@@ -815,6 +820,53 @@
       ctx.fillText(bottom, w/2, 152);
 
       clockTex.needsUpdate = true;
+    }
+
+    // ════════════════════════════════════════════════════════
+    // Matrix rain — sits behind the TV grid, very faint, trilingual
+    // (Latin · Katakana · Thai · CJK — a memory palace can dream)
+    // ════════════════════════════════════════════════════════
+    const RAIN_W = 18, RAIN_H = 6;
+    const rainCanvasTex = document.createElement('canvas');
+    rainCanvasTex.width = 1024;
+    rainCanvasTex.height = 384;
+    const rainCtx = rainCanvasTex.getContext('2d');
+    const rainTex = new THREE.CanvasTexture(rainCanvasTex);
+    rainTex.colorSpace = THREE.SRGBColorSpace;
+    const rainMat = new THREE.MeshBasicMaterial({
+      map: rainTex, transparent: true, opacity: 0,
+      side: THREE.FrontSide, depthWrite: false
+    });
+    const rainPlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(RAIN_W, RAIN_H), rainMat
+    );
+    rainPlane.position.set(0, 3.0, -10.4);  // slightly behind TV grid (TVs at z=-10)
+    scene.add(rainPlane);
+
+    const RAIN_COLS = Math.floor(rainCanvasTex.width / 16);
+    const rainDrops = new Array(RAIN_COLS).fill(0).map(() => Math.random() * 30);
+    const RAIN_CHARS =
+      'アァカサタナハマヤラワガザダバパイィキシチニヒミリヰギジヂビピウヴクスツヌフムユルグズヅブプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨロヲゴゾドボポヴッン' +
+      '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ' +
+      'กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรลวศษสหฬอฮ' +
+      '中道智慧记忆宫殿东京上海曼谷火光';
+
+    function drawRain() {
+      // fade existing content (longer trails)
+      rainCtx.fillStyle = 'rgba(0, 0, 0, 0.06)';
+      rainCtx.fillRect(0, 0, rainCanvasTex.width, rainCanvasTex.height);
+      rainCtx.fillStyle = '#f5f5f0';
+      rainCtx.font = '14px "JetBrains Mono", "IBM Plex Sans Thai", monospace';
+      for (let i = 0; i < rainDrops.length; i++) {
+        const ch = RAIN_CHARS[Math.floor(Math.random() * RAIN_CHARS.length)];
+        const x = i * 16, y = rainDrops[i] * 16;
+        // brighter head, dimmer tail
+        rainCtx.fillStyle = 'rgba(245, 245, 240, 0.9)';
+        rainCtx.fillText(ch, x, y);
+        if (y > rainCanvasTex.height && Math.random() > 0.97) rainDrops[i] = 0;
+        rainDrops[i] += 0.4 + Math.random() * 0.3;  // gentle, contemplative speed
+      }
+      rainTex.needsUpdate = true;
     }
 
     // ════════════════════════════════════════════════════════
@@ -1071,6 +1123,9 @@
       });
 
       drawClock();
+      drawRain();
+      // Rain stays subtle — much dimmer than the clock face
+      rainMat.opacity = ease * 0.18;
 
       raycaster.setFromCamera(mouse, camera);
       const hits = raycaster.intersectObjects(INTERACTABLES.map(o => o.userData.hit));
