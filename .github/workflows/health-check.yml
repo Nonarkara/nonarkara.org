@@ -1,0 +1,135 @@
+name: Health Check
+
+on:
+  schedule:
+    # Every 30 minutes
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ping every nonarkara.org subdomain
+        id: probe
+        run: |
+          set -e
+          DOMAINS=(
+            "nonarkara.org"
+            "www.nonarkara.org"
+            "axiom.nonarkara.org"
+            "slic.nonarkara.org"
+            "sciti.nonarkara.org"
+            "monitor.nonarkara.org"
+            "conflict.nonarkara.org"
+            "mem.nonarkara.org"
+            "geo.nonarkara.org"
+            "cdp.nonarkara.org"
+            "phuket.nonarkara.org"
+            "bus.nonarkara.org"
+            "kuching.nonarkara.org"
+            "solomon.nonarkara.org"
+            "oil.nonarkara.org"
+            "bot.nonarkara.org"
+            "brain.nonarkara.org"
+          )
+
+          mkdir -p .health
+          ts=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+          {
+            echo "# Health check — $ts"
+            echo ""
+            echo "| Subdomain | HTTP | RT (ms) | Status |"
+            echo "|---|---|---|---|"
+          } > .health/latest.md
+
+          failed=()
+          for d in "${DOMAINS[@]}"; do
+            # Two attempts; pick the better
+            best_code=000
+            best_ms=99999
+            for try in 1 2; do
+              start=$(($(date +%s%N)/1000000))
+              code=$(curl -s -L --max-time 12 -o /dev/null -w "%{http_code}" "https://${d}" || echo 000)
+              end=$(($(date +%s%N)/1000000))
+              ms=$((end - start))
+              if [ "$code" = "200" ] || [ "$code" = "301" ] || [ "$code" = "302" ]; then
+                best_code=$code; best_ms=$ms; break
+              fi
+              [ "$ms" -lt "$best_ms" ] && { best_code=$code; best_ms=$ms; }
+              sleep 2
+            done
+
+            if [ "$best_code" = "200" ] || [ "$best_code" = "301" ] || [ "$best_code" = "302" ]; then
+              status="✅ ok"
+            else
+              status="❌ DOWN"
+              failed+=("$d ($best_code)")
+            fi
+            echo "| $d | $best_code | $best_ms | $status |" >> .health/latest.md
+          done
+
+          # Append history
+          {
+            echo "$ts | total: ${#DOMAINS[@]} | failed: ${#failed[@]}"
+            for f in "${failed[@]}"; do echo "    - $f"; done
+          } >> .health/history.log
+
+          # Set output
+          echo "failed_count=${#failed[@]}" >> $GITHUB_OUTPUT
+          if [ ${#failed[@]} -gt 0 ]; then
+            printf 'failed_list<<EOF\n' >> $GITHUB_OUTPUT
+            printf '%s\n' "${failed[@]}" >> $GITHUB_OUTPUT
+            printf 'EOF\n' >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit health log
+        if: always()
+        run: |
+          git config user.name "nonarkara-health-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add .health
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "health: $(date -u '+%Y-%m-%dT%H:%MZ') · ${{ steps.probe.outputs.failed_count }} failed"
+            git push
+          fi
+
+      - name: Open issue if any subdomain is down
+        if: steps.probe.outputs.failed_count != '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const failed = `${{ steps.probe.outputs.failed_list }}`.trim();
+            const title = `Health check: ${process.env.FAILED_COUNT} subdomain(s) down`;
+            const body = [
+              `Failed subdomains:`, '', '```', failed, '```', '',
+              `Triggered by ${context.eventName} at ${new Date().toISOString()}.`,
+              `Full report: [.health/latest.md](https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/.health/latest.md)`
+            ].join('\n');
+
+            // Look for an existing open health issue
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: 'health'
+            });
+            if (issues.length) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: issues[0].number, body
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title, body, labels: ['health']
+              });
+            }
+        env:
+          FAILED_COUNT: ${{ steps.probe.outputs.failed_count }}

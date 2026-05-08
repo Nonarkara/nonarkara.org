@@ -296,33 +296,37 @@
   <script type="module">
     import * as THREE from 'three';
 
-    // ── Project metadata (TV grid) ───────────────────────────
+    // ── Project metadata (TV grid: 4 cols × 3 rows = 12) ─────
     const PROJECTS = [
-      { code: 'AXIOM',    title: 'Axiom Consultancy',         url: 'https://axiom.nonarkara.org',    img: 'screenshots/axiom.jpg' },
-      { code: 'SLIC',     title: 'SLIC Index v3',             url: 'https://slic.nonarkara.org',     img: 'screenshots/slic.jpg' },
-      { code: 'SCITI',    title: 'Smart City Thailand Index', url: 'https://sciti.nonarkara.org',    img: 'screenshots/sciti.jpg' },
-      { code: 'CONFLICT', title: 'Global Political Monitor',  url: 'https://conflict.nonarkara.org', img: 'screenshots/conflict.jpg' },
-      { code: 'GEO',      title: 'Thailand Geopolitical Watch', url: 'https://geo.nonarkara.org',    img: 'screenshots/geo.jpg' },
-      { code: 'PHUKET',   title: 'Phuket Dashboard',          url: 'https://phuket.nonarkara.org',   img: 'screenshots/phuket.jpg' },
-      { code: 'BUS',      title: 'Phuket Smart Bus',          url: 'https://bus.nonarkara.org',      img: 'screenshots/bus.jpg' },
-      { code: 'TOMASITY', title: 'Muang Thong Thani',         url: 'https://monitor.nonarkara.org',  img: 'screenshots/monitor.jpg' },
-      { code: 'CDP v2',   title: 'CD Data Platform',          url: 'https://cdp.nonarkara.org',      img: 'screenshots/cdp.jpg' },
+      { code: 'AXIOM',    title: 'Axiom Consultancy',           url: 'https://axiom.nonarkara.org',    img: 'screenshots/axiom.jpg' },
+      { code: 'SLIC',     title: 'SLIC Index v3',               url: 'https://slic.nonarkara.org',     img: 'screenshots/slic.jpg' },
+      { code: 'SCITI',    title: 'Smart City Thailand Index',   url: 'https://sciti.nonarkara.org',    img: 'screenshots/sciti.jpg' },
+      { code: 'TOMASITY', title: 'Muang Thong Thani',           url: 'https://monitor.nonarkara.org',  img: 'screenshots/monitor.jpg' },
+      { code: 'CONFLICT', title: 'Global Political Monitor',    url: 'https://conflict.nonarkara.org', img: 'screenshots/conflict.jpg' },
+      { code: 'MEM',      title: 'Middle Eastern Monitor',      url: 'https://mem.nonarkara.org',      img: 'screenshots/mem.jpg' },
+      { code: 'GEO',      title: 'Thailand Geopolitical Watch', url: 'https://geo.nonarkara.org',      img: 'screenshots/geo.jpg' },
+      { code: 'CDP v2',   title: 'CD Data Platform',            url: 'https://cdp.nonarkara.org',      img: 'screenshots/cdp.jpg' },
+      { code: 'PHUKET',   title: 'Phuket Dashboard',            url: 'https://phuket.nonarkara.org',   img: 'screenshots/phuket.jpg' },
+      { code: 'BUS',      title: 'Phuket Smart Bus',            url: 'https://bus.nonarkara.org',      img: 'screenshots/bus.jpg' },
+      { code: 'NOVELS',   title: 'Substack · Novels',           url: 'https://substack.com/@nonarkara', img: 'screenshots/substack.jpg' },
+      { code: 'ESSAYS',   title: 'Medium · Essays',             url: 'https://nonsmartcity.medium.com/', img: 'screenshots/medium.jpg' },
     ];
 
     // ── Furniture identities (modal payloads) ────────────────
     const VCARD = [
       'BEGIN:VCARD',
       'VERSION:3.0',
-      'N:Arkara;Non;;;PhD',
-      'FN:Non Arkara',
-      'TITLE:Senior Expert · Smart City Strategy',
+      'N:Arkara;Non;;Dr.;PhD',
+      'FN:Dr. Non Arkara',
+      'TITLE:Senior Expert in Smart City Promotion',
       'ORG:Digital Economy Promotion Agency',
-      'EMAIL;type=PERSONAL:nonsmartcity@gmail.com',
       'EMAIL;type=WORK:non.ar@depa.or.th',
+      'EMAIL;type=PERSONAL:nonsmartcity@gmail.com',
       'TEL;type=CELL:+66657095258',
+      'TEL;type=WORK,VOICE:+6620262333',
       'URL:https://nonarkara.org',
-      'URL:https://linkedin.com/in/drnon',
-      'ADR;type=WORK:;;;Bangkok;;;Thailand',
+      'URL:https://www.linkedin.com/in/drnon/',
+      'ADR;type=WORK:;;234/431 Building A\\, Ladprao Lane.10\\, Lat Phrao Rd;Chom Phon\\, Chatuchak;Bangkok;10900;Thailand',
       'END:VCARD'
     ].join('\n');
 
@@ -343,15 +347,16 @@
       },
       coffee: {
         eyebrow: 'CONTACT',
-        title:   'Non Arkara, PhD',
+        title:   'Dr Non Arkara',
         qrData:  VCARD,
         cap:     'scan to add to your contacts',
         qrLevel: 'L',
         meta: `
-          <span class="row">non.ar@depa.or.th</span>
-          <span class="row">nonsmartcity@gmail.com</span>
-          <span class="row">+66 65 709 5258</span>
-          <span class="row">Bangkok · Thailand</span>
+          <span class="row">Senior Expert · Smart City Promotion</span>
+          <span class="row">Digital Economy Promotion Agency</span>
+          <span class="row">non.ar@depa.or.th · nonsmartcity@gmail.com</span>
+          <span class="row">+66 65 709 5258 · +66 2 026 2333</span>
+          <span class="row">234/431 Bldg A · Ladprao Lane 10 · Bangkok 10900</span>
         `
       }
     };
@@ -510,10 +515,10 @@
       scene.add(wire);
     }
 
-    // ── TVs at far wall (3 × 3 grid) ─────────────────────────
-    const TV_W = 1.6, TV_H = 1.0;
-    const GAP_X = 0.4, GAP_Y = 0.5;
-    const COLS = 3;
+    // ── TVs at far wall (4 × 3 grid = 12) ────────────────────
+    const TV_W = 1.5, TV_H = 0.94;
+    const GAP_X = 0.3, GAP_Y = 0.4;
+    const COLS = 4;
     const tvLoader = new THREE.TextureLoader();
 
     PROJECTS.forEach((p, i) => {
