@@ -172,16 +172,85 @@
     }
     .modal-card.city { padding: 56px 40px 32px; }
 
+    /* Back/X button — always present, always visible. The room respects it. */
     .modal-close {
-      position: absolute; top: 14px; right: 14px;
-      width: 32px; height: 32px;
-      background: transparent; color: var(--white);
-      border: 1px solid rgba(245, 245, 240, 0.3);
-      cursor: pointer; font-size: 16px; line-height: 1;
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 44px;
+      height: 44px;
+      background: transparent;
+      color: var(--white);
+      border: 1px solid rgba(245, 245, 240, 0.55);
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
       font-family: 'JetBrains Mono', monospace;
-      transition: border-color 0.15s, color 0.15s;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+      display: grid;
+      place-items: center;
     }
-    .modal-close:hover { border-color: var(--amber); color: var(--amber); }
+    .modal-close:hover {
+      border-color: var(--amber);
+      color: var(--amber);
+      background: rgba(245, 158, 11, 0.06);
+    }
+    /* ESC hint sits below the modal card, far enough from the close button to never overlap */
+    .modal-card::after {
+      content: 'ESC · CLICK OUT · OR ✕ ABOVE';
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      transform: translateY(14px);
+      text-align: center;
+      font-size: 8px;
+      letter-spacing: 0.28em;
+      color: rgba(245, 245, 240, 0.35);
+      pointer-events: none;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Visit button — white-on-black, the action invitation */
+    .modal-visit {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin: 12px auto 0;
+      padding: 14px 30px;
+      background: var(--white);
+      color: var(--black);
+      border: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      text-decoration: none;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.15s;
+      min-height: 44px;
+    }
+    .modal-visit:hover { opacity: 0.85; transform: translateY(-1px); }
+    .modal-visit-row { display: flex; justify-content: center; }
+    .modal-domain {
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-align: center;
+      color: var(--dim);
+      margin-top: 18px;
+      word-break: break-all;
+    }
+    .modal-domain a { color: inherit; text-decoration: none; }
+    .modal-pwd {
+      font-size: 11px;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      text-align: center;
+      color: var(--amber);
+      margin-top: 14px;
+    }
 
     .modal-eyebrow {
       font-size: 10px; letter-spacing: 0.4em;
@@ -1354,13 +1423,19 @@
       const grp = hits[0].object.parent;
       const ud = grp.userData;
       if (ud.kind === 'tv') {
-        if (ud.project?.url) window.open(ud.project.url, '_blank', 'noopener');
+        const p = ud.project;
+        if (p?.url) {
+          openUrlModal(p.code, p.title, p.url, p.locked ? { password: '696969' } : {});
+        }
       } else if (ud.kind === 'furniture') {
         openFurnitureModal(ud.key);
       } else if (ud.kind === 'city') {
         openCityModal(ud.city);
       } else if (ud.kind === 'switch') {
-        if (ud.link?.url) window.open(ud.link.url, '_blank', 'noopener');
+        const l = ud.link;
+        if (l?.url) {
+          openUrlModal(l.label, l.label === 'TKC' ? 'TKC Digital Twin' : 'TKC Command', l.url, { password: '696969' });
+        }
       } else if (ud.kind === 'pomoBtn') {
         openPomodoro();
       }
@@ -1441,6 +1516,24 @@
           </div>`;
         showModal('☕ ·', 'Sabai Sabai', html);
       }
+    }
+
+    // Universal URL modal — every clickable URL routes through this.
+    // Big QR (others scan it), Visit button (you tap to go), always an X.
+    function openUrlModal(eyebrow, title, url, opts = {}) {
+      const passwordRow = opts.password
+        ? `<div class="modal-pwd">🔒 ${t('password')}: ${opts.password}</div>`
+        : '';
+      const html = `
+        <div class="modal-qr"><img src="${buildQR(url, 'M')}" alt="QR for ${title}"></div>
+        <div class="modal-cap">scan or tap visit</div>
+        <div class="modal-visit-row">
+          <a class="modal-visit" href="${url}" target="_blank" rel="noopener">VISIT&nbsp;&nbsp;→</a>
+        </div>
+        ${passwordRow}
+        <div class="modal-domain"><a href="${url}" target="_blank" rel="noopener">${url.replace(/^https?:\/\//, '')}</a></div>
+      `;
+      showModal(eyebrow, title, html);
     }
 
     function openCityModal(city) {
