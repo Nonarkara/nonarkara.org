@@ -36,9 +36,23 @@
       --white: #f5f5f0;
       --amber: #f59e0b;
       --dim:   rgba(245, 245, 240, 0.35);
+      --bg:    #000000;
+      --fg:    #f5f5f0;
+      --line:  rgba(245, 245, 240, 0.55);
+    }
+    /* Light theme — toggled by clicking the cubical chandelier in the room */
+    body[data-theme="light"] {
+      --black: #f5f5f0;
+      --white: #1a1a1a;
+      --amber: #b85c28;
+      --dim:   rgba(26, 26, 26, 0.45);
+      --bg:    #f5f5f0;
+      --fg:    #1a1a1a;
+      --line:  rgba(26, 26, 26, 0.55);
     }
 
-    html, body { width: 100%; height: 100%; overflow: hidden; background: var(--black); }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); transition: background 0.6s ease; }
+    body { color: var(--fg); }
     body {
       color: var(--white);
       font-family: 'JetBrains Mono', monospace;
@@ -467,36 +481,39 @@
     .whisper.drift { transform: translateY(-22vh); }
     .whisper.out   { opacity: 0; }
 
-    /* ── Floating menu button (mobile-first nav) ── */
+    /* ── Floating MENU button — labeled, obvious, one-click escape ── */
     .menu-btn {
       position: fixed;
       right: 18px;
       bottom: 18px;
-      width: 52px;
+      min-width: 88px;
       height: 52px;
-      background: rgba(0, 0, 0, 0.85);
-      border: 1px solid rgba(245, 245, 240, 0.55);
-      color: var(--white);
+      padding: 0 18px;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      color: var(--fg);
       cursor: pointer;
       z-index: 30;
-      display: grid;
-      place-items: center;
-      gap: 5px;
-      grid-template-rows: 2px 2px 2px;
-      padding: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.34em;
+      text-transform: uppercase;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 1.5s ease 1.5s, border-color 0.15s, color 0.15s;
+      transition: opacity 1.5s ease 1.5s, border-color 0.15s, color 0.15s, background 0.6s ease;
       -webkit-tap-highlight-color: transparent;
     }
-    .menu-btn.in { opacity: 0.92; pointer-events: auto; }
-    .menu-btn span {
-      display: block;
-      width: 22px;
-      height: 1.5px;
-      background: currentColor;
-    }
+    .menu-btn.in { opacity: 0.95; pointer-events: auto; }
     .menu-btn:hover { border-color: var(--amber); color: var(--amber); }
+    .menu-btn::before {
+      content: '☰';
+      font-size: 16px;
+      letter-spacing: 0;
+    }
 
     /* ── Drawer (slides up from bottom, fits portrait) ── */
     .drawer {
@@ -697,10 +714,8 @@
     </div>
   </div>
 
-  <!-- ── Floating menu button (mobile-friendly nav) ── -->
-  <button class="menu-btn" id="menu-btn" aria-label="Open menu">
-    <span></span><span></span><span></span>
-  </button>
+  <!-- ── Floating MENU button (mobile-friendly escape; one click → see everything) ── -->
+  <button class="menu-btn" id="menu-btn" aria-label="Open menu">MENU</button>
 
   <!-- ── Drawer (slides up from bottom, populated dynamically) ── -->
   <div class="drawer" id="drawer" aria-hidden="true">
@@ -922,14 +937,25 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.getElementById('canvas-root').appendChild(renderer.domElement);
 
+    // ── Theme system ─────────────────────────────────────────
+    let CURRENT_THEME = localStorage.getItem('nonarkara.theme') || 'dark';
+    const THEMES = {
+      dark:  { bg: 0x000000, line: 0xf5f5f0, accent: 0xf59e0b, bgCss: '#000000', fgCss: '#f5f5f0', accentCss: '#f59e0b' },
+      light: { bg: 0xf5f5f0, line: 0x1a1a1a, accent: 0xb85c28, bgCss: '#f5f5f0', fgCss: '#1a1a1a', accentCss: '#b85c28' },
+    };
+    const themeColors = () => THEMES[CURRENT_THEME];
+
     // ── Wireframe materials (start at opacity 0, fade in) ────
-    const matBright = new THREE.LineBasicMaterial({ color: 0xf5f5f0, transparent: true, opacity: 0 });
-    const matDim    = new THREE.LineBasicMaterial({ color: 0xf5f5f0, transparent: true, opacity: 0 });
-    const matFurni  = new THREE.LineBasicMaterial({ color: 0xf5f5f0, transparent: true, opacity: 0 });
-    const matHover  = new THREE.LineBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 1 });
-    const matMap    = new THREE.LineBasicMaterial({ color: 0xf5f5f0, transparent: true, opacity: 0 });
-    const matCity   = new THREE.LineBasicMaterial({ color: 0xf5f5f0, transparent: true, opacity: 0 });
-    const matCityHome = new THREE.LineBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0 });
+    const _initLineHex = THEMES[CURRENT_THEME].line;
+    const _initAccentHex = THEMES[CURRENT_THEME].accent;
+    const matBright = new THREE.LineBasicMaterial({ color: _initLineHex, transparent: true, opacity: 0 });
+    const matDim    = new THREE.LineBasicMaterial({ color: _initLineHex, transparent: true, opacity: 0 });
+    const matFurni  = new THREE.LineBasicMaterial({ color: _initLineHex, transparent: true, opacity: 0 });
+    const matHover  = new THREE.LineBasicMaterial({ color: _initAccentHex, transparent: true, opacity: 1 });
+    const matMap    = new THREE.LineBasicMaterial({ color: _initLineHex, transparent: true, opacity: 0 });
+    const matCity   = new THREE.LineBasicMaterial({ color: _initLineHex, transparent: true, opacity: 0 });
+    const matCityHome = new THREE.LineBasicMaterial({ color: _initAccentHex, transparent: true, opacity: 0 });
+    const matEquator = new THREE.LineBasicMaterial({ color: _initAccentHex, transparent: true, opacity: 0 });
     const FADE_TARGETS = [
       { mat: matBright,   target: 0.55 },
       { mat: matDim,      target: 0.18 },
@@ -937,6 +963,7 @@
       { mat: matMap,      target: 0.40 },
       { mat: matCity,     target: 0.85 },
       { mat: matCityHome, target: 1.0  },
+      { mat: matEquator,  target: 0.85 },
     ];
 
     const wirebox = (w, h, d, mat = matFurni) =>
@@ -1060,6 +1087,46 @@
       }
     }
 
+    // ── Cubical chandelier (theme toggle) ────────────────────
+    // A wireframe cube hanging from the ceiling. Slowly rotates on
+    // its Y axis. Click/tap → toggles dark ↔ light theme.
+    let CHAND_GROUP = null;
+    {
+      const X = 0, Y = 4.7, Z = 3.6;
+      const outer = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(0.42, 0.42, 0.42)), matBright);
+      const inner = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(0.20, 0.20, 0.20)), matBright);
+
+      const group = new THREE.Group();
+      group.position.set(X, Y, Z);
+      group.add(outer);
+      group.add(inner);
+
+      // Rod from cube top up to the ceiling at y=6.0
+      const rodG = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(X, Y + 0.21, Z),
+        new THREE.Vector3(X, 6.0,      Z),
+      ]);
+      scene.add(new THREE.Line(rodG, matDim));
+
+      const hit = new THREE.Mesh(
+        new THREE.BoxGeometry(0.7, 0.7, 0.7),
+        new THREE.MeshBasicMaterial({ visible: false })
+      );
+      group.add(hit);
+
+      group.userData = {
+        kind: 'chandelier',
+        lines: [outer, inner],
+        hit,
+        baseMaterial: matBright,
+      };
+      scene.add(group);
+      INTERACTABLES.push(group);
+      CHAND_GROUP = group;
+    }
+
     // ── Lamp (decoration) ────────────────────────────────────
     {
       const x0 = 6.0, z0 = 0.5;
@@ -1091,29 +1158,31 @@
       scene.add(plate);
 
       // Permanent label plate — canvas texture so the password is visible
-      // even without hovering. Mounted on the inner face of the panel.
+      // even without hovering. Re-renders on theme change.
       {
         const labelCanvas = document.createElement('canvas');
         labelCanvas.width = 384; labelCanvas.height = 540;
         const lctx = labelCanvas.getContext('2d');
-        lctx.fillStyle = '#000';
-        lctx.fillRect(0, 0, 384, 540);
-        lctx.fillStyle = '#f5f5f0';
-        lctx.textAlign = 'center';
-        lctx.textBaseline = 'middle';
 
-        // Top switch label
-        lctx.font = '300 38px "JetBrains Mono", monospace';
-        lctx.fillText('TKC', 192, 130);
-        // Bottom switch label
-        lctx.fillText('TKCX', 192, 410);
-        // Center separator + password (the persistent reminder)
-        lctx.strokeStyle = 'rgba(245, 245, 240, 0.25)';
-        lctx.lineWidth = 1;
-        lctx.beginPath(); lctx.moveTo(60, 270); lctx.lineTo(324, 270); lctx.stroke();
-        lctx.fillStyle = 'rgba(245, 158, 11, 0.85)';
-        lctx.font = '400 24px "JetBrains Mono", monospace';
-        lctx.fillText('🔒 696969', 192, 270);
+        function drawSwitchLabel() {
+          const tc = themeColors();
+          const fgRgb = CURRENT_THEME === 'dark' ? '245,245,240' : '26,26,26';
+          lctx.fillStyle = tc.bgCss;
+          lctx.fillRect(0, 0, 384, 540);
+          lctx.fillStyle = tc.fgCss;
+          lctx.textAlign = 'center';
+          lctx.textBaseline = 'middle';
+          lctx.font = '300 38px "JetBrains Mono", monospace';
+          lctx.fillText('TKC',  192, 130);
+          lctx.fillText('TKCX', 192, 410);
+          lctx.strokeStyle = `rgba(${fgRgb}, 0.25)`;
+          lctx.lineWidth = 1;
+          lctx.beginPath(); lctx.moveTo(60, 270); lctx.lineTo(324, 270); lctx.stroke();
+          lctx.fillStyle = tc.accentCss;
+          lctx.font = '400 24px "JetBrains Mono", monospace';
+          lctx.fillText('🔒 696969', 192, 270);
+          labelTex.needsUpdate = true;
+        }
 
         const labelTex = new THREE.CanvasTexture(labelCanvas);
         labelTex.colorSpace = THREE.SRGBColorSpace;
@@ -1124,13 +1193,14 @@
         const labelPlane = new THREE.Mesh(
           new THREE.PlaneGeometry(0.30, 0.45), labelMat
         );
-        // Just outside the plate face, facing into the room (toward -X)
         labelPlane.position.set(PANEL_X - 0.025, PANEL_Y, PANEL_Z);
-        labelPlane.rotation.y = Math.PI / 2;  // face -X (toward camera/room)
+        labelPlane.rotation.y = Math.PI / 2;
         scene.add(labelPlane);
-        // Fade the label plate in on reveal
         window.__pomoLabelPlanes = window.__pomoLabelPlanes || [];
         window.__pomoLabelPlanes.push(labelPlane);
+        // Initial paint + register theme refresh
+        drawSwitchLabel();
+        _themeRedrawHooks.push(drawSwitchLabel);
       }
 
       TKC_LINKS.forEach((link, i) => {
@@ -1209,8 +1279,10 @@
     }
 
     function drawOpsPanel() {
-      const { ctx, canvas, tex, data, lastUpdate } = OPS;
-      ctx.fillStyle = '#000';
+      const { ctx, canvas, tex, data } = OPS;
+      const c = themeColors();
+      const fgRgb = CURRENT_THEME === 'dark' ? '245,245,240' : '26,26,26';
+      ctx.fillStyle = c.bgCss;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       const total = data ? Object.keys(data.sites || {}).length : 0;
@@ -1219,43 +1291,39 @@
         : 0;
       const down = total - ok;
 
-      // Header
-      ctx.fillStyle = '#f59e0b';
+      ctx.fillStyle = c.accentCss;
       ctx.font = '300 22px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       ctx.fillText('OPERATIONS', canvas.width / 2, 50);
 
-      ctx.strokeStyle = 'rgba(245, 245, 240, 0.25)';
+      ctx.strokeStyle = `rgba(${fgRgb}, 0.25)`;
       ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(40, 76); ctx.lineTo(canvas.width - 40, 76); ctx.stroke();
 
-      // Big numerator/denominator
-      ctx.fillStyle = '#f5f5f0';
+      ctx.fillStyle = c.fgCss;
       ctx.font = '300 110px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       ctx.fillText(`${ok}/${total || '—'}`, canvas.width / 2, 200);
 
-      ctx.fillStyle = 'rgba(245, 245, 240, 0.45)';
+      ctx.fillStyle = `rgba(${fgRgb}, 0.45)`;
       ctx.font = '300 14px "JetBrains Mono", monospace';
       ctx.fillText('LIVE  ·  ENDPOINTS', canvas.width / 2, 240);
 
-      // Bar
       const barX = 40, barY = 290, barW = canvas.width - 80, barH = 4;
-      ctx.fillStyle = 'rgba(245, 245, 240, 0.15)';
+      ctx.fillStyle = `rgba(${fgRgb}, 0.15)`;
       ctx.fillRect(barX, barY, barW, barH);
       if (total) {
-        ctx.fillStyle = down ? '#f59e0b' : '#f5f5f0';
+        ctx.fillStyle = down ? c.accentCss : c.fgCss;
         ctx.fillRect(barX, barY, barW * (ok / total), barH);
       }
 
-      // Down list (if any)
       if (down > 0 && data) {
         ctx.fillStyle = '#ff6b6b';
         ctx.font = '300 13px "JetBrains Mono", monospace';
         ctx.textAlign = 'left';
         let y = 340;
         ctx.fillText('▼ DOWN', 40, y); y += 22;
-        ctx.fillStyle = 'rgba(245, 245, 240, 0.55)';
+        ctx.fillStyle = `rgba(${fgRgb}, 0.55)`;
         ctx.font = '300 11px "JetBrains Mono", monospace';
         for (const [d, v] of Object.entries(data.sites)) {
           if (v.code === 200 || v.code === 301 || v.code === 302) continue;
@@ -1264,26 +1332,25 @@
           if (y > 480) break;
         }
       } else if (data) {
-        ctx.fillStyle = 'rgba(245, 245, 240, 0.5)';
+        ctx.fillStyle = `rgba(${fgRgb}, 0.5)`;
         ctx.font = '300 12px "JetBrains Mono", monospace';
         ctx.textAlign = 'center';
         ctx.fillText('all systems nominal', canvas.width / 2, 360);
       } else {
-        ctx.fillStyle = 'rgba(245, 245, 240, 0.4)';
+        ctx.fillStyle = `rgba(${fgRgb}, 0.4)`;
         ctx.font = '300 12px "JetBrains Mono", monospace';
         ctx.textAlign = 'center';
         ctx.fillText('. . . loading', canvas.width / 2, 360);
       }
 
-      // Footer — last check timestamp
-      ctx.strokeStyle = 'rgba(245, 245, 240, 0.18)';
+      ctx.strokeStyle = `rgba(${fgRgb}, 0.18)`;
       ctx.beginPath(); ctx.moveTo(40, canvas.height - 70); ctx.lineTo(canvas.width - 40, canvas.height - 70); ctx.stroke();
-      ctx.fillStyle = 'rgba(245, 245, 240, 0.5)';
+      ctx.fillStyle = `rgba(${fgRgb}, 0.5)`;
       ctx.font = '300 11px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       const ts = data ? new Date(data.ts).toLocaleTimeString('en-GB', { timeZone: 'Asia/Bangkok', hour12: false }) : '——:——:——';
       ctx.fillText('LAST CHECK', canvas.width / 2, canvas.height - 44);
-      ctx.fillStyle = '#f5f5f0';
+      ctx.fillStyle = c.fgCss;
       ctx.font = '300 14px "JetBrains Mono", monospace';
       ctx.fillText(`${ts}  BKK`, canvas.width / 2, canvas.height - 22);
 
@@ -1321,14 +1388,14 @@
         ];
         scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), matMap));
       }
-      // Latitude lines
+      // Latitude lines (the equator gets the amber accent — visible color in both themes)
       for (let lat = -90; lat <= 90; lat += 30) {
         const z = -(lat / 90) * (MAP_D / 2);
         const pts = [
           new THREE.Vector3(MAP_X - MAP_W/2, MAP_Y + 0.001, MAP_Z + z),
           new THREE.Vector3(MAP_X + MAP_W/2, MAP_Y + 0.001, MAP_Z + z)
         ];
-        const equatorMat = lat === 0 ? matBright : matMap;
+        const equatorMat = lat === 0 ? matEquator : matMap;
         scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), equatorMat));
       }
     }
@@ -1411,11 +1478,12 @@
     function drawClock() {
       const ctx = clockCtx;
       const { w, h } = CLOCK_TEX_SIZE;
-      ctx.fillStyle = '#000';
+      const c = themeColors();
+      const fgRgb = CURRENT_THEME === 'dark' ? '245,245,240' : '26,26,26';
+      ctx.fillStyle = c.bgCss;
       ctx.fillRect(0, 0, w, h);
 
       const now = new Date();
-      // Bangkok parts via Intl
       const fmtParts = new Intl.DateTimeFormat('en-GB', {
         timeZone: 'Asia/Bangkok',
         weekday: 'short', day: '2-digit', month: 'short', year: 'numeric',
@@ -1428,19 +1496,16 @@
       const day = get('day'); const mon = get('month').toUpperCase();
       const yr  = get('year');
 
-      // Big time
-      ctx.fillStyle = '#f5f5f0';
+      ctx.fillStyle = c.fgCss;
       ctx.font = '500 110px "JetBrains Mono", monospace';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       const big = `${HH}:${MM}:${SS}`;
       ctx.fillText(big, w/2 - 80, 78);
-      // Smaller ms
-      ctx.fillStyle = 'rgba(245,245,240,0.55)';
+      ctx.fillStyle = `rgba(${fgRgb},0.55)`;
       ctx.font = '400 60px "JetBrains Mono", monospace';
       ctx.textAlign = 'left';
       ctx.fillText('.' + ms, w/2 - 80 + ctx.measureText(big).width / 2 + 4, 92);
-      // Bottom row
-      ctx.fillStyle = 'rgba(245,245,240,0.55)';
+      ctx.fillStyle = `rgba(${fgRgb},0.55)`;
       ctx.font = '300 26px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       const bottom = `${dow} ${day} ${mon} ${yr}  ·  BANGKOK  ·  GMT+7`;
@@ -1457,16 +1522,23 @@
       const btnCanvas = document.createElement('canvas');
       btnCanvas.width = 384; btnCanvas.height = 80;
       const btnCtx2 = btnCanvas.getContext('2d');
-      btnCtx2.fillStyle = '#000';
-      btnCtx2.fillRect(0, 0, 384, 80);
-      btnCtx2.fillStyle = '#f5f5f0';
-      btnCtx2.font = '300 24px "JetBrains Mono", monospace';
-      btnCtx2.textAlign = 'center';
-      btnCtx2.textBaseline = 'middle';
-      btnCtx2.letterSpacing = '0.32em';
-      btnCtx2.fillText('▷  POMODORO', 192, 44);
+
+      function drawPomoBtnTexture() {
+        const tc = themeColors();
+        btnCtx2.fillStyle = tc.bgCss;
+        btnCtx2.fillRect(0, 0, 384, 80);
+        btnCtx2.fillStyle = tc.fgCss;
+        btnCtx2.font = '300 24px "JetBrains Mono", monospace';
+        btnCtx2.textAlign = 'center';
+        btnCtx2.textBaseline = 'middle';
+        btnCtx2.letterSpacing = '0.32em';
+        btnCtx2.fillText('▷  POMODORO', 192, 44);
+        if (btnTex) btnTex.needsUpdate = true;
+      }
+      drawPomoBtnTexture();
       const btnTex = new THREE.CanvasTexture(btnCanvas);
       btnTex.colorSpace = THREE.SRGBColorSpace;
+      _themeRedrawHooks.push(drawPomoBtnTexture);
 
       const btnPlane = new THREE.Mesh(
         new THREE.PlaneGeometry(BTN_W, BTN_H),
@@ -1530,19 +1602,19 @@
       '中道智慧记忆宫殿东京上海曼谷火光';
 
     function drawRain() {
-      // fade existing content (longer trails)
-      rainCtx.fillStyle = 'rgba(0, 0, 0, 0.06)';
+      // Trail fade — color matches the theme bg so older glyphs dissolve into it
+      const trailRgb = CURRENT_THEME === 'dark' ? '0,0,0' : '245,245,240';
+      const headRgb  = CURRENT_THEME === 'dark' ? '245,245,240' : '26,26,26';
+      rainCtx.fillStyle = `rgba(${trailRgb}, 0.06)`;
       rainCtx.fillRect(0, 0, rainCanvasTex.width, rainCanvasTex.height);
-      rainCtx.fillStyle = '#f5f5f0';
       rainCtx.font = '14px "JetBrains Mono", "IBM Plex Sans Thai", monospace';
       for (let i = 0; i < rainDrops.length; i++) {
         const ch = RAIN_CHARS[Math.floor(Math.random() * RAIN_CHARS.length)];
         const x = i * 16, y = rainDrops[i] * 16;
-        // brighter head, dimmer tail
-        rainCtx.fillStyle = 'rgba(245, 245, 240, 0.9)';
+        rainCtx.fillStyle = `rgba(${headRgb}, 0.9)`;
         rainCtx.fillText(ch, x, y);
         if (y > rainCanvasTex.height && Math.random() > 0.97) rainDrops[i] = 0;
-        rainDrops[i] += 0.4 + Math.random() * 0.3;  // gentle, contemplative speed
+        rainDrops[i] += 0.4 + Math.random() * 0.3;
       }
       rainTex.needsUpdate = true;
     }
@@ -1588,19 +1660,18 @@
 
     function setTickerText(t, text) {
       const { ctx, cv } = t;
-      ctx.fillStyle = '#000';
+      const c = themeColors();
+      const fgRgb = CURRENT_THEME === 'dark' ? '245,245,240' : '26,26,26';
+      t.lastText = text;  // cache for redraw on theme change
+      ctx.fillStyle = c.bgCss;
       ctx.fillRect(0, 0, cv.width, cv.height);
-      ctx.fillStyle = 'rgba(245, 245, 240, 0.92)';
+      ctx.fillStyle = `rgba(${fgRgb}, 0.92)`;
       ctx.font = '300 30px "JetBrains Mono", "IBM Plex Sans Thai", monospace';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      // Render the same string twice with a separator so wrap-around is seamless
       const tw = ctx.measureText(text).width;
       ctx.fillText(text, 0, cv.height / 2);
-      // If there's room, lay a second copy down so the texture loops smoothly
-      if (tw + 80 < cv.width) {
-        ctx.fillText(text, tw + 80, cv.height / 2);
-      }
+      if (tw + 80 < cv.width) ctx.fillText(text, tw + 80, cv.height / 2);
       t.tex.needsUpdate = true;
     }
 
@@ -1706,6 +1777,11 @@
         );
       } catch (_) {}
     }
+
+    // Re-render every ticker on theme change with their cached text
+    _themeRedrawHooks.push(() => {
+      TICKERS.forEach(t => { if (t.lastText) setTickerText(t, t.lastText); });
+    });
 
     // First fetches + periodic refresh schedules
     fetchFX(); fetchCrypto(); fetchWx(); fetchNews(); fetchCommits(); fetchStats();
@@ -1900,6 +1976,8 @@
         }
       } else if (ud.kind === 'pomoBtn') {
         openPomodoro();
+      } else if (ud.kind === 'chandelier') {
+        toggleTheme();
       }
     }
     window.addEventListener('click', onClick);
@@ -2222,6 +2300,40 @@
     }
 
     // ════════════════════════════════════════════════════════
+    // Theme toggle (chandelier click) — dark ↔ light
+    // ════════════════════════════════════════════════════════
+    const _themeRedrawHooks = []; // canvases that need redrawing on theme change
+    function registerThemedRedraw(fn) { _themeRedrawHooks.push(fn); fn(); }
+
+    function applyTheme(t) {
+      CURRENT_THEME = t;
+      const c = THEMES[t];
+      // Three.js scene
+      scene.background = new THREE.Color(c.bg);
+      scene.fog.color  = new THREE.Color(c.bg);
+      // Line materials (excluding hover which always pops)
+      matBright.color.setHex(c.line);
+      matDim.color.setHex(c.line);
+      matFurni.color.setHex(c.line);
+      matMap.color.setHex(c.line);
+      matCity.color.setHex(c.line);
+      matCityHome.color.setHex(c.accent);
+      matEquator.color.setHex(c.accent);
+      matHover.color.setHex(c.accent);
+      // HTML overlays via CSS variables
+      document.body.dataset.theme = t;
+      // Repaint all themed canvases (clock, rain, ops, tickers, switch label, pomo button)
+      _themeRedrawHooks.forEach(fn => { try { fn(); } catch (_) {} });
+    }
+    function toggleTheme() {
+      applyTheme(CURRENT_THEME === 'dark' ? 'light' : 'dark');
+      localStorage.setItem('nonarkara.theme', CURRENT_THEME);
+    }
+    // Apply persisted theme on first render — runs after all materials and
+    // hook registrations are complete, so canvas redraws pick up the right colors.
+    setTimeout(() => applyTheme(CURRENT_THEME), 0);
+
+    // ════════════════════════════════════════════════════════
     // Drawer — thumb-friendly index of everything clickable
     // Same destinations as the 3D scene, just listed for fingers.
     // ════════════════════════════════════════════════════════
@@ -2388,6 +2500,9 @@
         tk.tex.offset.x += tk.scrollSpeed;
         tk.mat.opacity = ease * 0.55;
       });
+
+      // Chandelier — slow Y rotation; click to toggle theme
+      if (CHAND_GROUP) CHAND_GROUP.rotation.y += 0.0035;
       // Pomodoro button plane fades in alongside everything else
       if (window.__pomoBtnPlane) window.__pomoBtnPlane.material.opacity = ease * 0.7;
       // Switch panel label plate fades in alongside everything else
@@ -2441,6 +2556,9 @@
           } else if (ud.kind === 'pomoBtn') {
             ud.lines.forEach(l => l.material = matHover);
             tip.innerHTML = `▷  POMODORO<span class="url">25 min focus · 5 min break</span>`;
+          } else if (ud.kind === 'chandelier') {
+            ud.lines.forEach(l => l.material = matHover);
+            tip.innerHTML = `${CURRENT_THEME === 'dark' ? '☼' : '☾'}  CHANDELIER<span class="url">tap to switch theme · ${CURRENT_THEME === 'dark' ? 'dark' : 'light'}</span>`;
           }
           tip.classList.add('in');
           document.body.style.cursor = 'pointer';
