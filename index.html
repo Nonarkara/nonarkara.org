@@ -34,6 +34,15 @@
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
       });
+      // When a new SW takes over (after a deploy), force one reload so the
+      // page picks up fresh HTML + JS instead of running stale cached
+      // markup against new logic.
+      let __refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (__refreshing) return;
+        __refreshing = true;
+        location.reload();
+      });
     }
   </script>
 
@@ -2511,6 +2520,7 @@
         } catch (_) { /* try next */ }
       }
       if (!data) return;
+      window.__lastStatusData = data;
       TVs.forEach(grp => {
         const dom = grp.userData.project.dom;
         const entry = dom && data.sites && data.sites[dom];
@@ -2525,6 +2535,10 @@
       OPS.data = data;
       OPS.lastUpdate = Date.now();
       drawOpsPanel();
+      // Feed the plan view, if the plan-status painter is wired up yet
+      if (typeof paintPlanStatus === 'function') {
+        try { paintPlanStatus(data); } catch (_) {}
+      }
     }
     refreshStatus();
     setInterval(refreshStatus, 60_000);
@@ -3196,6 +3210,11 @@
     // PLAN view — 2D dashboard. Same data as the room, no Three.js
     // rendering, designed for one-thumb navigation on a phone.
     // The 3D room is opt-in via the "ENTER ROOM" button.
+    //
+    // Every step below is wrapped: a single bug in plan code must not
+    // cascade into a black screen for the whole site. iOS private mode
+    // throws on localStorage; matchMedia is fine in modern WebKit but
+    // we still guard.
     // ════════════════════════════════════════════════════════
     const planEl  = document.getElementById('plan');
     const planProjEl = document.getElementById('plan-projects');
@@ -3206,24 +3225,33 @@
     const planDateEl = document.getElementById('plan-date');
     const planStatEl = document.getElementById('plan-stat-summary');
 
-    // Default view: phone → plan, desktop → room. Persisted in localStorage.
+    function lsGet(key) { try { return localStorage.getItem(key); } catch (_) { return null; } }
+    function lsSet(key, v) { try { localStorage.setItem(key, v); } catch (_) {} }
+
     function chooseDefaultView() {
-      const saved = localStorage.getItem('nonarkara.view');
+      const saved = lsGet('nonarkara.view');
       if (saved === 'plan' || saved === 'room') return saved;
-      return matchMedia('(max-width: 768px)').matches ? 'plan' : 'room';
+      try { return matchMedia('(max-width: 768px)').matches ? 'plan' : 'room'; }
+      catch (_) { return 'room'; }
     }
     function setView(v) {
-      document.body.dataset.view = v;
-      localStorage.setItem('nonarkara.view', v);
-      planEl.setAttribute('aria-hidden', v === 'plan' ? 'false' : 'true');
-      // When entering plan, repaint dynamic content; when entering room,
-      // make sure the renderer keeps drawing (it never stopped).
-      if (v === 'plan') { renderPlan(); refreshStatus(); }
+      try {
+        document.body.dataset.view = v;
+        lsSet('nonarkara.view', v);
+        if (planEl) planEl.setAttribute('aria-hidden', v === 'plan' ? 'false' : 'true');
+        if (v === 'plan') { renderPlan(); refreshStatus(); }
+      } catch (_) {}
     }
-    document.body.dataset.view = chooseDefaultView();
-    planEl.setAttribute('aria-hidden', document.body.dataset.view === 'plan' ? 'false' : 'true');
+    try {
+      document.body.dataset.view = chooseDefaultView();
+      if (planEl) planEl.setAttribute('aria-hidden', document.body.dataset.view === 'plan' ? 'false' : 'true');
+    } catch (_) {
+      document.body.dataset.view = 'room';
+    }
 
-    function renderPlan() {
+    function renderPlan() { try { _renderPlanBody(); } catch (e) { /* don't cascade */ } }
+    function _renderPlanBody() {
+      if (!planProjEl || !planPersEl || !planPrivEl || !planCityEl) return;
       // Projects → tap target grid
       planProjEl.innerHTML = PROJECTS.map(p => `
         <button class="plan-cell" data-code="${p.code}">
@@ -3293,7 +3321,9 @@
     }
 
     // Live clock — always running, painted on both views
-    function tickPlanClock() {
+    function tickPlanClock() { try { _tickPlanClockBody(); } catch (_) {} }
+    function _tickPlanClockBody() {
+      if (!planTimeEl) return;
       const now = new Date();
       const fmt = new Intl.DateTimeFormat('en-GB', {
         timeZone: 'Asia/Bangkok', hour12: false,
@@ -3319,7 +3349,8 @@
     }
     setInterval(tickPlanClock, 1000);
 
-    function paintPlanStatus(data) {
+    function paintPlanStatus(data) { try { _paintPlanStatusBody(data); } catch (_) {} }
+    function _paintPlanStatusBody(data) {
       if (!planProjEl) return;
       let okCount = 0, total = 0;
       planProjEl.querySelectorAll('.plan-cell').forEach(cell => {
@@ -3346,47 +3377,33 @@
       }
     }
 
-    // Hook into the existing refreshStatus pipeline so the plan repaints
-    // alongside the room. Wraps without breaking the original.
-    const _origRefreshStatus = refreshStatus;
-    window.refreshStatus = async function () {
-      // Inline-fetch (independent of TVs) so plan view works even if
-      // the 3D scene fails to init for any reason.
-      const sources = ['https://api.nonarkara.org/status', 'health/latest.json?t=' + Date.now()];
-      for (const src of sources) {
-        try {
-          const r = await fetch(src, { cache: 'no-store' });
-          if (r.ok) { window.__lastStatusData = await r.json(); break; }
-        } catch (_) { /* try next */ }
-      }
-      paintPlanStatus(window.__lastStatusData);
-      try { await _origRefreshStatus(); } catch (_) {}
-    };
-    setInterval(window.refreshStatus, 60_000);
+    // The original refreshStatus (above) now also paints the plan grid
+    // when paintPlanStatus is defined, so no wrapping needed here.
+    // Trigger one immediate repaint with whatever data has already arrived.
+    if (window.__lastStatusData) paintPlanStatus(window.__lastStatusData);
 
-    // Wire toggle buttons
+    // Wire toggle buttons — defensive: missing DOM nodes must not crash init
     const viewToggleBtn = document.getElementById('view-toggle');
-    document.getElementById('plan-room').addEventListener('click', () => setView('room'));
-    viewToggleBtn.addEventListener('click', () => setView('plan'));
+    const planRoomBtn   = document.getElementById('plan-room');
+    const planThemeBtn  = document.getElementById('plan-theme');
+    if (planRoomBtn)   planRoomBtn.addEventListener('click', () => setView('room'));
+    if (viewToggleBtn) viewToggleBtn.addEventListener('click', () => setView('plan'));
+    if (planThemeBtn)  planThemeBtn.addEventListener('click', toggleTheme);
 
-    // Plan-view lang switcher mirrors the in-room one
     document.querySelectorAll('#plan-lang button').forEach(b => {
       b.addEventListener('click', () => {
         LANG = b.dataset.l;
-        localStorage.setItem('nonarkara.lang', LANG);
-        applyLang();
+        lsSet('nonarkara.lang', LANG);
+        try { applyLang(); } catch (_) {}
         renderPlan();
       });
     });
 
-    // Plan-view theme button — same toggle as the chandelier
-    document.getElementById('plan-theme').addEventListener('click', toggleTheme);
-
     // Initial paint + reveal-in pulse for the floating ROOM/PLAN toggle
-    renderPlan();
-    tickPlanClock();
+    try { renderPlan(); } catch (_) {}
+    try { tickPlanClock(); } catch (_) {}
     window.__planReady = true;
-    setTimeout(() => viewToggleBtn.classList.add('in'), 200);
+    if (viewToggleBtn) setTimeout(() => viewToggleBtn.classList.add('in'), 200);
 
     // Tap "NON" three times quickly to summon a haiku.
     // Works the same on mouse, keyboard, and thumbs.
