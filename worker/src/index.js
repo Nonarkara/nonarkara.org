@@ -28,6 +28,7 @@ const DOMAINS = [
   "bus.nonarkara.org",
   "kuching.nonarkara.org",
   "solomon.nonarkara.org",
+  "slowdown.nonarkara.org",
   "ascn.nonarkara.org",
   "asean.nonarkara.org",
   "scl.nonarkara.org",

@@ -544,6 +544,7 @@
       { code: 'KUCHING',  title: 'Greater Kuching IOC',               url: 'https://kuching.nonarkara.org',                     img: 'screenshots/kuching.jpg',   dom: 'kuching.nonarkara.org' },
       { code: 'SOLOMON',  title: 'Solomon Islands · UN DESA',         url: 'https://solomon.nonarkara.org',                     img: 'screenshots/solomon.jpg',   dom: 'solomon.nonarkara.org' },
       { code: 'ASCN',     title: 'ASEAN Smart Cities Network',        url: 'https://ascn.nonarkara.org',                        img: 'screenshots/ascn.jpg',      dom: 'ascn.nonarkara.org' },
+      { code: 'SLOWDOWN', title: 'The Things You Can See',            url: 'https://slowdown.nonarkara.org',                    img: 'screenshots/slowdown.jpg', dom: 'slowdown.nonarkara.org' },
       { code: 'NOVELS',   title: 'Substack · Novels',                 url: 'https://substack.com/@nonarkara',                   img: 'screenshots/substack.jpg' },
       { code: 'ESSAYS',   title: 'Medium · Essays',                   url: 'https://nonsmartcity.medium.com/',                  img: 'screenshots/medium.jpg' },
       { code: 'SOLITUDE', title: '100 Days of Solitude',              url: 'https://solitude.nonarkara.org',                    img: 'screenshots/solitude.jpg',  dom: 'solitude.nonarkara.org' },
@@ -668,8 +669,8 @@
 
     // ── Furniture: coffee table → CONTACT ────────────────────
     {
-      // Hit volume shorter on Y so the cup that sits on top can stick above and intercept clicks
-      const { group, lines } = makeClickableGroup('furniture', 'coffee', 2.0, 0.45, 1.0, 0, 0.4, 1.5);
+      // Hit volume sits BELOW the cup's hit volume — table top at y=0.42, hit y range 0.0–0.45
+      const { group, lines } = makeClickableGroup('furniture', 'coffee', 2.0, 0.45, 1.0, 0, 0.225, 1.5);
       const top = new THREE.LineSegments(
         new THREE.EdgesGeometry(new THREE.BoxGeometry(2.0, 0.05, 1.0)), matFurni);
       top.position.set(0, 0.02, 0); group.add(top); lines.push(top);
@@ -850,6 +851,126 @@
         scene.add(group);
         INTERACTABLES.push(group);
       });
+    }
+
+    // ════════════════════════════════════════════════════════
+    // Operations panel (left wall, mid-back) — live health board
+    // Renders aggregate status from /status JSON every minute.
+    // ════════════════════════════════════════════════════════
+    const OPS = {
+      canvas: null, ctx: null, tex: null, plane: null,
+      data: null, lastUpdate: null,
+    };
+    {
+      const PX = -9.4, PY = 2.7, PZ = -5.0;
+      const PW = 0.55, PH_ = 0.85;
+
+      // Wireframe frame around it
+      const frame = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(0.04, PH_ * 1.06, PW * 1.06)),
+        matFurni
+      );
+      frame.position.set(PX, PY, PZ);
+      scene.add(frame);
+
+      // Canvas
+      const c = document.createElement('canvas');
+      c.width = 384; c.height = 600;
+      const ctx = c.getContext('2d');
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      const mat = new THREE.MeshBasicMaterial({
+        map: tex, transparent: true, opacity: 0,
+        side: THREE.FrontSide, depthWrite: false
+      });
+      const plane = new THREE.Mesh(new THREE.PlaneGeometry(PW, PH_), mat);
+      plane.position.set(PX + 0.025, PY, PZ);
+      plane.rotation.y = -Math.PI / 2;  // facing +X (toward room interior)
+      scene.add(plane);
+
+      OPS.canvas = c; OPS.ctx = ctx; OPS.tex = tex; OPS.plane = plane;
+    }
+
+    function drawOpsPanel() {
+      const { ctx, canvas, tex, data, lastUpdate } = OPS;
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const total = data ? Object.keys(data.sites || {}).length : 0;
+      const ok = data
+        ? Object.values(data.sites).filter(v => v.code === 200 || v.code === 301 || v.code === 302).length
+        : 0;
+      const down = total - ok;
+
+      // Header
+      ctx.fillStyle = '#f59e0b';
+      ctx.font = '300 22px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('OPERATIONS', canvas.width / 2, 50);
+
+      ctx.strokeStyle = 'rgba(245, 245, 240, 0.25)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(40, 76); ctx.lineTo(canvas.width - 40, 76); ctx.stroke();
+
+      // Big numerator/denominator
+      ctx.fillStyle = '#f5f5f0';
+      ctx.font = '300 110px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${ok}/${total || '—'}`, canvas.width / 2, 200);
+
+      ctx.fillStyle = 'rgba(245, 245, 240, 0.45)';
+      ctx.font = '300 14px "JetBrains Mono", monospace';
+      ctx.fillText('LIVE  ·  ENDPOINTS', canvas.width / 2, 240);
+
+      // Bar
+      const barX = 40, barY = 290, barW = canvas.width - 80, barH = 4;
+      ctx.fillStyle = 'rgba(245, 245, 240, 0.15)';
+      ctx.fillRect(barX, barY, barW, barH);
+      if (total) {
+        ctx.fillStyle = down ? '#f59e0b' : '#f5f5f0';
+        ctx.fillRect(barX, barY, barW * (ok / total), barH);
+      }
+
+      // Down list (if any)
+      if (down > 0 && data) {
+        ctx.fillStyle = '#ff6b6b';
+        ctx.font = '300 13px "JetBrains Mono", monospace';
+        ctx.textAlign = 'left';
+        let y = 340;
+        ctx.fillText('▼ DOWN', 40, y); y += 22;
+        ctx.fillStyle = 'rgba(245, 245, 240, 0.55)';
+        ctx.font = '300 11px "JetBrains Mono", monospace';
+        for (const [d, v] of Object.entries(data.sites)) {
+          if (v.code === 200 || v.code === 301 || v.code === 302) continue;
+          ctx.fillText(`${d}  (${v.code})`.slice(0, 38), 40, y);
+          y += 18;
+          if (y > 480) break;
+        }
+      } else if (data) {
+        ctx.fillStyle = 'rgba(245, 245, 240, 0.5)';
+        ctx.font = '300 12px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('all systems nominal', canvas.width / 2, 360);
+      } else {
+        ctx.fillStyle = 'rgba(245, 245, 240, 0.4)';
+        ctx.font = '300 12px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('. . . loading', canvas.width / 2, 360);
+      }
+
+      // Footer — last check timestamp
+      ctx.strokeStyle = 'rgba(245, 245, 240, 0.18)';
+      ctx.beginPath(); ctx.moveTo(40, canvas.height - 70); ctx.lineTo(canvas.width - 40, canvas.height - 70); ctx.stroke();
+      ctx.fillStyle = 'rgba(245, 245, 240, 0.5)';
+      ctx.font = '300 11px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      const ts = data ? new Date(data.ts).toLocaleTimeString('en-GB', { timeZone: 'Asia/Bangkok', hour12: false }) : '——:——:——';
+      ctx.fillText('LAST CHECK', canvas.width / 2, canvas.height - 44);
+      ctx.fillStyle = '#f5f5f0';
+      ctx.font = '300 14px "JetBrains Mono", monospace';
+      ctx.fillText(`${ts}  BKK`, canvas.width / 2, canvas.height - 22);
+
+      tex.needsUpdate = true;
     }
 
     // ════════════════════════════════════════════════════════
@@ -1196,6 +1317,10 @@
         const ok = entry.code === 200 || entry.code === 301 || entry.code === 302;
         grp.userData.dotMat.color.setHex(ok ? 0x33ff66 : 0xff3344);
       });
+      // Feed the operations panel
+      OPS.data = data;
+      OPS.lastUpdate = Date.now();
+      drawOpsPanel();
     }
     refreshStatus();
     setInterval(refreshStatus, 60_000);
@@ -1492,6 +1617,10 @@
       if (window.__pomoLabelPlanes) {
         window.__pomoLabelPlanes.forEach(p => p.material.opacity = ease * 0.85);
       }
+      // Operations panel
+      if (OPS.plane) OPS.plane.material.opacity = ease * 0.85;
+      // Initial paint of OPS (loading state) once during fade
+      if (ease > 0.5 && !OPS._painted) { drawOpsPanel(); OPS._painted = true; }
 
       raycaster.setFromCamera(mouse, camera);
       const hits = raycaster.intersectObjects(INTERACTABLES.map(o => o.userData.hit));
