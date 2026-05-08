@@ -384,6 +384,7 @@
     // Project + city + furniture data
     // ════════════════════════════════════════════════════════
     const PROJECTS = [
+      { code: 'NINJA',    title: 'Ninja Innovation',                  url: 'https://ninja.nonarkara.org',                       img: 'screenshots/ninja.jpg',     dom: 'ninja.nonarkara.org' },
       { code: 'AXIOM',    title: 'Axiom Consultancy',                 url: 'https://axiom.nonarkara.org',                       img: 'screenshots/axiom.jpg',     dom: 'axiom.nonarkara.org' },
       { code: 'SLIC',     title: 'SLIC Index v3',                     url: 'https://slic.nonarkara.org',                        img: 'screenshots/slic.jpg',      dom: 'slic.nonarkara.org' },
       { code: 'SCITI',    title: 'Smart City Thailand Index',         url: 'https://sciti.nonarkara.org',                       img: 'screenshots/sciti.jpg',     dom: 'sciti.nonarkara.org' },
@@ -489,13 +490,13 @@
     {
       const ceiling = new THREE.GridHelper(140, 35, 0xf5f5f0, 0xf5f5f0);
       ceiling.material = matDim;
-      ceiling.position.y = 5.6;
+      ceiling.position.y = 6.0;
       scene.add(ceiling);
     }
     [-9.5, 9.5].forEach(x => {
-      const geom = new THREE.PlaneGeometry(60, 5.6, 30, 6);
+      const geom = new THREE.PlaneGeometry(60, 6.0, 30, 7);
       const wire = new THREE.LineSegments(new THREE.WireframeGeometry(geom), matDim);
-      wire.position.set(x, 2.8, -10);
+      wire.position.set(x, 3.0, -10);
       wire.rotation.y = x > 0 ? -Math.PI / 2 : Math.PI / 2;
       scene.add(wire);
     });
@@ -533,9 +534,22 @@
         leg.position.set(dx, -0.21, dz);
         group.add(leg); lines.push(leg);
       }));
-      const cyl = new THREE.CylinderGeometry(0.06, 0.06, 0.12, 12);
-      const cup = new THREE.LineSegments(new THREE.WireframeGeometry(cyl), matFurni);
-      cup.position.set(0.4, 0.11, 0); group.add(cup); lines.push(cup);
+      // Cup is a SEPARATE clickable group — easter egg
+    }
+    {
+      const { group: cupGrp, lines: cupLines } = makeClickableGroup(
+        'furniture', 'cup', 0.30, 0.30, 0.30,  // hit volume — bigger than visible cup
+        0.4, 0.51, 1.5  // world position (was on the coffee table)
+      );
+      const cylG = new THREE.CylinderGeometry(0.06, 0.06, 0.12, 12);
+      const cyl = new THREE.LineSegments(new THREE.WireframeGeometry(cylG), matFurni);
+      cupGrp.add(cyl); cupLines.push(cyl);
+      // tiny saucer below
+      const saucer = new THREE.LineSegments(
+        new THREE.WireframeGeometry(new THREE.CylinderGeometry(0.10, 0.10, 0.012, 16)),
+        matFurni
+      );
+      saucer.position.y = -0.06; cupGrp.add(saucer); cupLines.push(saucer);
     }
 
     // ── Furniture: chair (decoration, moved to back-left) ────
@@ -697,7 +711,7 @@
     const clockPlane = new THREE.Mesh(
       new THREE.PlaneGeometry(CLOCK_W, CLOCK_H), clockMat
     );
-    clockPlane.position.set(0, 5.05, -10);
+    clockPlane.position.set(0, 5.3, -10);
     scene.add(clockPlane);
 
     // Clock frame (subtle wireframe around it)
@@ -706,7 +720,7 @@
         new THREE.EdgesGeometry(new THREE.BoxGeometry(CLOCK_W * 1.02, CLOCK_H * 1.05, 0.04)),
         matFurni
       );
-      frame.position.set(0, 5.05, -10);
+      frame.position.set(0, 5.3, -10);
       scene.add(frame);
     }
 
@@ -756,8 +770,8 @@
     // ════════════════════════════════════════════════════════
     // TVs at far wall (5 × 4 grid = 20)
     // ════════════════════════════════════════════════════════
-    const TV_W = 1.22, TV_H = 0.77;
-    const GAP_X = 0.18, GAP_Y = 0.24;
+    const TV_W = 1.22, TV_H = 0.72;
+    const GAP_X = 0.18, GAP_Y = 0.20;
     const COLS = 5;
     const ROWS = Math.ceil(PROJECTS.length / COLS);
     const tvLoader = new THREE.TextureLoader();
@@ -767,7 +781,7 @@
       const col = i % COLS;
       const row = Math.floor(i / COLS);
       const cx = (col - (COLS - 1) / 2) * (TV_W + GAP_X);
-      const cy = 2.55 + ((ROWS - 1) / 2 - row) * (TV_H + GAP_Y);
+      const cy = 2.4 + ((ROWS - 1) / 2 - row) * (TV_H + GAP_Y);
       const cz = -10;
 
       const grp = new THREE.Group();
@@ -818,7 +832,7 @@
     // ════════════════════════════════════════════════════════
     async function refreshStatus() {
       try {
-        const r = await fetch('.health/latest.json?t=' + Date.now(), { cache: 'no-store' });
+        const r = await fetch('health/latest.json?t=' + Date.now(), { cache: 'no-store' });
         if (!r.ok) return;
         const data = await r.json();
         TVs.forEach(grp => {
@@ -936,6 +950,17 @@
             <span class="row">234/431 Bldg A · Ladprao Lane 10 · Bangkok 10900</span>
           </div>`;
         showModal(t('contact_eyebrow'), t('contact_title'), html);
+      } else if (key === 'cup') {
+        // Easter egg — sabai sabai (left here for the curious)
+        const url = 'https://sabaisabai-airdnd.pages.dev/';
+        const html = `
+          <div class="modal-qr"><img src="${buildQR(url, 'M')}" alt="QR"></div>
+          <div class="modal-cap">สบายๆ · take a break</div>
+          <div class="modal-meta">
+            <span class="row">Thailand Massage &amp; Spa Directory</span>
+            <a class="row" href="${url}" target="_blank" rel="noopener">sabaisabai-airdnd.pages.dev</a>
+          </div>`;
+        showModal('☕ ·', 'Sabai Sabai', html);
       }
     }
 
@@ -1012,9 +1037,14 @@
             tip.innerHTML = `${ud.project.code}<span class="url">${ud.project.title.toLowerCase()}</span>${lockHint}`;
           } else if (ud.kind === 'furniture') {
             ud.lines.forEach(l => l.material = matHover);
-            const eyebrowKey = { bookshelf: 'cv_eyebrow', pedestal: 'li_eyebrow', coffee: 'contact_eyebrow' }[ud.key];
-            const titleKey   = { bookshelf: 'cv_title',   pedestal: 'li_title',   coffee: 'contact_title'   }[ud.key];
-            tip.innerHTML = `${t(eyebrowKey)}<span class="url">${t(titleKey).toLowerCase()}</span>`;
+            if (ud.key === 'cup') {
+              // The easter egg whispers, doesn't announce.
+              tip.innerHTML = `· · ·<span class="url">click</span>`;
+            } else {
+              const eyebrowKey = { bookshelf: 'cv_eyebrow', pedestal: 'li_eyebrow', coffee: 'contact_eyebrow' }[ud.key];
+              const titleKey   = { bookshelf: 'cv_title',   pedestal: 'li_title',   coffee: 'contact_title'   }[ud.key];
+              tip.innerHTML = `${t(eyebrowKey)}<span class="url">${t(titleKey).toLowerCase()}</span>`;
+            }
           } else if (ud.kind === 'city') {
             ud.lines.forEach(l => l.material = matHover);
             tip.innerHTML = `${ud.city.name.toUpperCase()}<span class="url">${ud.city.tz}</span>`;

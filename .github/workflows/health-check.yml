@@ -23,6 +23,7 @@ jobs:
           DOMAINS=(
             "nonarkara.org"
             "www.nonarkara.org"
+            "ninja.nonarkara.org"
             "axiom.nonarkara.org"
             "slic.nonarkara.org"
             "sciti.nonarkara.org"
@@ -46,21 +47,21 @@ jobs:
             "brain.nonarkara.org"
           )
 
-          mkdir -p .health
+          mkdir -p health
           ts=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
           {
             echo "# Health check — $ts"
             echo ""
             echo "| Subdomain | HTTP | RT (ms) | Status |"
             echo "|---|---|---|---|"
-          } > .health/latest.md
+          } > health/latest.md
 
           # Start JSON (also written for the live status dots on nonarkara.org)
           {
             echo "{"
             echo "  \"ts\": \"$ts\","
             echo "  \"sites\": {"
-          } > .health/latest.json
+          } > health/latest.json
           first_json=1
 
           failed=()
@@ -85,25 +86,25 @@ jobs:
               status="❌ DOWN"
               failed+=("$d ($best_code)")
             fi
-            echo "| $d | $best_code | $best_ms | $status |" >> .health/latest.md
+            echo "| $d | $best_code | $best_ms | $status |" >> health/latest.md
 
             # JSON entry
-            [ $first_json -eq 0 ] && echo "," >> .health/latest.json
+            [ $first_json -eq 0 ] && echo "," >> health/latest.json
             first_json=0
-            printf "    \"%s\": { \"code\": %d, \"ms\": %d }" "$d" "$best_code" "$best_ms" >> .health/latest.json
+            printf "    \"%s\": { \"code\": %d, \"ms\": %d }" "$d" "$best_code" "$best_ms" >> health/latest.json
           done
 
           {
             echo ""
             echo "  }"
             echo "}"
-          } >> .health/latest.json
+          } >> health/latest.json
 
           # Append history
           {
             echo "$ts | total: ${#DOMAINS[@]} | failed: ${#failed[@]}"
             for f in "${failed[@]}"; do echo "    - $f"; done
-          } >> .health/history.log
+          } >> health/history.log
 
           # Set output
           echo "failed_count=${#failed[@]}" >> $GITHUB_OUTPUT
@@ -118,7 +119,7 @@ jobs:
         run: |
           git config user.name "nonarkara-health-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add .health
+          git add health
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
@@ -136,7 +137,7 @@ jobs:
             const body = [
               `Failed subdomains:`, '', '```', failed, '```', '',
               `Triggered by ${context.eventName} at ${new Date().toISOString()}.`,
-              `Full report: [.health/latest.md](https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/.health/latest.md)`
+              `Full report: [health/latest.md](https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/health/latest.md)`
             ].join('\n');
 
             // Look for an existing open health issue
