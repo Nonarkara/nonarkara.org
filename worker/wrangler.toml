@@ -8,15 +8,15 @@ account_id = "74ad6bf8dfaaccf82de6f0847f7d2d54"
 [triggers]
 crons = ["*/5 * * * *"]
 
-# KV binding — the namespace ID is filled in after `wrangler kv namespace create STATUS`
+# KV binding
 [[kv_namespaces]]
 binding = "STATUS"
-id = "REPLACE_WITH_KV_ID"
+id = "08c721ac2a1341e4b2266eeb8eae8fc9"
 
-# Custom domain — api.nonarkara.org
+# Custom domain — Workers handles DNS+SSL automatically
 [[routes]]
-pattern = "api.nonarkara.org/*"
-zone_name = "nonarkara.org"
+pattern = "api.nonarkara.org"
+custom_domain = true
 
 [observability]
 enabled = true
