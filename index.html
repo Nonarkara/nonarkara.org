@@ -296,24 +296,26 @@
   <script type="module">
     import * as THREE from 'three';
 
-    // ── Project metadata (TV grid: 4 cols × 4 rows = 16) ─────
+    // ── Project metadata (TV grid: 5 cols × 4 rows = 20) ─────
     const PROJECTS = [
       { code: 'AXIOM',    title: 'Axiom Consultancy',                 url: 'https://axiom.nonarkara.org',                       img: 'screenshots/axiom.jpg' },
       { code: 'SLIC',     title: 'SLIC Index v3',                     url: 'https://slic.nonarkara.org',                        img: 'screenshots/slic.jpg' },
       { code: 'SCITI',    title: 'Smart City Thailand Index',         url: 'https://sciti.nonarkara.org',                       img: 'screenshots/sciti.jpg' },
       { code: 'TOMASITY', title: 'Muang Thong Thani',                 url: 'https://monitor.nonarkara.org',                     img: 'screenshots/monitor.jpg' },
+      { code: 'CDP v2',   title: 'CD Data Platform',                  url: 'https://cdp.nonarkara.org',                         img: 'screenshots/cdp.jpg' },
       { code: 'TKC',      title: 'TKC Digital Twin · Showcase',       url: 'https://tkc.nonarkara.org',                         img: 'screenshots/tkc.jpg',     locked: true },
       { code: 'TKC OPS',  title: 'TKC · Command Center',              url: 'https://tkc-digital-twin.fly.dev/command-center',   img: 'screenshots/tkc-cc.jpg',  locked: true },
       { code: 'CONFLICT', title: 'Global Political Monitor',          url: 'https://conflict.nonarkara.org',                    img: 'screenshots/conflict.jpg' },
       { code: 'MEM',      title: 'Middle Eastern Monitor',            url: 'https://mem.nonarkara.org',                         img: 'screenshots/mem.jpg' },
       { code: 'GEO',      title: 'Thailand Geopolitical Watch',       url: 'https://geo.nonarkara.org',                         img: 'screenshots/geo.jpg' },
-      { code: 'CDP v2',   title: 'CD Data Platform',                  url: 'https://cdp.nonarkara.org',                         img: 'screenshots/cdp.jpg' },
       { code: 'PHUKET',   title: 'Phuket Dashboard',                  url: 'https://phuket.nonarkara.org',                      img: 'screenshots/phuket.jpg' },
       { code: 'BUS',      title: 'Phuket Smart Bus',                  url: 'https://bus.nonarkara.org',                         img: 'screenshots/bus.jpg' },
       { code: 'KUCHING',  title: 'Greater Kuching IOC',               url: 'https://kuching.nonarkara.org',                     img: 'screenshots/kuching.jpg' },
       { code: 'SOLOMON',  title: 'Solomon Islands · UN DESA',         url: 'https://solomon.nonarkara.org',                     img: 'screenshots/solomon.jpg' },
+      { code: 'ASCN',     title: 'ASEAN Smart Cities Network',        url: 'https://ascn.nonarkara.org',                        img: 'screenshots/ascn.jpg' },
       { code: 'NOVELS',   title: 'Substack · Novels',                 url: 'https://substack.com/@nonarkara',                   img: 'screenshots/substack.jpg' },
       { code: 'ESSAYS',   title: 'Medium · Essays',                   url: 'https://nonsmartcity.medium.com/',                  img: 'screenshots/medium.jpg' },
+      { code: 'SOLITUDE', title: '100 Days of Solitude',              url: 'https://solitude.nonarkara.org',                    img: 'screenshots/solitude.jpg' },
     ];
 
     // ── Furniture identities (modal payloads) ────────────────
@@ -519,10 +521,10 @@
       scene.add(wire);
     }
 
-    // ── TVs at far wall (4 × 4 grid = 16) ────────────────────
-    const TV_W = 1.4, TV_H = 0.88;
-    const GAP_X = 0.22, GAP_Y = 0.28;
-    const COLS = 4;
+    // ── TVs at far wall (5 × 4 grid = 20) ────────────────────
+    const TV_W = 1.22, TV_H = 0.77;
+    const GAP_X = 0.18, GAP_Y = 0.24;
+    const COLS = 5;
     const tvLoader = new THREE.TextureLoader();
 
     const ROWS = Math.ceil(PROJECTS.length / COLS);
