@@ -1365,6 +1365,175 @@
     }
 
     // ════════════════════════════════════════════════════════
+    // Command-room ticker walls (live data, perspective-projected)
+    //   LEFT  wall — financial: crypto · FX · weather
+    //   RIGHT wall — intel:     news · git activity · ops stats
+    // Each ticker is a long thin canvas-textured plane mounted on
+    // the side wall facing the room interior. The texture wraps
+    // horizontally and we animate offset.x so it scrolls forever.
+    // ════════════════════════════════════════════════════════
+    const TICKERS = [];
+
+    function createTicker(side, y, scrollSpeed) {
+      const cv = document.createElement('canvas');
+      cv.width = 2048; cv.height = 64;
+      const ctx = cv.getContext('2d');
+      // Fill black so transparency works cleanly
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, cv.width, cv.height);
+
+      const tex = new THREE.CanvasTexture(cv);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.minFilter = THREE.LinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+
+      const mat = new THREE.MeshBasicMaterial({
+        map: tex, transparent: true, opacity: 0,
+        side: THREE.FrontSide, depthWrite: false
+      });
+      const plane = new THREE.Mesh(new THREE.PlaneGeometry(14, 0.34), mat);
+      plane.position.set(side === 'left' ? -9.45 : 9.45, y, -1);
+      plane.rotation.y = side === 'left' ? Math.PI / 2 : -Math.PI / 2;
+      scene.add(plane);
+
+      const tckr = { plane, mat, tex, ctx, cv, scrollSpeed, side };
+      TICKERS.push(tckr);
+      return tckr;
+    }
+
+    function setTickerText(t, text) {
+      const { ctx, cv } = t;
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, cv.width, cv.height);
+      ctx.fillStyle = 'rgba(245, 245, 240, 0.92)';
+      ctx.font = '300 30px "JetBrains Mono", "IBM Plex Sans Thai", monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      // Render the same string twice with a separator so wrap-around is seamless
+      const tw = ctx.measureText(text).width;
+      ctx.fillText(text, 0, cv.height / 2);
+      // If there's room, lay a second copy down so the texture loops smoothly
+      if (tw + 80 < cv.width) {
+        ctx.fillText(text, tw + 80, cv.height / 2);
+      }
+      t.tex.needsUpdate = true;
+    }
+
+    // Spawn six tickers — three rows per wall
+    const tckrFx      = createTicker('left',  1.85, 0.00018);  // FX (medium)
+    const tckrCrypto  = createTicker('left',  2.65, 0.00012);  // Crypto (slow, top)
+    const tckrWx      = createTicker('left',  1.05, 0.00024);  // Weather/local (fast)
+    const tckrNews    = createTicker('right', 2.65, 0.00012);  // Headlines (slow, top)
+    const tckrCommits = createTicker('right', 1.85, 0.00018);  // Git activity (medium)
+    const tckrStats   = createTicker('right', 1.05, 0.00024);  // Ops stats (fast)
+
+    // Initial placeholder text so the walls aren't blank during first fetch
+    setTickerText(tckrFx,      ' • • •  USD/THB  •  EUR/THB  •  GBP/THB  •  JPY/THB  • • •  ');
+    setTickerText(tckrCrypto,  ' • • •  BTC  •  ETH  •  SOL  • • •  ');
+    setTickerText(tckrWx,      ' • • •  BANGKOK WEATHER  •  AQI  •  LOCAL TIME  • • •  ');
+    setTickerText(tckrNews,    ' • • •  HACKER NEWS  •  RECENT HEADLINES  • • •  ');
+    setTickerText(tckrCommits, ' • • •  GITHUB  •  RECENT COMMITS ACROSS NONARKARA REPOS  • • •  ');
+    setTickerText(tckrStats,   ' • • •  OPS STATUS  •  TUNNEL  •  WORKER  • • •  ');
+
+    // ── Fetchers ────────────────────────────────────────────
+    async function fetchFX() {
+      try {
+        const r = await fetch('https://open.er-api.com/v6/latest/USD', { cache: 'no-cache' });
+        const d = await r.json();
+        const thb     = d.rates.THB.toFixed(2);
+        const eurThb  = (d.rates.THB / d.rates.EUR).toFixed(2);
+        const gbpThb  = (d.rates.THB / d.rates.GBP).toFixed(2);
+        const jpyPer100 = (d.rates.THB / d.rates.JPY * 100).toFixed(2);
+        const ts = new Date(d.time_last_update_unix * 1000).toLocaleString('en-GB', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' });
+        setTickerText(tckrFx,
+          `USD/THB ${thb}   ▪   EUR/THB ${eurThb}   ▪   GBP/THB ${gbpThb}   ▪   JPY/THB ${jpyPer100} per 100   ▪   FX rates  ${ts} BKK   ▪   `
+        );
+      } catch (_) {}
+    }
+
+    async function fetchCrypto() {
+      try {
+        const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true', { cache: 'no-cache' });
+        const d = await r.json();
+        const fmt = (k, sym) => {
+          const p = d[k]; if (!p) return '';
+          const price = p.usd >= 1000
+            ? p.usd.toLocaleString('en-US', { maximumFractionDigits: 0 })
+            : p.usd.toFixed(2);
+          const change = p.usd_24h_change ?? 0;
+          const arrow = change >= 0 ? '▲' : '▼';
+          return `${sym} $${price}  ${arrow} ${Math.abs(change).toFixed(2)}%`;
+        };
+        setTickerText(tckrCrypto,
+          `${fmt('bitcoin','BTC')}   ▪   ${fmt('ethereum','ETH')}   ▪   ${fmt('solana','SOL')}   ▪   crypto live   ▪   `
+        );
+      } catch (_) {}
+    }
+
+    async function fetchWx() {
+      try {
+        const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=13.75&longitude=100.5&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code', { cache: 'no-cache' });
+        const d = await r.json();
+        const c = d.current;
+        const codeMap = {0:'clear',1:'mainly clear',2:'partly cloudy',3:'overcast',45:'fog',48:'fog',51:'drizzle',53:'drizzle',55:'drizzle',61:'rain',63:'rain',65:'rain',80:'rain',81:'rain',82:'heavy rain',95:'thunderstorm',96:'thunderstorm',99:'thunderstorm'};
+        const wx = codeMap[c.weather_code] || 'mild';
+        const time = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+        setTickerText(tckrWx,
+          `BANGKOK ${c.temperature_2m}°C ${wx}   ▪   humidity ${c.relative_humidity_2m}%   ▪   wind ${c.wind_speed_10m} km/h   ▪   ${time} BKK   ▪   `
+        );
+      } catch (_) {}
+    }
+
+    async function fetchNews() {
+      try {
+        const idsResp = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json', { cache: 'no-cache' });
+        const ids = (await idsResp.json()).slice(0, 5);
+        const stories = await Promise.all(ids.map(id =>
+          fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`).then(r => r.json())
+        ));
+        const text = stories.filter(Boolean).map(s => `HN · ${(s.title || '').slice(0, 95)}`).join('   ▪   ') + '   ▪   ';
+        setTickerText(tckrNews, text);
+      } catch (_) {}
+    }
+
+    async function fetchCommits() {
+      try {
+        const r = await fetch('https://api.github.com/users/Nonarkara/events/public?per_page=20', { cache: 'no-cache' });
+        const events = await r.json();
+        const items = events
+          .filter(e => e.type === 'PushEvent' && e.payload?.commits?.length)
+          .slice(0, 6)
+          .map(e => `${e.repo.name.split('/').pop()} · ${(e.payload.commits[0].message || '').split('\n')[0].slice(0, 70)}`)
+          .join('   ▪   ');
+        setTickerText(tckrCommits, items ? `GITHUB · ${items}   ▪   ` : 'no recent push activity');
+      } catch (_) {}
+    }
+
+    async function fetchStats() {
+      try {
+        const r = await fetch('https://api.nonarkara.org/status', { cache: 'no-cache' });
+        const d = await r.json();
+        const total = Object.keys(d.sites || {}).length;
+        const ok = Object.values(d.sites || {}).filter(v => [200, 301, 302].includes(v.code)).length;
+        const ts = new Date(d.ts).toLocaleTimeString('en-GB', { timeZone: 'Asia/Bangkok', hour12: false });
+        setTickerText(tckrStats,
+          `OPS ${ok}/${total} OK   ▪   tunnel active   ▪   worker live   ▪   last check ${ts} BKK   ▪   `
+        );
+      } catch (_) {}
+    }
+
+    // First fetches + periodic refresh schedules
+    fetchFX(); fetchCrypto(); fetchWx(); fetchNews(); fetchCommits(); fetchStats();
+    setInterval(fetchFX,      5  * 60_000);
+    setInterval(fetchCrypto,  60_000);
+    setInterval(fetchWx,      10 * 60_000);
+    setInterval(fetchNews,    15 * 60_000);
+    setInterval(fetchCommits, 5  * 60_000);
+    setInterval(fetchStats,   60_000);
+
+    // ════════════════════════════════════════════════════════
     // TVs at far wall (5 × 4 grid = 20)
     // ════════════════════════════════════════════════════════
     const TV_W = 1.22, TV_H = 0.72;
@@ -1883,6 +2052,12 @@
       drawRain();
       // Rain stays subtle — much dimmer than the clock face
       rainMat.opacity = ease * 0.18;
+
+      // Tickers — scroll their textures, fade in to a calm dim
+      TICKERS.forEach(tk => {
+        tk.tex.offset.x += tk.scrollSpeed;
+        tk.mat.opacity = ease * 0.55;
+      });
       // Pomodoro button plane fades in alongside everything else
       if (window.__pomoBtnPlane) window.__pomoBtnPlane.material.opacity = ease * 0.7;
       // Switch panel label plate fades in alongside everything else
