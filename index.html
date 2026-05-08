@@ -1076,6 +1076,7 @@
       { code: 'MEM',      title: 'Middle Eastern Monitor',            url: 'https://mem.nonarkara.org',                         img: 'screenshots/mem.jpg',       dom: 'mem.nonarkara.org' },
       { code: 'GEO',      title: 'Thailand Geopolitical Watch',       url: 'https://geo.nonarkara.org',                         img: 'screenshots/geo.jpg',       dom: 'geo.nonarkara.org' },
       { code: 'PHUKET',   title: 'Phuket Dashboard',                  url: 'https://phuket.nonarkara.org',                      img: 'screenshots/phuket.jpg',    dom: 'phuket.nonarkara.org' },
+      { code: 'WAR ROOM', title: 'Phuket · War Room',                 url: 'https://phuket-dashboard.drnon.workers.dev/war-room', img: 'screenshots/phuket.jpg',  dom: 'phuket-dashboard.drnon.workers.dev' },
       { code: 'BUS',      title: 'Phuket Smart Bus',                  url: 'https://bus.nonarkara.org',                         img: 'screenshots/bus.jpg',       dom: 'bus.nonarkara.org' },
       { code: 'KUCHING',  title: 'Greater Kuching IOC',               url: 'https://kuching.nonarkara.org',                     img: 'screenshots/kuching.jpg',   dom: 'kuching.nonarkara.org' },
       { code: 'SOLOMON',  title: 'Solomon Islands · UN DESA',         url: 'https://solomon.nonarkara.org',                     img: 'screenshots/solomon.jpg',   dom: 'solomon.nonarkara.org' },
@@ -2120,10 +2121,14 @@
     const tvLoader = new THREE.TextureLoader();
     const TVs = [];
 
+    // Center any partial last row instead of left-aligning it.
+    // (e.g. 21 projects → 4 full rows of 5 + 1 row of 1, centered.)
+    const LAST_ROW_COUNT = PROJECTS.length - (ROWS - 1) * COLS;
     PROJECTS.forEach((p, i) => {
       const col = i % COLS;
       const row = Math.floor(i / COLS);
-      const cx = (col - (COLS - 1) / 2) * (TV_W + GAP_X);
+      const colsThisRow = (row === ROWS - 1) ? LAST_ROW_COUNT : COLS;
+      const cx = (col - (colsThisRow - 1) / 2) * (TV_W + GAP_X);
       const cy = 2.4 + ((ROWS - 1) / 2 - row) * (TV_H + GAP_Y);
       const cz = -10;
 
