@@ -4,393 +4,474 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NON — nonarkara.org</title>
-  <meta name="description" content="Urbanism · Data · Intelligence. Bangkok · Chiang Mai · everywhere with good coffee.">
+  <meta name="description" content="A memory palace.">
   <meta property="og:title" content="NON — nonarkara.org">
-  <meta property="og:description" content="Urbanism · Data · Intelligence.">
+  <meta property="og:description" content="A memory palace.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://nonarkara.org">
+  <meta name="theme-color" content="#000000">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;700&family=Source+Sans+3:wght@300;400&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
-  <style>
-    *, *::before, *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400&family=Josefin+Sans:wght@300;700&display=swap" rel="stylesheet">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
     }
+  }
+  </script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --black:   #080808;
-      --white:   #F5F5F0;
-      --amber:   #F59E0B;
-      --border:  rgba(245, 245, 240, 0.10);
-      --text-display: 32px;
-      --text-body:    14px;
-      --text-micro:   11px;
+      --black: #000000;
+      --white: #f5f5f0;
+      --amber: #f59e0b;
+      --dim:   rgba(245, 245, 240, 0.35);
     }
 
-    html {
-      scroll-behavior: smooth;
-    }
-
+    html, body { width: 100%; height: 100%; overflow: hidden; background: var(--black); }
     body {
-      background: var(--black);
       color: var(--white);
-      font-family: 'Source Sans 3', sans-serif;
-      font-size: var(--text-body);
+      font-family: 'JetBrains Mono', monospace;
       font-weight: 300;
-      line-height: 1.6;
+      cursor: crosshair;
       -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
     }
 
-    /* ── HERO ──────────────────────────────────────── */
+    canvas { display: block; }
 
-    .hero {
-      min-height: 100svh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 48px 16px 80px;
-      text-align: center;
-      gap: 28px;
-      position: relative;
+    /* ── Overlay UI ── */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10;
     }
 
-    .letters {
-      display: flex;
-      align-items: baseline;
-      gap: clamp(8px, 2.5vw, 40px);
+    .brand {
+      position: absolute;
+      top: 28px;
+      left: 32px;
       font-family: 'Josefin Sans', sans-serif;
       font-weight: 700;
-      font-size: clamp(88px, 22vw, 300px);
-      line-height: 0.88;
-      letter-spacing: -0.02em;
-      user-select: none;
+      font-size: 18px;
+      letter-spacing: 0.05em;
+      opacity: 0;
+      transition: opacity 1.6s ease 1.2s;
     }
+    .brand.in { opacity: 1; }
 
-    .letter-n {
-      color: var(--white);
-      transition: color 0.2s ease;
-    }
-
-    .letter-o {
-      color: transparent;
-      -webkit-text-stroke: 2px var(--white);
-      transition: -webkit-text-stroke-color 0.2s ease;
-    }
-
-    .letters:hover .letter-n {
-      color: var(--white);
-    }
-
-    .letters:hover .letter-o {
-      -webkit-text-stroke-color: var(--amber);
-    }
-
-    .hero-sub {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .tagline {
-      font-family: 'Josefin Sans', sans-serif;
-      font-size: var(--text-body);
-      font-weight: 300;
-      letter-spacing: 0.28em;
-      text-transform: uppercase;
-      opacity: 0.55;
-    }
-
-    .location {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: var(--text-micro);
-      letter-spacing: 0.12em;
-      opacity: 0.28;
-    }
-
-    .scroll-hint {
+    .caption {
       position: absolute;
-      bottom: 28px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: var(--text-micro);
-      letter-spacing: 0.28em;
-      opacity: 0.28;
-      white-space: nowrap;
-      animation: breathe 2.4s ease-in-out infinite;
-    }
-
-    @keyframes breathe {
-      0%, 100% { opacity: 0.20; }
-      50%       { opacity: 0.55; }
-    }
-
-    /* ── SECTION WRAPPER ───────────────────────────── */
-
-    .section {
-      max-width: min(1080px, calc(100% - 32px));
-      margin: 0 auto;
-      padding: 72px 0;
-    }
-
-    .section-label {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: var(--text-micro);
+      top: 54px;
+      left: 32px;
+      font-size: 9px;
       letter-spacing: 0.32em;
       text-transform: uppercase;
-      color: var(--amber);
-      margin-bottom: 28px;
+      color: var(--dim);
+      opacity: 0;
+      transition: opacity 2s ease 2s;
     }
+    .caption.in { opacity: 1; }
 
-    /* ── OBSERVATORY GRID ──────────────────────────── */
-
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 1px;
-      background: var(--border);
-      border: 1px solid var(--border);
+    .hint {
+      position: absolute;
+      bottom: 28px;
+      left: 32px;
+      font-size: 9px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--dim);
+      opacity: 0;
+      transition: opacity 2.5s ease 2.5s;
     }
+    .hint.in { opacity: 0.6; }
 
-    @media (min-width: 600px) {
-      .grid {
-        grid-template-columns: 1fr 1fr;
-      }
+    .meta {
+      position: absolute;
+      bottom: 28px;
+      right: 32px;
+      display: flex;
+      gap: 24px;
+      font-size: 9px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--dim);
+      opacity: 0;
+      transition: opacity 2.5s ease 2.5s;
+      pointer-events: auto;
     }
+    .meta.in { opacity: 0.6; }
+    .meta a { color: inherit; text-decoration: none; }
+    .meta a:hover { color: var(--white); }
 
-    .card {
-      display: block;
-      background: var(--black);
-      padding: 22px 24px 20px;
-      text-decoration: none;
-      color: inherit;
-      transition: background 0.12s ease;
-      min-height: 44px;
-    }
-
-    .card:hover {
-      background: rgba(245, 158, 11, 0.035);
-    }
-
-    .card-code {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: var(--text-micro);
+    /* ── Tooltip on hover ── */
+    .tip {
+      position: fixed;
+      pointer-events: none;
+      z-index: 20;
+      padding: 8px 12px;
+      border: 1px solid rgba(245, 245, 240, 0.4);
+      background: rgba(0, 0, 0, 0.85);
+      color: var(--white);
+      font-size: 10px;
       letter-spacing: 0.18em;
-      color: var(--white);
-      opacity: 0.30;
-      margin-bottom: 5px;
-      transition: opacity 0.12s ease, color 0.12s ease;
-    }
-
-    .card:hover .card-code {
-      color: var(--amber);
-      opacity: 1;
-    }
-
-    .card-name {
-      font-family: 'Josefin Sans', sans-serif;
-      font-size: var(--text-display);
-      font-weight: 400;
-      line-height: 1.1;
-      margin-bottom: 6px;
-    }
-
-    .card-desc {
-      font-size: var(--text-body);
-      font-weight: 300;
-      opacity: 0.45;
-      line-height: 1.45;
-    }
-
-    /* ── DIVIDER ───────────────────────────────────── */
-
-    .divider {
-      height: 1px;
-      background: var(--border);
-      max-width: min(1080px, calc(100% - 32px));
-      margin: 0 auto;
-    }
-
-    /* ── ABOUT ─────────────────────────────────────── */
-
-    .about-text {
-      font-size: var(--text-body);
-      font-weight: 300;
-      line-height: 1.85;
-      max-width: 560px;
-      opacity: 0.65;
-    }
-
-    /* ── FOOTER ────────────────────────────────────── */
-
-    footer {
-      border-top: 1px solid var(--border);
-    }
-
-    .footer-inner {
-      max-width: min(1080px, calc(100% - 32px));
-      margin: 0 auto;
-      padding: 28px 0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-
-    .footer-links {
-      display: flex;
-      gap: 28px;
-      flex-wrap: wrap;
-    }
-
-    footer a {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: var(--text-micro);
-      letter-spacing: 0.08em;
-      color: var(--white);
-      opacity: 0.32;
-      text-decoration: none;
+      text-transform: uppercase;
+      white-space: nowrap;
+      opacity: 0;
+      transform: translate(12px, 12px);
       transition: opacity 0.15s ease;
-      min-height: 44px;
-      display: inline-flex;
-      align-items: center;
+    }
+    .tip.in { opacity: 1; }
+    .tip .url {
+      display: block;
+      font-size: 8px;
+      margin-top: 3px;
+      letter-spacing: 0.1em;
+      color: var(--dim);
+      text-transform: lowercase;
     }
 
-    footer a:hover {
-      opacity: 0.85;
+    /* Initial dark veil — fades out as scene appears */
+    .veil {
+      position: fixed;
+      inset: 0;
+      background: var(--black);
+      z-index: 5;
+      pointer-events: none;
+      transition: opacity 2.5s ease;
     }
+    .veil.gone { opacity: 0; }
 
-    .footer-copy {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: var(--text-micro);
-      letter-spacing: 0.06em;
-      opacity: 0.18;
+    /* Mobile constraints */
+    @media (max-width: 600px) {
+      .brand { font-size: 16px; top: 20px; left: 20px; }
+      .caption { font-size: 8px; top: 44px; left: 20px; }
+      .hint { font-size: 8px; bottom: 20px; left: 20px; letter-spacing: 0.18em; }
+      .meta { right: 20px; bottom: 20px; gap: 14px; font-size: 8px; }
     }
   </style>
 </head>
 <body>
 
-  <!-- ── HERO ── -->
-  <section class="hero">
-    <div class="letters" aria-label="NON">
-      <span class="letter-n">N</span>
-      <span class="letter-o">O</span>
-      <span class="letter-n">N</span>
+  <div id="canvas-root"></div>
+
+  <div class="overlay">
+    <div class="brand">NON</div>
+    <div class="caption">memory palace</div>
+    <div class="hint">click any screen · move to look around</div>
+    <div class="meta">
+      <a href="mailto:nonsmartcity@gmail.com">contact</a>
+      <a href="https://github.com/nonarkara" target="_blank" rel="noopener">github</a>
     </div>
-    <div class="hero-sub">
-      <p class="tagline">urbanism &middot; data &middot; intelligence</p>
-      <p class="location">Bangkok &nbsp;&middot;&nbsp; Chiang Mai &nbsp;&middot;&nbsp; everywhere with good coffee</p>
-    </div>
-    <span class="scroll-hint">&#8595;&nbsp; OBSERVATORY</span>
-  </section>
+  </div>
 
-  <!-- ── OBSERVATORY ── -->
-  <section class="section" id="observatory">
-    <p class="section-label">Observatory</p>
-    <div class="grid">
+  <div class="tip" id="tip"></div>
+  <div class="veil"></div>
 
-      <a class="card" href="https://slic.nonarkara.org">
-        <div class="card-code">SLIC</div>
-        <div class="card-name">Smart City Index</div>
-        <div class="card-desc">157 cities. 5 pillars. Who is actually smart.</div>
-      </a>
+  <script type="module">
+    import * as THREE from 'three';
 
-      <a class="card" href="https://conflict.nonarkara.org">
-        <div class="card-code">CONFLICT</div>
-        <div class="card-name">Global Monitor</div>
-        <div class="card-desc">Live conflict tracking — ACLED, GDELT, FIRMS.</div>
-      </a>
+    // ── Project metadata (TVs map 1:1 to these) ──────────────
+    const PROJECTS = [
+      { code: 'AXIOM',    title: 'Axiom Consultancy',         url: 'https://axiom.nonarkara.org',    img: 'screenshots/axiom.jpg' },
+      { code: 'SLIC',     title: 'SLIC Index v3',             url: 'https://slic.nonarkara.org',     img: 'screenshots/slic.jpg' },
+      { code: 'SCITI',    title: 'Smart City Thailand Index', url: 'https://sciti.nonarkara.org',    img: 'screenshots/sciti.jpg' },
+      { code: 'CONFLICT', title: 'Global Political Monitor',  url: 'https://conflict.nonarkara.org', img: 'screenshots/conflict.jpg' },
+      { code: 'GEO',      title: 'Thailand Geopolitical Watch', url: 'https://geo.nonarkara.org',    img: 'screenshots/geo.jpg' },
+      { code: 'PHUKET',   title: 'Phuket Dashboard',          url: 'https://phuket.nonarkara.org',   img: 'screenshots/phuket.jpg' },
+      { code: 'BUS',      title: 'Phuket Smart Bus',          url: 'https://bus.nonarkara.org',      img: 'screenshots/bus.jpg' },
+      { code: 'TOMASITY', title: 'Muang Thong Thani',         url: 'https://monitor.nonarkara.org',  img: 'screenshots/monitor.jpg' },
+      { code: 'CDP v2',   title: 'CD Data Platform',          url: 'https://cdp.nonarkara.org',      img: 'screenshots/cdp.jpg' },
+    ];
 
-      <a class="card" href="https://geo.nonarkara.org">
-        <div class="card-code">GEO</div>
-        <div class="card-name">ASEAN Geopolitics</div>
-        <div class="card-desc">Command center for Southeast Asia.</div>
-      </a>
+    // ── Scene basics ─────────────────────────────────────────
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000);
+    scene.fog = new THREE.Fog(0x000000, 9, 32);
 
-      <a class="card" href="https://phuket.nonarkara.org">
-        <div class="card-code">PHUKET</div>
-        <div class="card-name">Phuket Dashboard</div>
-        <div class="card-desc">Real-time city intelligence. Governor demo.</div>
-      </a>
+    const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 1.7, 7.5);
+    camera.lookAt(0, 2.6, -10);
+    const baseRotX = camera.rotation.x;
+    const baseRotY = camera.rotation.y;
 
-      <a class="card" href="https://sciti.nonarkara.org">
-        <div class="card-code">SCITI</div>
-        <div class="card-name">Thailand Smart City</div>
-        <div class="card-desc">76 provinces. 7 pillars. Red Dot contender.</div>
-      </a>
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.getElementById('canvas-root').appendChild(renderer.domElement);
 
-      <a class="card" href="https://oil.nonarkara.org">
-        <div class="card-code">OIL26</div>
-        <div class="card-name">2026 Oil Crisis</div>
-        <div class="card-desc">Monitoring what nobody wants to see.</div>
-      </a>
+    // ── Wireframe materials ──────────────────────────────────
+    const matBright = new THREE.LineBasicMaterial({ color: 0xf5f5f0, transparent: true, opacity: 0 });
+    const matDim    = new THREE.LineBasicMaterial({ color: 0xf5f5f0, transparent: true, opacity: 0 });
+    const matFurni  = new THREE.LineBasicMaterial({ color: 0xf5f5f0, transparent: true, opacity: 0 });
+    const matHover  = new THREE.LineBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 1 });
+    const FADE_TARGETS = [
+      { mat: matBright, target: 0.55 },
+      { mat: matDim,    target: 0.18 },
+      { mat: matFurni,  target: 0.50 },
+    ];
 
-      <a class="card" href="https://bus.nonarkara.org">
-        <div class="card-code">BUS</div>
-        <div class="card-name">Phuket Smart Bus</div>
-        <div class="card-desc">Rider prototype. Real routes. Actually useful.</div>
-      </a>
+    // ── Helpers ──────────────────────────────────────────────
+    const wirebox = (w, h, d, mat = matFurni) =>
+      new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, d)), mat);
 
-      <a class="card" href="https://monitor.nonarkara.org">
-        <div class="card-code">MONITOR</div>
-        <div class="card-name">Smart City Monitor</div>
-        <div class="card-desc">Thailand's smart city pulse. Live data.</div>
-      </a>
+    const placeAt = (obj, x, y, z) => { obj.position.set(x, y, z); return obj; };
 
-      <a class="card" href="https://kuching.nonarkara.org">
-        <div class="card-code">KUCHING</div>
-        <div class="card-name">Greater Kuching IOC</div>
-        <div class="card-desc">Intelligence Operations Center, Malaysia.</div>
-      </a>
+    // ── Floor grid (infinite via fog) ────────────────────────
+    {
+      const grid = new THREE.GridHelper(120, 60, 0xf5f5f0, 0xf5f5f0);
+      grid.material = matDim;
+      scene.add(grid);
+    }
 
-      <a class="card" href="https://axiom.nonarkara.org">
-        <div class="card-code">AXIOM</div>
-        <div class="card-name">Innovation as a Service</div>
-        <div class="card-desc">The consultancy. For cities that mean it.</div>
-      </a>
+    // ── Ceiling grid ─────────────────────────────────────────
+    {
+      const ceiling = new THREE.GridHelper(120, 30, 0xf5f5f0, 0xf5f5f0);
+      ceiling.material = matDim;
+      ceiling.position.y = 5.0;
+      scene.add(ceiling);
+    }
 
-      <a class="card" href="https://solomon.nonarkara.org">
-        <div class="card-code">SOLOMON</div>
-        <div class="card-name">Solomon Islands</div>
-        <div class="card-desc">UN DESA smart city workshop report.</div>
-      </a>
+    // ── Walls (left + right, fade with fog) ──────────────────
+    [-9, 9].forEach(x => {
+      const geom = new THREE.PlaneGeometry(60, 5, 30, 5);
+      const wire = new THREE.LineSegments(new THREE.WireframeGeometry(geom), matDim);
+      wire.position.set(x, 2.5, -10);
+      wire.rotation.y = x > 0 ? -Math.PI / 2 : Math.PI / 2;
+      scene.add(wire);
+    });
 
-      <a class="card" href="https://brain.nonarkara.org">
-        <div class="card-code">BRAIN</div>
-        <div class="card-name">Second Brain</div>
-        <div class="card-desc">Personal AI memory. Not open source.</div>
-      </a>
+    // ── Furniture: coffee table ──────────────────────────────
+    scene.add(placeAt(wirebox(2.0, 0.05, 1.0), 0, 0.42, 1.5));
+    [-0.9, 0.9].forEach(dx => [-0.4, 0.4].forEach(dz => {
+      scene.add(placeAt(wirebox(0.04, 0.4, 0.04), dx, 0.21, 1.5 + dz));
+    }));
+    // a wireframe "coffee cup" — small cylinder
+    {
+      const cyl = new THREE.CylinderGeometry(0.06, 0.06, 0.12, 12);
+      const wire = new THREE.LineSegments(new THREE.WireframeGeometry(cyl), matFurni);
+      wire.position.set(0.4, 0.51, 1.5);
+      scene.add(wire);
+    }
 
-    </div>
-  </section>
+    // ── Furniture: a chair (left side) ───────────────────────
+    {
+      const x0 = -3.5, z0 = 1.7;
+      scene.add(placeAt(wirebox(0.55, 0.05, 0.55), x0, 0.5, z0));        // seat
+      scene.add(placeAt(wirebox(0.55, 0.7, 0.05),  x0, 0.85, z0 + 0.25)); // back
+      [-0.22, 0.22].forEach(dx => [-0.22, 0.22].forEach(dz => {
+        scene.add(placeAt(wirebox(0.04, 0.5, 0.04), x0 + dx, 0.25, z0 + dz));
+      }));
+    }
 
-  <div class="divider"></div>
+    // ── Furniture: pedestal + globe (right side) ─────────────
+    {
+      const x0 = 3.4, z0 = -2;
+      scene.add(placeAt(wirebox(0.4, 1.5, 0.4), x0, 0.75, z0));
+      const sphere = new THREE.SphereGeometry(0.32, 18, 12);
+      const wire = new THREE.LineSegments(new THREE.WireframeGeometry(sphere), matFurni);
+      wire.position.set(x0, 1.82, z0);
+      scene.add(wire);
+    }
 
-  <!-- ── ABOUT ── -->
-  <section class="section">
-    <p class="section-label">&#172;&#172;</p>
-    <p class="about-text">
-      I build dashboards that show you what is happening in cities you have never visited
-      and crises you cannot ignore. Architecture by training. Data by necessity.
-      The O in NON is hollow because the lens matters more than the frame.
-    </p>
-  </section>
+    // ── Furniture: bookshelf (left wall) ─────────────────────
+    {
+      const x0 = -6.5, z0 = -2.2;
+      scene.add(placeAt(wirebox(0.45, 3.2, 1.6), x0, 1.6, z0));
+      // shelves (horizontal lines inside)
+      for (let i = 1; i < 5; i++) {
+        const shelf = new THREE.LineSegments(
+          new THREE.EdgesGeometry(new THREE.BoxGeometry(0.43, 0.02, 1.55)),
+          matFurni
+        );
+        shelf.position.set(x0, i * 0.6 + 0.1, z0);
+        scene.add(shelf);
+      }
+      // a few "books" hinted as tiny boxes
+      for (let i = 0; i < 4; i++) {
+        const w = 0.12 + Math.random() * 0.06;
+        const h = 0.32 + Math.random() * 0.06;
+        const book = new THREE.LineSegments(
+          new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, 0.18)),
+          matFurni
+        );
+        book.position.set(x0 + 0.05, 0.9, z0 - 0.5 + i * 0.18);
+        scene.add(book);
+      }
+    }
 
-  <!-- ── FOOTER ── -->
-  <footer>
-    <div class="footer-inner">
-      <div class="footer-links">
-        <a href="mailto:nonsmartcity@gmail.com">nonsmartcity@gmail.com</a>
-        <a href="https://github.com/nonarkara" target="_blank" rel="noopener noreferrer">github.com/nonarkara</a>
-      </div>
-      <span class="footer-copy">nonarkara.org</span>
-    </div>
-  </footer>
+    // ── Lamp (subtle vertical line + cone, far corner) ───────
+    {
+      const x0 = 5.5, z0 = 0.5;
+      // pole
+      const poleG = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(x0, 0, z0), new THREE.Vector3(x0, 2.4, z0)
+      ]);
+      scene.add(new THREE.Line(poleG, matFurni));
+      // shade (cone)
+      const cone = new THREE.ConeGeometry(0.3, 0.35, 12, 1, true);
+      const wire = new THREE.LineSegments(new THREE.WireframeGeometry(cone), matFurni);
+      wire.position.set(x0, 2.55, z0);
+      scene.add(wire);
+    }
+
+    // ── TVs at far wall (3 × 3 grid) ─────────────────────────
+    const TVs = [];
+    const TV_W = 1.6, TV_H = 1.0;
+    const GAP_X = 0.4, GAP_Y = 0.5;
+    const COLS = 3;
+    const tvLoader = new THREE.TextureLoader();
+
+    PROJECTS.forEach((p, i) => {
+      const col = i % COLS;
+      const row = Math.floor(i / COLS);
+      const cx = (col - (COLS - 1) / 2) * (TV_W + GAP_X);
+      const cy = 3.6 - row * (TV_H + GAP_Y);
+      const cz = -10;
+
+      const grp = new THREE.Group();
+      grp.position.set(cx, cy, cz);
+
+      // wireframe frame (a thin slab)
+      const frame = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(TV_W, TV_H, 0.06)),
+        matBright
+      );
+      grp.add(frame);
+
+      // screen: textured plane, low opacity, with subtle wireframe on top
+      const tex = tvLoader.load(p.img, (t) => {
+        t.colorSpace = THREE.SRGBColorSpace;
+      });
+      const screenMat = new THREE.MeshBasicMaterial({
+        map: tex, transparent: true, opacity: 0,
+        side: THREE.FrontSide, depthWrite: false
+      });
+      const screen = new THREE.Mesh(new THREE.PlaneGeometry(TV_W * 0.94, TV_H * 0.88), screenMat);
+      screen.position.z = 0.04;
+      grp.add(screen);
+
+      // hover-tracking cube (invisible but raycast-friendly), bigger than frame
+      const hit = new THREE.Mesh(
+        new THREE.BoxGeometry(TV_W, TV_H, 0.08),
+        new THREE.MeshBasicMaterial({ visible: false })
+      );
+      grp.add(hit);
+
+      grp.userData = { project: p, frame, screen, hit, screenTargetOpacity: 0.45 };
+      scene.add(grp);
+      TVs.push(grp);
+    });
+
+    // ── Mouse parallax + raycasting ──────────────────────────
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    const target = { x: 0, y: 0 };
+    let hovered = null;
+
+    function onPointerMove(e) {
+      const x = (e.touches ? e.touches[0].clientX : e.clientX);
+      const y = (e.touches ? e.touches[0].clientY : e.clientY);
+      mouse.x = (x / window.innerWidth) * 2 - 1;
+      mouse.y = -(y / window.innerHeight) * 2 + 1;
+      target.y = -mouse.x * 0.06;
+      target.x =  mouse.y * 0.04;
+
+      const tip = document.getElementById('tip');
+      if (hovered) {
+        tip.style.left = x + 'px';
+        tip.style.top  = y + 'px';
+      }
+    }
+    window.addEventListener('mousemove', onPointerMove, { passive: true });
+    window.addEventListener('touchmove', onPointerMove, { passive: true });
+
+    function onClick(e) {
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObjects(TVs.flatMap(t => [t.userData.hit]));
+      if (hits.length) {
+        const grp = hits[0].object.parent;
+        const p = grp.userData.project;
+        if (p && p.url) window.open(p.url, '_blank', 'noopener');
+      }
+    }
+    window.addEventListener('click', onClick);
+    window.addEventListener('touchend', onClick);
+
+    // ── Resize ───────────────────────────────────────────────
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // ── Reveal sequence ──────────────────────────────────────
+    const startTime = performance.now();
+    document.querySelector('.veil').classList.add('gone');
+    setTimeout(() => document.querySelector('.brand').classList.add('in'), 200);
+    setTimeout(() => document.querySelector('.caption').classList.add('in'), 200);
+    setTimeout(() => document.querySelector('.hint').classList.add('in'), 200);
+    setTimeout(() => document.querySelector('.meta').classList.add('in'), 200);
+
+    // ── Render loop ──────────────────────────────────────────
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const t = (performance.now() - startTime) / 1000;
+
+      // fade in materials over 3s
+      const fadeT = Math.min(t / 3.5, 1);
+      const ease = 1 - Math.pow(1 - fadeT, 3);
+      FADE_TARGETS.forEach(({ mat, target }) => mat.opacity = target * ease);
+
+      // raycast for TV hover
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObjects(TVs.flatMap(t => [t.userData.hit]));
+      const hit = hits[0]?.object?.parent || null;
+
+      // update hover state
+      if (hit !== hovered) {
+        if (hovered) {
+          hovered.userData.frame.material = matBright;
+          hovered.userData.screenTargetOpacity = 0.45;
+        }
+        hovered = hit;
+        if (hovered) {
+          hovered.userData.frame.material = matHover;
+          hovered.userData.screenTargetOpacity = 0.85;
+          const tip = document.getElementById('tip');
+          tip.innerHTML = `${hovered.userData.project.code}<span class="url">${hovered.userData.project.title.toLowerCase()}</span>`;
+          tip.classList.add('in');
+          document.body.style.cursor = 'pointer';
+        } else {
+          document.getElementById('tip').classList.remove('in');
+          document.body.style.cursor = 'crosshair';
+        }
+      }
+
+      // smooth screen opacity
+      TVs.forEach(grp => {
+        const m = grp.userData.screen.material;
+        const tgt = grp.userData.screenTargetOpacity * ease;
+        m.opacity += (tgt - m.opacity) * 0.12;
+      });
+
+      // smooth camera rotation (parallax)
+      camera.rotation.y += (target.y + baseRotY - camera.rotation.y) * 0.04;
+      camera.rotation.x += (target.x + baseRotX - camera.rotation.x) * 0.04;
+
+      // very subtle "breathing" — camera rises/falls 3cm on a slow sine
+      camera.position.y = 1.7 + Math.sin(t * 0.4) * 0.015;
+
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
 
 </body>
 </html>
