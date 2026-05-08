@@ -243,6 +243,133 @@
       color: rgba(245, 245, 240, 0.6);
     }
 
+    /* ── Pomodoro full-screen mode ── */
+    .pomodoro {
+      position: fixed; inset: 0;
+      background: #000;
+      color: var(--white);
+      z-index: 200;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .pomodoro.in { display: flex; }
+    .pomodoro.work { color: var(--white); }
+    .pomodoro.break { color: rgba(245, 158, 11, 0.85); }
+
+    .pomo-phase {
+      font-size: 12px;
+      letter-spacing: 0.55em;
+      text-transform: uppercase;
+      opacity: 0.45;
+      margin-bottom: 32px;
+    }
+    .pomo-time {
+      font-size: clamp(96px, 22vw, 280px);
+      font-weight: 200;
+      letter-spacing: -0.02em;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .pomo-cycle {
+      font-size: 10px;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      opacity: 0.35;
+      margin-top: 28px;
+      min-height: 14px;
+    }
+    .pomo-controls {
+      display: flex;
+      gap: 1px;
+      margin-top: 64px;
+      background: rgba(245, 245, 240, 0.18);
+    }
+    .pomo-controls button {
+      background: #000;
+      border: none;
+      color: var(--white);
+      font-family: inherit;
+      font-size: 11px;
+      letter-spacing: 0.32em;
+      padding: 14px 28px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: color 0.15s, background 0.15s;
+    }
+    .pomo-controls button:hover { color: var(--amber); }
+    .pomo-controls button.primary { color: var(--amber); }
+
+    .pomo-hint {
+      position: absolute;
+      bottom: 28px;
+      font-size: 9px;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      opacity: 0.3;
+    }
+
+    .pomo-exit {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      background: transparent;
+      border: 1px solid rgba(245, 245, 240, 0.3);
+      color: var(--white);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      font-family: inherit;
+      transition: border-color 0.15s, color 0.15s;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .pomo-exit:hover { border-color: rgba(245, 245, 240, 0.6); }
+    .pomo-exit-bar {
+      position: absolute;
+      top: 80px;        /* sits below the 56px button + a small gap */
+      right: 24px;
+      width: 56px;
+      height: 1px;
+      background: rgba(245, 245, 240, 0.15);
+      overflow: hidden;
+    }
+    .pomo-exit-bar::after {
+      content: '';
+      display: block;
+      height: 100%;
+      width: var(--hold, 0%);
+      background: var(--amber);
+      transition: width 0.05s linear;
+    }
+    .pomo-exit-label {
+      position: absolute;
+      top: 86px;
+      right: 90px;
+      font-size: 8px;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      opacity: 0;
+      color: var(--amber);
+      transition: opacity 0.2s;
+      white-space: nowrap;
+    }
+    .pomo-exit-label.in { opacity: 0.85; }
+
+    .pomo-pulse {
+      animation: pomoPulse 4s ease-in-out infinite;
+    }
+    @keyframes pomoPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.65; }
+    }
+
     @media (max-width: 600px) {
       .brand { font-size: 16px; top: 20px; left: 20px; }
       .caption { font-size: 8px; top: 44px; left: 20px; }
@@ -291,6 +418,25 @@
       <div class="modal-title" id="modal-title"></div>
       <div id="modal-body"></div>
     </div>
+  </div>
+
+  <!-- ── Pomodoro full-screen mode ── -->
+  <div class="pomodoro" id="pomodoro" role="dialog" aria-label="Pomodoro timer">
+    <button class="pomo-exit" id="pomo-exit" aria-label="Hold to exit">✕</button>
+    <div class="pomo-exit-bar"><!-- fills via --hold --></div>
+    <div class="pomo-exit-label" id="pomo-exit-label">HOLD</div>
+
+    <div class="pomo-phase" id="pomo-phase">FOCUS</div>
+    <div class="pomo-time pomo-pulse" id="pomo-time">25:00</div>
+    <div class="pomo-cycle" id="pomo-cycle">round 1 of 4</div>
+
+    <div class="pomo-controls">
+      <button id="pomo-toggle" class="primary">START</button>
+      <button id="pomo-skip">SKIP</button>
+      <button id="pomo-reset">RESET</button>
+    </div>
+
+    <div class="pomo-hint">hold ✕ for 3 seconds to exit · timer keeps running</div>
   </div>
 
   <script type="module">
@@ -822,6 +968,57 @@
       clockTex.needsUpdate = true;
     }
 
+    // ── Pomodoro button — small wireframe tile under the clock ──
+    {
+      const BTN_W = 0.95, BTN_H = 0.20;
+      const BTN_X = 0, BTN_Y = 4.66, BTN_Z = -10;
+
+      const btnCanvas = document.createElement('canvas');
+      btnCanvas.width = 384; btnCanvas.height = 80;
+      const btnCtx2 = btnCanvas.getContext('2d');
+      btnCtx2.fillStyle = '#000';
+      btnCtx2.fillRect(0, 0, 384, 80);
+      btnCtx2.fillStyle = '#f5f5f0';
+      btnCtx2.font = '300 24px "JetBrains Mono", monospace';
+      btnCtx2.textAlign = 'center';
+      btnCtx2.textBaseline = 'middle';
+      btnCtx2.letterSpacing = '0.32em';
+      btnCtx2.fillText('▷  POMODORO', 192, 44);
+      const btnTex = new THREE.CanvasTexture(btnCanvas);
+      btnTex.colorSpace = THREE.SRGBColorSpace;
+
+      const btnPlane = new THREE.Mesh(
+        new THREE.PlaneGeometry(BTN_W, BTN_H),
+        new THREE.MeshBasicMaterial({ map: btnTex, transparent: true, opacity: 0, side: THREE.FrontSide })
+      );
+      btnPlane.position.set(BTN_X, BTN_Y, BTN_Z + 0.001);
+      const btnFrame = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(BTN_W, BTN_H, 0.04)),
+        matBright
+      );
+      btnFrame.position.set(BTN_X, BTN_Y, BTN_Z);
+
+      const btnHit = new THREE.Mesh(
+        new THREE.BoxGeometry(BTN_W * 1.05, BTN_H * 1.5, 0.1),
+        new THREE.MeshBasicMaterial({ visible: false })
+      );
+      btnHit.position.set(BTN_X, BTN_Y, BTN_Z);
+
+      const btnGroup = new THREE.Group();
+      btnGroup.add(btnPlane); btnGroup.add(btnFrame); btnGroup.add(btnHit);
+      btnGroup.userData = {
+        kind: 'pomoBtn',
+        lines: [btnFrame],
+        screen: btnPlane,
+        hit: btnHit,
+        baseMaterial: matBright,
+      };
+      scene.add(btnGroup);
+      INTERACTABLES.push(btnGroup);
+      // store ref so we can fade in the canvas plane
+      window.__pomoBtnPlane = btnPlane;
+    }
+
     // ════════════════════════════════════════════════════════
     // Matrix rain — sits behind the TV grid, very faint, trilingual
     // (Latin · Katakana · Thai · CJK — a memory palace can dream)
@@ -996,6 +1193,8 @@
         openCityModal(ud.city);
       } else if (ud.kind === 'switch') {
         if (ud.link?.url) window.open(ud.link.url, '_blank', 'noopener');
+      } else if (ud.kind === 'pomoBtn') {
+        openPomodoro();
       }
     }
     window.addEventListener('click', onClick);
@@ -1097,6 +1296,124 @@
     }
 
     // ════════════════════════════════════════════════════════
+    // Pomodoro mode — full-screen timer with hold-to-exit
+    // ════════════════════════════════════════════════════════
+    const POMO = {
+      durations: { work: 25 * 60, shortBreak: 5 * 60, longBreak: 15 * 60 },
+      phase: 'work',          // 'work' | 'shortBreak' | 'longBreak'
+      remaining: 25 * 60,     // seconds
+      running: false,
+      cycle: 1,               // 1..4 work cycles before long break
+      tickInt: null,
+    };
+    const PHASE_LABEL = { work: 'FOCUS', shortBreak: 'BREAK', longBreak: 'LONG BREAK' };
+
+    function pomoFmt(s) {
+      const m = Math.floor(s / 60);
+      const sec = s % 60;
+      return `${pad(m)}:${pad(sec)}`;
+    }
+    function pomoUpdate() {
+      const el = (id) => document.getElementById(id);
+      el('pomo-time').textContent = pomoFmt(Math.max(0, Math.floor(POMO.remaining)));
+      el('pomo-phase').textContent = PHASE_LABEL[POMO.phase];
+      el('pomo-cycle').textContent = POMO.phase === 'work'
+        ? `round ${POMO.cycle} of 4`
+        : (POMO.phase === 'longBreak' ? 'long rest' : `after round ${POMO.cycle}`);
+      el('pomo-toggle').textContent = POMO.running ? 'PAUSE' : 'START';
+      el('pomo-toggle').classList.toggle('primary', !POMO.running);
+      const root = document.getElementById('pomodoro');
+      root.classList.toggle('break', POMO.phase !== 'work');
+      root.classList.toggle('work', POMO.phase === 'work');
+      el('pomo-time').classList.toggle('pomo-pulse', POMO.running);
+    }
+    function pomoNextPhase() {
+      if (POMO.phase === 'work') {
+        POMO.phase = (POMO.cycle >= 4) ? 'longBreak' : 'shortBreak';
+      } else {
+        if (POMO.phase === 'shortBreak') POMO.cycle++;
+        else POMO.cycle = 1;  // long break ended → reset cycle counter
+        POMO.phase = 'work';
+      }
+      POMO.remaining = POMO.durations[POMO.phase];
+    }
+    function pomoStart() {
+      if (POMO.tickInt) clearInterval(POMO.tickInt);
+      POMO.running = true;
+      POMO.tickInt = setInterval(() => {
+        POMO.remaining -= 1;
+        if (POMO.remaining <= 0) pomoNextPhase();
+        pomoUpdate();
+      }, 1000);
+      pomoUpdate();
+    }
+    function pomoPause() {
+      POMO.running = false;
+      if (POMO.tickInt) { clearInterval(POMO.tickInt); POMO.tickInt = null; }
+      pomoUpdate();
+    }
+    function pomoToggle() { POMO.running ? pomoPause() : pomoStart(); }
+    function pomoReset() {
+      pomoPause();
+      POMO.remaining = POMO.durations[POMO.phase];
+      pomoUpdate();
+    }
+    function pomoSkip() { pomoNextPhase(); pomoUpdate(); }
+
+    function openPomodoro() {
+      pomoUpdate();
+      document.getElementById('pomodoro').classList.add('in');
+    }
+    function closePomodoro() {
+      document.getElementById('pomodoro').classList.remove('in');
+      // Timer keeps running in the background — re-entering shows continued state.
+    }
+
+    // Hold-to-exit (3 seconds)
+    const HOLD_MS = 3000;
+    let holdStart = null, holdRAF = null;
+    const holdRoot = () => document.querySelector('.pomo-exit-bar');
+    const holdLabel = () => document.getElementById('pomo-exit-label');
+    function holdTick() {
+      if (holdStart === null) return;
+      const pct = Math.min(100, ((Date.now() - holdStart) / HOLD_MS) * 100);
+      holdRoot().style.setProperty('--hold', pct + '%');
+      if (pct >= 100) { closePomodoro(); holdEnd(); return; }
+      holdRAF = requestAnimationFrame(holdTick);
+    }
+    function holdBegin(e) {
+      e?.preventDefault?.();
+      holdStart = Date.now();
+      holdLabel().classList.add('in');
+      holdRAF = requestAnimationFrame(holdTick);
+    }
+    function holdEnd() {
+      holdStart = null;
+      if (holdRAF) cancelAnimationFrame(holdRAF);
+      holdRAF = null;
+      holdRoot().style.setProperty('--hold', '0%');
+      holdLabel().classList.remove('in');
+    }
+
+    document.getElementById('pomo-toggle').addEventListener('click', pomoToggle);
+    document.getElementById('pomo-skip').addEventListener('click', pomoSkip);
+    document.getElementById('pomo-reset').addEventListener('click', pomoReset);
+    const exitBtn = document.getElementById('pomo-exit');
+    exitBtn.addEventListener('mousedown', holdBegin);
+    exitBtn.addEventListener('mouseup', holdEnd);
+    exitBtn.addEventListener('mouseleave', holdEnd);
+    exitBtn.addEventListener('touchstart', holdBegin, { passive: false });
+    exitBtn.addEventListener('touchend', holdEnd);
+    exitBtn.addEventListener('touchcancel', holdEnd);
+    // Click alone shouldn't close — but show feedback hint
+    exitBtn.addEventListener('click', () => {
+      // If user just clicks (no hold), nothing happens — that's the point.
+      // Visual feedback: briefly flash the label.
+      holdLabel().classList.add('in');
+      setTimeout(() => holdLabel().classList.remove('in'), 1500);
+    });
+
+    // ════════════════════════════════════════════════════════
     // Reveal + render loop
     // ════════════════════════════════════════════════════════
     const startTime = performance.now();
@@ -1126,6 +1443,8 @@
       drawRain();
       // Rain stays subtle — much dimmer than the clock face
       rainMat.opacity = ease * 0.18;
+      // Pomodoro button plane fades in alongside everything else
+      if (window.__pomoBtnPlane) window.__pomoBtnPlane.material.opacity = ease * 0.7;
 
       raycaster.setFromCamera(mouse, camera);
       const hits = raycaster.intersectObjects(INTERACTABLES.map(o => o.userData.hit));
@@ -1166,6 +1485,9 @@
           } else if (ud.kind === 'switch') {
             ud.lines.forEach(l => l.material = matHover);
             tip.innerHTML = `${ud.link.label}<span class="url">🔒 ${t('password')}: 696969</span>`;
+          } else if (ud.kind === 'pomoBtn') {
+            ud.lines.forEach(l => l.material = matHover);
+            tip.innerHTML = `▷  POMODORO<span class="url">25 min focus · 5 min break</span>`;
           }
           tip.classList.add('in');
           document.body.style.cursor = 'pointer';
