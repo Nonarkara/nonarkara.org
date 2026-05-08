@@ -2,14 +2,29 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- viewport-fit=cover paints under the notch + home indicator;
+       user-scalable=no kills accidental pinch-zoom while drag-rotating. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>NON — nonarkara.org</title>
   <meta name="description" content="A memory palace.">
   <meta property="og:title" content="NON — nonarkara.org">
   <meta property="og:description" content="A memory palace.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://nonarkara.org">
-  <meta name="theme-color" content="#000000">
+
+  <!-- Status-bar paint — stays in sync with chandelier theme via JS below. -->
+  <meta name="theme-color" id="theme-color-meta" content="#000000">
+  <meta name="color-scheme" content="dark light">
+
+  <!-- iOS PWA — when added to home screen, launches chromeless, full-bleed,
+       under the status bar. The room becomes its own OS. -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="NON">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -39,6 +54,13 @@
       --bg:    #000000;
       --fg:    #f5f5f0;
       --line:  rgba(245, 245, 240, 0.55);
+
+      /* iPhone notch / Dynamic Island / home-indicator inset.
+         All overlay UI uses these so nothing hides under the chrome. */
+      --sat: env(safe-area-inset-top, 0px);
+      --sar: env(safe-area-inset-right, 0px);
+      --sab: env(safe-area-inset-bottom, 0px);
+      --sal: env(safe-area-inset-left, 0px);
     }
     /* Light theme — toggled by clicking the cubical chandelier in the room */
     body[data-theme="light"] {
@@ -51,14 +73,27 @@
       --line:  rgba(26, 26, 26, 0.55);
     }
 
-    html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); transition: background 0.6s ease; }
-    body { color: var(--fg); }
+    /* 100dvh tracks the dynamic viewport on mobile Safari (no URL-bar bounce);
+       100vh fallback for older engines. */
+    html, body {
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      background: var(--bg);
+      transition: background 0.6s ease;
+      overscroll-behavior: none;
+    }
     body {
       color: var(--white);
       font-family: 'JetBrains Mono', monospace;
       font-weight: 300;
       cursor: crosshair;
       -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      user-select: none;
+      -webkit-user-select: none;
     }
     /* lang-specific font swaps */
     body[data-lang="th"] { font-family: 'IBM Plex Sans Thai', 'JetBrains Mono', monospace; }
@@ -72,7 +107,7 @@
 
     .brand {
       position: absolute;
-      top: 28px; left: 32px;
+      top: calc(28px + var(--sat)); left: calc(32px + var(--sal));
       font-family: 'Josefin Sans', sans-serif;
       font-weight: 700; font-size: 18px;
       letter-spacing: 0.05em;
@@ -88,7 +123,7 @@
     .brand.tap { color: var(--amber); transform: scale(0.96); }
 
     .caption {
-      position: absolute; top: 54px; left: 32px;
+      position: absolute; top: calc(54px + var(--sat)); left: calc(32px + var(--sal));
       font-size: 9px; letter-spacing: 0.32em;
       text-transform: uppercase; color: var(--dim);
       opacity: 0; transition: opacity 2s ease 2s;
@@ -96,7 +131,7 @@
     .caption.in { opacity: 1; }
 
     .hint {
-      position: absolute; bottom: 28px; left: 32px;
+      position: absolute; bottom: calc(28px + var(--sab)); left: calc(32px + var(--sal));
       font-size: 9px; letter-spacing: 0.28em;
       text-transform: uppercase; color: var(--dim);
       opacity: 0; transition: opacity 2.5s ease 2.5s;
@@ -104,7 +139,7 @@
     .hint.in { opacity: 0.6; }
 
     .meta {
-      position: absolute; bottom: 28px; right: 32px;
+      position: absolute; bottom: calc(28px + var(--sab)); right: calc(32px + var(--sar));
       display: flex; gap: 24px;
       font-size: 9px; letter-spacing: 0.16em;
       text-transform: uppercase; color: var(--dim);
@@ -117,7 +152,7 @@
 
     /* ── Trilingual toggle (top-right) ── */
     .lang {
-      position: absolute; top: 28px; right: 32px;
+      position: absolute; top: calc(28px + var(--sat)); right: calc(32px + var(--sar));
       display: flex; gap: 2px; align-items: center;
       pointer-events: auto;
       opacity: 0; transition: opacity 2s ease 2s;
@@ -197,8 +232,8 @@
     /* Back/X button — always present, always visible. The room respects it. */
     .modal-close {
       position: absolute;
-      top: 14px;
-      right: 14px;
+      top: calc(14px + var(--sat));
+      right: calc(14px + var(--sar));
       width: 44px;
       height: 44px;
       background: transparent;
@@ -389,31 +424,36 @@
     }
     .music-controls {
       display: flex;
-      gap: 1px;
       justify-content: center;
-      background: var(--line);
+      align-items: center;
+      gap: 0;
       margin-bottom: 22px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
     }
     .music-controls button {
       flex: 0 0 auto;
-      min-width: 56px;
-      min-height: 48px;
-      background: var(--bg);
-      border: none;
+      min-width: 64px;
+      min-height: 56px;
+      background: transparent;
+      border: 0;
+      border-left: 1px solid var(--line);
       color: var(--fg);
       cursor: pointer;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 14px;
+      font-size: 16px;
       letter-spacing: 0.1em;
       transition: color 0.15s, background 0.15s;
       -webkit-tap-highlight-color: transparent;
     }
+    .music-controls button:first-child { border-left: 0; }
     .music-controls button:hover { color: var(--amber); }
-    .music-controls .play { min-width: 80px; font-size: 16px; }
+    .music-controls .play { min-width: 96px; font-size: 20px; }
     .music-controls .play.playing { color: var(--amber); }
     .music-tracks {
       max-height: 38vh;
       overflow-y: auto;
+      overscroll-behavior: contain;
       -webkit-overflow-scrolling: touch;
       border-top: 1px solid var(--line);
     }
@@ -601,8 +641,8 @@
     /* ── Floating MENU button — labeled, obvious, one-click escape ── */
     .menu-btn {
       position: fixed;
-      right: 18px;
-      bottom: 18px;
+      right: calc(18px + var(--sar));
+      bottom: calc(18px + var(--sab));
       min-width: 88px;
       height: 52px;
       padding: 0 18px;
@@ -653,12 +693,13 @@
       left: 0;
       right: 0;
       bottom: 0;
-      max-height: 92vh;
+      max-height: 92dvh;
       overflow-y: auto;
+      overscroll-behavior: contain;
       -webkit-overflow-scrolling: touch;
       background: var(--black);
       border-top: 1px solid rgba(245, 245, 240, 0.4);
-      padding: 18px 0 24px;
+      padding: 18px 0 calc(24px + var(--sab));
       animation: drawerUp 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
     @keyframes drawerUp {
@@ -774,20 +815,55 @@
     }
 
     @media (max-width: 600px) {
-      .brand { font-size: 16px; top: 20px; left: 20px; }
-      .caption { font-size: 8px; top: 44px; left: 20px; }
-      /* On phones, default desktop hint reads as "click any screen…" — change copy + move so it doesn't crowd the menu button */
-      .hint { font-size: 7px; bottom: 84px; left: 20px; letter-spacing: 0.16em; max-width: 60vw; }
-      .meta { right: auto; left: 20px; bottom: 20px; gap: 14px; font-size: 8px; }
-      .lang { top: 20px; right: 20px; gap: 0; }
-      .lang button { padding: 4px 6px; font-size: 10px; }
-      .modal-card { padding: 48px 20px 28px; max-width: calc(100vw - 28px); }
+      .brand   { font-size: 16px; top: calc(18px + var(--sat)); left: calc(20px + var(--sal)); }
+      .caption { font-size: 8px; top: calc(42px + var(--sat)); left: calc(20px + var(--sal)); }
+      /* Change copy + move so it doesn't crowd the menu button */
+      .hint    { font-size: 7px; bottom: calc(84px + var(--sab)); left: calc(20px + var(--sal)); letter-spacing: 0.16em; max-width: 60vw; }
+      .meta    { right: auto; left: calc(20px + var(--sal)); bottom: calc(20px + var(--sab)); gap: 14px; font-size: 8px; }
+      .lang    { top: calc(18px + var(--sat)); right: calc(20px + var(--sar)); gap: 0; }
+      .lang button { padding: 4px 6px; font-size: 10px; min-width: 36px; min-height: 32px; }
+
+      /* Modal becomes a full-bleed sheet — no padding around it, edge-to-edge,
+         feels like a native iOS view. */
+      .modal { padding: 0; }
+      .modal-card {
+        max-width: 100vw;
+        width: 100vw;
+        height: 100dvh;
+        padding: calc(56px + var(--sat)) 22px calc(28px + var(--sab));
+        border: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        animation: sheetUp 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      @keyframes sheetUp {
+        from { opacity: 0; transform: translateY(24px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
       .modal-qr { width: 220px; height: 220px; }
       .modal-title { font-size: 22px; }
       .city-time { font-size: 40px; }
-      .menu-btn { right: 14px; bottom: 14px; width: 56px; height: 56px; }
+
+      .menu-btn {
+        right: calc(14px + var(--sar));
+        bottom: calc(14px + var(--sab));
+        width: 56px;
+        height: 56px;
+        min-width: 56px;
+        padding: 0;
+        font-size: 0;             /* hide the "MENU" label, keep the ☰ glyph */
+        gap: 0;
+      }
+      .menu-btn::before { font-size: 22px; }
+
+      /* Music modal on phone — track list expands to fill the empty space
+         under the controls so it feels like an album page, not a card. */
+      .modal-card.music { max-width: 100vw; padding-left: 18px; padding-right: 18px; }
+      .modal-card.music .music-tracks { max-height: none; flex: 1 1 auto; }
     }
-    /* True portrait on any size (phones, tablets) — slightly bigger touch targets */
+
+    /* True portrait on any size (phones, tablets) — bigger tap targets */
     @media (orientation: portrait) {
       .modal-visit { padding: 16px 30px; min-height: 48px; font-size: 12px; }
       .modal-close { width: 48px; height: 48px; }
@@ -877,7 +953,7 @@
     const I18N = {
       en: {
         palace:  'memory palace',
-        hint:    'click any screen or piece of furniture · move to look around',
+        hint:    'tap any screen or object · drag to look around',
         contact: 'contact',
         cv_eyebrow:      'CV',
         cv_title:        'Curriculum Vitae',
@@ -899,7 +975,7 @@
       },
       th: {
         palace:  'ห้องความทรงจำ',
-        hint:    'คลิกจอหรือเฟอร์นิเจอร์ใดก็ได้ · เลื่อนเมาส์เพื่อมองรอบ',
+        hint:    'แตะจอหรือสิ่งของใดก็ได้ · ลากเพื่อมองรอบ',
         contact: 'ติดต่อ',
         cv_eyebrow:      'ประวัติ',
         cv_title:        'ประวัติย่อ',
@@ -921,7 +997,7 @@
       },
       zh: {
         palace:  '记忆宫殿',
-        hint:    '点击任意屏幕或家具 · 移动鼠标环视',
+        hint:    '点按屏幕或物件 · 拖动环视',
         contact: '联系',
         cv_eyebrow:      '简历',
         cv_title:        '个人履历',
@@ -2662,6 +2738,10 @@
       matHover.color.setHex(c.accent);
       // HTML overlays via CSS variables
       document.body.dataset.theme = t;
+      // Status-bar paint follows the chandelier — when added to the home
+      // screen and launched as a PWA, the iOS status bar tints with the room.
+      const meta = document.getElementById('theme-color-meta');
+      if (meta) meta.setAttribute('content', t === 'dark' ? '#000000' : '#f5f5f0');
       // Repaint all themed canvases (clock, rain, ops, tickers, switch label, pomo button)
       _themeRedrawHooks.forEach(fn => { try { fn(); } catch (_) {} });
     }
