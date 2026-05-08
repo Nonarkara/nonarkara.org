@@ -1234,8 +1234,9 @@
 
     let RECORD_DISC = null;  // exposed for spin animation
     {
-      // Console table — sits in the front-right area, between the lamp and the front
-      const X = 4.6, Y = 0.78, Z = 4.0;
+      // Console table — left-mid-room, mirroring the pedestal (4, ..., -2).
+      // Earlier (4.6, 0.78, 4.0) sat outside the camera frustum.
+      const X = -3.4, Y = 0.78, Z = -1.6;
       const consoleTop = new THREE.LineSegments(
         new THREE.EdgesGeometry(new THREE.BoxGeometry(1.4, 0.04, 0.7)), matFurni);
       consoleTop.position.set(X, Y, Z); scene.add(consoleTop);
