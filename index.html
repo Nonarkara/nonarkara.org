@@ -1663,22 +1663,22 @@
       <div class="brief-cell" id="brief-fx">
         <span class="lbl">USD / THB</span>
         <span class="val" id="brief-fx-val">—</span>
-        <span class="sub" id="brief-fx-sub">eur — · gbp —</span>
+        <span class="sub" id="brief-fx-sub">sgd —</span>
+      </div>
+      <div class="brief-cell" id="brief-sgd">
+        <span class="lbl">SGD / THB</span>
+        <span class="val" id="brief-sgd-val">—</span>
+        <span class="sub" id="brief-sgd-sub">eur — · gbp —</span>
       </div>
       <div class="brief-cell" id="brief-btc">
         <span class="lbl">BTC / USD</span>
         <span class="val" id="brief-btc-val">—</span>
         <span class="sub" id="brief-btc-sub">— %</span>
       </div>
-      <div class="brief-cell" id="brief-eth">
-        <span class="lbl">ETH / USD</span>
-        <span class="val" id="brief-eth-val">—</span>
-        <span class="sub" id="brief-eth-sub">— %</span>
-      </div>
-      <div class="brief-cell" id="brief-sol">
-        <span class="lbl">SOL / USD</span>
-        <span class="val" id="brief-sol-val">—</span>
-        <span class="sub" id="brief-sol-sub">— %</span>
+      <div class="brief-cell" id="brief-set">
+        <span class="lbl">SET · TH</span>
+        <span class="val" id="brief-set-val">—</span>
+        <span class="sub" id="brief-set-sub">— %</span>
       </div>
       <div class="brief-cell brief-wx">
         <span class="lbl">BANGKOK</span>
@@ -1951,6 +1951,8 @@
       { code: 'MEAN',     title: 'MEAN · Smart Money',                url: 'https://mean.nonarkara.org',                        img: 'screenshots/cdp.jpg',       dom: 'mean.nonarkara.org' },
       { code: 'ATLAS',    title: 'City Tech Atlas',                   url: 'https://citytechatlas.lovable.app/',                img: 'screenshots/cdp.jpg' },
       { code: 'AGENTIC',  title: 'Agentic AI Research · @peterthien', url: 'https://github.com/agentic-ai-research',            img: 'screenshots/academic.jpg' },
+      { code: 'COUNCIL',  title: 'AI Council · v1 · 3 siblings',     url: 'https://github.com/Nonarkara/second-brain-os',      img: 'screenshots/academic.jpg' },
+      { code: 'COUNCIL+', title: 'AI Council · v2 · 9-bot taskforce', url: 'https://github.com/Nonarkara/dr-non-agentic-ai-council', img: 'screenshots/academic.jpg' },
       { code: 'KUCHING',  title: 'Greater Kuching IOC',               url: 'https://kuching.nonarkara.org',                     img: 'screenshots/kuching.jpg',   dom: 'kuching.nonarkara.org' },
       { code: 'SOLOMON',  title: 'Solomon Islands · UN DESA',         url: 'https://solomon.nonarkara.org',                     img: 'screenshots/solomon.jpg',   dom: 'solomon.nonarkara.org' },
       { code: 'ASCN',     title: 'ASEAN Smart Cities Network',        url: 'https://ascn.nonarkara.org',                        img: 'screenshots/ascn.jpg',      dom: 'ascn.nonarkara.org' },
@@ -2809,15 +2811,30 @@
         const r = await fetch('https://open.er-api.com/v6/latest/USD', { cache: 'no-cache' });
         const d = await r.json();
         const thb     = d.rates.THB.toFixed(2);
+        const sgdThb  = (d.rates.THB / d.rates.SGD).toFixed(2);
         const eurThb  = (d.rates.THB / d.rates.EUR).toFixed(2);
         const gbpThb  = (d.rates.THB / d.rates.GBP).toFixed(2);
         const jpyPer100 = (d.rates.THB / d.rates.JPY * 100).toFixed(2);
         const ts = new Date(d.time_last_update_unix * 1000).toLocaleString('en-GB', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' });
         setTickerText(tckrFx,
-          `USD/THB ${thb}   ▪   EUR/THB ${eurThb}   ▪   GBP/THB ${gbpThb}   ▪   JPY/THB ${jpyPer100} per 100   ▪   FX rates  ${ts} BKK   ▪   `
+          `USD/THB ${thb}   ▪   SGD/THB ${sgdThb}   ▪   EUR/THB ${eurThb}   ▪   GBP/THB ${gbpThb}   ▪   JPY/THB ${jpyPer100} per 100   ▪   FX rates  ${ts} BKK   ▪   `
         );
-        window.__brief.fx = { thb, eurThb, gbpThb, jpyPer100, ts };
+        window.__brief.fx = { thb, sgdThb, eurThb, gbpThb, jpyPer100, ts };
         if (window.paintBrief) window.paintBrief();
+      } catch (_) {}
+    }
+
+    async function fetchSET() {
+      try {
+        const r = await fetch('https://api.nonarkara.org/quote/%5ESET.BK', { cache: 'no-cache' });
+        const d = await r.json();
+        if (d?.price != null) {
+          window.__brief.set = {
+            price: d.price,
+            change: d.change ?? 0,
+          };
+          if (window.paintBrief) window.paintBrief();
+        }
       } catch (_) {}
     }
 
@@ -2915,13 +2932,14 @@
     });
 
     // First fetches + periodic refresh schedules
-    fetchFX(); fetchCrypto(); fetchWx(); fetchNews(); fetchCommits(); fetchStats();
+    fetchFX(); fetchCrypto(); fetchWx(); fetchNews(); fetchCommits(); fetchStats(); fetchSET();
     setInterval(fetchFX,      5  * 60_000);
     setInterval(fetchCrypto,  60_000);
     setInterval(fetchWx,      10 * 60_000);
     setInterval(fetchNews,    15 * 60_000);
     setInterval(fetchCommits, 5  * 60_000);
     setInterval(fetchStats,   60_000);
+    setInterval(fetchSET,     5  * 60_000);
 
     // ════════════════════════════════════════════════════════
     // TVs at far wall (5 × 4 grid = 20)
@@ -3008,9 +3026,9 @@
         const b = window.__brief || {};
         const cells = [];
         if (b.fx)         cells.push({ lbl: 'USD/THB', val: b.fx.thb,                           sub: '' });
+        if (b.fx?.sgdThb) cells.push({ lbl: 'SGD/THB', val: b.fx.sgdThb,                        sub: '' });
         if (b.crypto?.btc) cells.push({ lbl: 'BTC',     val: '$' + Math.round(b.crypto.btc.usd).toLocaleString(), sub: (b.crypto.btc.change >= 0 ? '▲ ' : '▼ ') + Math.abs(b.crypto.btc.change).toFixed(1) + '%', up: b.crypto.btc.change >= 0 });
-        if (b.crypto?.eth) cells.push({ lbl: 'ETH',     val: '$' + Math.round(b.crypto.eth.usd).toLocaleString(), sub: (b.crypto.eth.change >= 0 ? '▲ ' : '▼ ') + Math.abs(b.crypto.eth.change).toFixed(1) + '%', up: b.crypto.eth.change >= 0 });
-        if (b.crypto?.sol) cells.push({ lbl: 'SOL',     val: '$' + Math.round(b.crypto.sol.usd), sub: (b.crypto.sol.change >= 0 ? '▲ ' : '▼ ') + Math.abs(b.crypto.sol.change).toFixed(1) + '%', up: b.crypto.sol.change >= 0 });
+        if (b.set)        cells.push({ lbl: 'SET TH',  val: b.set.price.toLocaleString('en-US', { maximumFractionDigits: 0 }), sub: (b.set.change >= 0 ? '▲ ' : '▼ ') + Math.abs(b.set.change).toFixed(1) + '%', up: b.set.change >= 0 });
         if (b.wx)         cells.push({ lbl: 'BANGKOK', val: b.wx.temp + '°C',                  sub: b.wx.desc });
 
         // Loading skeleton
@@ -4047,21 +4065,25 @@
 
     // Daily brief — pulls from window.__brief, set by the room's
     // existing fetchers. Painted here whenever new data lands or the
-    // language flips.
+    // language flips. Cells: USD/THB · SGD/THB · BTC · SET · weather.
     function paintBrief() {
       try {
         const b = window.__brief || {};
         if (b.fx) {
           const fx = b.fx;
-          const v = document.getElementById('brief-fx-val');
-          const s = document.getElementById('brief-fx-sub');
-          if (v) v.textContent = fx.thb;
-          if (s) s.textContent = `eur ${fx.eurThb} · gbp ${fx.gbpThb}`;
+          const fxV = document.getElementById('brief-fx-val');
+          const fxS = document.getElementById('brief-fx-sub');
+          if (fxV) fxV.textContent = fx.thb;
+          if (fxS) fxS.textContent = `sgd ${fx.sgdThb || '—'}`;
+          const sgV = document.getElementById('brief-sgd-val');
+          const sgS = document.getElementById('brief-sgd-sub');
+          if (sgV) sgV.textContent = fx.sgdThb || '—';
+          if (sgS) sgS.textContent = `eur ${fx.eurThb} · gbp ${fx.gbpThb}`;
         }
-        const setCoin = (key, base) => {
-          const c = b.crypto && b.crypto[key]; if (!c) return;
-          const v = document.getElementById(`brief-${base}-val`);
-          const s = document.getElementById(`brief-${base}-sub`);
+        const c = b.crypto && b.crypto.btc;
+        if (c) {
+          const v = document.getElementById('brief-btc-val');
+          const s = document.getElementById('brief-btc-sub');
           if (v) v.textContent = c.usd >= 1000
             ? c.usd.toLocaleString('en-US', { maximumFractionDigits: 0 })
             : c.usd.toFixed(2);
@@ -4069,10 +4091,16 @@
             const up = c.change >= 0;
             s.innerHTML = `<span class="${up ? 'up' : 'down'}">${up ? '▲' : '▼'} ${Math.abs(c.change).toFixed(2)} %</span>`;
           }
-        };
-        setCoin('btc', 'btc');
-        setCoin('eth', 'eth');
-        setCoin('sol', 'sol');
+        }
+        if (b.set) {
+          const v = document.getElementById('brief-set-val');
+          const s = document.getElementById('brief-set-sub');
+          if (v) v.textContent = b.set.price.toLocaleString('en-US', { maximumFractionDigits: 2 });
+          if (s) {
+            const up = b.set.change >= 0;
+            s.innerHTML = `<span class="${up ? 'up' : 'down'}">${up ? '▲' : '▼'} ${Math.abs(b.set.change).toFixed(2)} %</span>`;
+          }
+        }
         if (b.wx) {
           const w = b.wx;
           const v = document.getElementById('brief-wx-temp');

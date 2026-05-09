@@ -116,6 +116,40 @@ export default {
       );
     }
 
+    // Yahoo Finance quote proxy — Yahoo blocks browser CORS, so we
+    // pass-through here. Path: /quote/^SETI returns the latest SET
+    // index (or any Yahoo symbol — minimal validation).
+    if (url.pathname.startsWith("/quote/")) {
+      const sym = decodeURIComponent(url.pathname.slice(7));
+      if (!/^[A-Z0-9.^=-]{1,12}$/i.test(sym)) {
+        return new Response('{"error":"bad symbol"}', {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      try {
+        const r = await fetch(
+          `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1d`,
+          { headers: { "User-Agent": "Mozilla/5.0" } }
+        );
+        const d = await r.json();
+        const result = d?.chart?.result?.[0];
+        const meta = result?.meta || {};
+        const price = meta.regularMarketPrice ?? null;
+        const prev = meta.chartPreviousClose ?? null;
+        const change = price && prev ? ((price - prev) / prev) * 100 : null;
+        return new Response(
+          JSON.stringify({ symbol: sym, price, prev, change, ts: Date.now() }, null, 2),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (e) {
+        return new Response(JSON.stringify({ error: String(e) }), {
+          status: 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     if (url.pathname === "/" || url.pathname === "/status" || url.pathname === "/status.json") {
       let data = await env.STATUS.get(STATUS_KEY, "json");
       // If KV is empty (first deploy, before cron has run), do an inline probe
