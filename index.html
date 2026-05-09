@@ -692,6 +692,7 @@
       text-align: center;
       color: rgba(245, 245, 240, 0.55);
       min-height: 64px;
+      opacity: 1;
     }
     .pomo-quote .src {
       display: block;
@@ -3972,19 +3973,14 @@
       const el = document.getElementById('pomo-quote');
       if (!el) return;
       const [text, src] = pomoPickQuote();
+      // No fade. The CSS transition AND the Web Animations API path
+      // both get stuck at currentTime=0 in some Chrome states when the
+      // parent .pomodoro flipped from display:none to flex (the
+      // animation registered against a paused timeline somehow). The
+      // pragmatic fix: render the quote directly. The overlay itself
+      // already fades in via its own .pomodoro.in mechanism.
+      el.style.opacity = '1';
       el.innerHTML = `${text}<span class="src">— ${src}</span>`;
-      // Fade via Web Animations API — the CSS-transition path was getting
-      // stuck on currentTime=0 in some Chrome states (transition started
-      // while parent was display:none, then never ticked when parent flipped
-      // to flex). Web Animations API bypasses that whole class-toggle dance.
-      try {
-        el.animate(
-          [{ opacity: 0 }, { opacity: 1 }],
-          { duration: 600, easing: 'ease-out', fill: 'forwards' }
-        );
-      } catch (_) {
-        el.style.opacity = '1';   // fallback for very old browsers
-      }
     }
 
     function pomoQuoteStart() {
