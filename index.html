@@ -1142,26 +1142,33 @@
       margin-top: 14px;
       padding-top: 22px;
       border-top: 1px solid var(--line);
-      display: flex; gap: 1px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
       background: var(--line);
       border-bottom: 1px solid var(--line);
     }
     .plan-foot button {
-      flex: 1 1 auto;
       background: var(--bg);
       border: 0;
       color: var(--fg);
       cursor: pointer;
       min-height: 56px;
-      padding: 0 14px;
+      padding: 0 10px;
       font-family: inherit;
-      font-size: 11px; letter-spacing: 0.32em;
+      font-size: 11px; letter-spacing: 0.28em;
       text-transform: uppercase;
       -webkit-tap-highlight-color: transparent;
       transition: color 0.12s, background 0.12s;
+      display: inline-flex; align-items: center; justify-content: center;
     }
     .plan-foot button:hover { color: var(--amber); }
-    .plan-foot .room { color: var(--amber); }      /* primary CTA */
+    .plan-foot button:active { background: rgba(245, 158, 11, 0.06); }
+    .plan-foot .focus,
+    .plan-foot .room { color: var(--amber); }      /* the two CTAs */
+    @media (min-width: 480px) {
+      .plan-foot { grid-template-columns: 1fr 1fr 1fr 1fr; }
+    }
 
     /* Floating ROOM/PLAN toggle — visible in room view, sits next to MENU */
     .view-toggle {
@@ -1351,8 +1358,10 @@
     </section>
 
     <footer class="plan-foot">
+      <button id="plan-focus" class="focus" aria-label="Start Pomodoro focus session">▷  FOCUS</button>
+      <button id="plan-music" aria-label="Open music">◯  MUSIC</button>
       <button id="plan-theme" aria-label="Toggle theme">☼  THEME</button>
-      <button id="plan-room"  class="room" aria-label="Enter 3D room">▦  ENTER ROOM</button>
+      <button id="plan-room"  class="room"  aria-label="Enter 3D room">▦  ROOM</button>
     </footer>
   </div>
 
@@ -2654,6 +2663,58 @@
     const target = { x: 0, y: 0 };
     let hovered = null;
 
+    // ─── Gyroscope tilt control ──────────────────────────────
+    // On a phone, holding the device in front of your face and
+    // tilting it should tilt the room. Saves the thumb. iOS 13+
+    // requires explicit permission via a user-gesture handler;
+    // Android Chrome works without permission.
+    //
+    // We low-pass filter the raw orientation so a hand tremor
+    // doesn't shake the camera. Output goes into target.x/.y the
+    // same channel as mouse parallax and touch drag, so all three
+    // input modes blend naturally.
+    let gyroEnabled = false;
+    let gyroAvailable = (typeof DeviceOrientationEvent !== 'undefined');
+    let gyroNeedsPermission = gyroAvailable && typeof DeviceOrientationEvent.requestPermission === 'function';
+    let gyroSmoothX = 0, gyroSmoothY = 0;        // -1..1 normalised, smoothed
+    let gyroBetaZero = null;                     // the user's natural hold pitch
+    function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+    function onDeviceOrientation(e) {
+      if (!gyroEnabled) return;
+      // gamma: left-right tilt, -90..90
+      // beta:  front-back tilt, -180..180 (with portrait device, ~70 = held in front of face)
+      const gamma = e.gamma || 0;
+      const beta  = e.beta  || 0;
+      // Calibrate the "neutral" beta on first sample so wherever the
+      // user is holding the phone becomes 0.
+      if (gyroBetaZero === null) gyroBetaZero = beta;
+      const betaRel = beta - gyroBetaZero;
+      const rawX = clamp(gamma / 35, -1, 1);     // ±35° fills the range
+      const rawY = clamp(betaRel / 30, -0.7, 0.7);
+      // Exponential moving average — kills hand tremor.
+      gyroSmoothX += (rawX - gyroSmoothX) * 0.18;
+      gyroSmoothY += (rawY - gyroSmoothY) * 0.18;
+    }
+    async function enableGyro() {
+      if (!gyroAvailable) return;
+      if (gyroEnabled) { gyroBetaZero = null; return; }    // recalibrate on re-entry
+      if (gyroNeedsPermission) {
+        try {
+          const p = await DeviceOrientationEvent.requestPermission();
+          if (p !== 'granted') return;
+        } catch (_) { return; }
+      }
+      window.addEventListener('deviceorientation', onDeviceOrientation, true);
+      gyroEnabled = true;
+      gyroBetaZero = null;     // recalibrate on next sample
+    }
+    function disableGyro() {
+      if (!gyroEnabled) return;
+      window.removeEventListener('deviceorientation', onDeviceOrientation, true);
+      gyroEnabled = false;
+      gyroSmoothX = 0; gyroSmoothY = 0;
+    }
+
     // ── Mouse: position-based parallax (subtle, hover camera) ──
     function onMouseMove(e) {
       mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -3586,9 +3647,18 @@
     const viewToggleBtn = document.getElementById('view-toggle');
     const planRoomBtn   = document.getElementById('plan-room');
     const planThemeBtn  = document.getElementById('plan-theme');
-    if (planRoomBtn)   planRoomBtn.addEventListener('click', () => setView('room'));
+    if (planRoomBtn)   planRoomBtn.addEventListener('click', () => {
+      // iOS needs the gyro permission request inside a user gesture.
+      // Fire-and-forget — the room is usable without gyro too.
+      enableGyro().catch(() => {});
+      setView('room');
+    });
     if (viewToggleBtn) viewToggleBtn.addEventListener('click', () => setView('plan'));
     if (planThemeBtn)  planThemeBtn.addEventListener('click', toggleTheme);
+    const planFocusBtn = document.getElementById('plan-focus');
+    const planMusicBtn = document.getElementById('plan-music');
+    if (planFocusBtn) planFocusBtn.addEventListener('click', () => { try { openPomodoro(); } catch (_) {} });
+    if (planMusicBtn) planMusicBtn.addEventListener('click', () => { try { openMusicModal(); } catch (_) {} });
 
     // Brand block in plan-head → opens contact modal (the business card)
     const planBrandBtn = document.getElementById('plan-brand-blk');
@@ -3755,9 +3825,14 @@
         m.opacity += (tgt - m.opacity) * 0.12;
       });
 
-      // camera parallax + breathing
-      camera.rotation.y += (target.y + baseRotY - camera.rotation.y) * 0.04;
-      camera.rotation.x += (target.x + baseRotX - camera.rotation.x) * 0.04;
+      // camera parallax + breathing + (when on phone) gyroscope tilt.
+      // Gyro contribution scaled so a 35° phone tilt rotates the room
+      // ~17° horizontally and ~9° vertically — strong enough to feel
+      // physical, gentle enough not to make you motion-sick.
+      const gyroContribY = gyroEnabled ? gyroSmoothX * 0.30 : 0;
+      const gyroContribX = gyroEnabled ? gyroSmoothY * 0.16 : 0;
+      camera.rotation.y += (target.y + baseRotY + gyroContribY - camera.rotation.y) * 0.05;
+      camera.rotation.x += (target.x + baseRotX + gyroContribX - camera.rotation.x) * 0.05;
       camera.position.y = 1.7 + Math.sin(t * 0.4) * 0.015;
 
       renderer.render(scene, camera);
