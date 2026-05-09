@@ -598,6 +598,39 @@
       opacity: 0.3;
     }
 
+    /* Pomodoro quote — Nonist focus aphorism. Sits below the cycle row,
+       above the controls. Rotates every 35s. The point is to give the
+       eye somewhere quiet to land that isn't a phone. */
+    .pomo-quote {
+      max-width: min(560px, calc(100vw - 48px));
+      margin: 36px auto 0;
+      padding: 0 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 300;
+      font-size: 13px;
+      line-height: 1.6;
+      letter-spacing: 0.01em;
+      text-align: center;
+      color: rgba(245, 245, 240, 0.55);
+      min-height: 64px;
+      opacity: 0;
+      transition: opacity 0.9s ease;
+    }
+    .pomo-quote.in { opacity: 1; }
+    .pomo-quote .src {
+      display: block;
+      margin-top: 8px;
+      font-size: 9px;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: rgba(245, 245, 240, 0.3);
+    }
+    .pomodoro.break .pomo-quote { color: rgba(245, 158, 11, 0.55); }
+    .pomodoro.break .pomo-quote .src { color: rgba(245, 158, 11, 0.3); }
+    @media (max-width: 480px) {
+      .pomo-quote { font-size: 12px; margin-top: 24px; }
+    }
+
     .pomo-exit {
       position: absolute;
       top: 24px;
@@ -1349,6 +1382,8 @@
     <div class="pomo-time pomo-pulse" id="pomo-time">25:00</div>
     <div class="pomo-cycle" id="pomo-cycle">round 1 of 4</div>
 
+    <div class="pomo-quote" id="pomo-quote" aria-live="polite"></div>
+
     <div class="pomo-controls">
       <button id="pomo-toggle" class="primary">START</button>
       <button id="pomo-skip">SKIP</button>
@@ -1542,7 +1577,8 @@
       { code: 'AXIOM',    title: 'Axiom Consultancy',                 url: 'https://axiom.nonarkara.org',                       img: 'screenshots/axiom.jpg',     dom: 'axiom.nonarkara.org' },
       { code: 'SLIC',     title: 'SLIC Index v3',                     url: 'https://slic.nonarkara.org',                        img: 'screenshots/slic.jpg',      dom: 'slic.nonarkara.org' },
       { code: 'SCITI',    title: 'Smart City Thailand Index',         url: 'https://sciti.nonarkara.org',                       img: 'screenshots/sciti.jpg',     dom: 'sciti.nonarkara.org' },
-      { code: 'TOMASITY', title: 'Muang Thong Thani',                 url: 'https://monitor.nonarkara.org',                     img: 'screenshots/monitor.jpg',   dom: 'monitor.nonarkara.org' },
+      { code: 'TOMASITY', title: 'Muang Thong Thani · MTT view',      url: 'https://monitor.nonarkara.org',                     img: 'screenshots/monitor.jpg',   dom: 'monitor.nonarkara.org' },
+      { code: 'BANGKOK',  title: 'Bangkok IOC · BKK view',             url: 'https://bangkok-ioc.pages.dev/',                    img: 'screenshots/monitor.jpg',   dom: 'bangkok-ioc.pages.dev' },
       { code: 'CDP v2',   title: 'CD Data Platform',                  url: 'https://cdp.nonarkara.org',                         img: 'screenshots/cdp.jpg',       dom: 'cdp.nonarkara.org' },
       { code: 'CONFLICT', title: 'Global Political Monitor',          url: 'https://conflict.nonarkara.org',                    img: 'screenshots/conflict.jpg',  dom: 'conflict.nonarkara.org' },
       { code: 'MEM',      title: 'Middle Eastern Monitor',            url: 'https://mem.nonarkara.org',                         img: 'screenshots/mem.jpg',       dom: 'mem.nonarkara.org' },
@@ -2990,10 +3026,91 @@
     function openPomodoro() {
       pomoUpdate();
       document.getElementById('pomodoro').classList.add('in');
+      pomoQuoteStart();
     }
     function closePomodoro() {
       document.getElementById('pomodoro').classList.remove('in');
+      pomoQuoteStop();
       // Timer keeps running in the background — re-entering shows continued state.
+    }
+
+    // ─── Pomodoro quote rotator ────────────────────────────────
+    // Aphorisms in Dr Non's voice — short, dry, philosophical. The
+    // point is to give the eye somewhere quiet to land that isn't a
+    // phone. Rotates every 40s, randomly, no repeat in a window of 5.
+    // Drawn from §12.1 (Six Mantras), §12.4 (Forbidden Phrases — what
+    // these are NOT) and the Soul/Voice-Anchor + Working-Philosophy
+    // notes. Voice rules: mundane → philosophy, no conclusion, dry
+    // humour permitted, no business-school clichés.
+    const POMO_QUOTES = [
+      // Attention / time
+      ['The most expensive thing you spend today is attention. Spend it here.', 'attention'],
+      ['Twenty-five minutes is a lot of time. Use this one.', 'time'],
+      ['The clock will not pause if you check your phone. You will just be behind.', 'time'],
+      ['The phone holds what is on it. The work does not.', 'attention'],
+      ['Time is the only asset you cannot print more of.', 'time'],
+
+      // Boredom / discomfort as the floor of work
+      ['Boredom is the floor of creativity. Stay on it.', 'boredom'],
+      ['If you can sit through the urge to check, you can do almost anything.', 'discipline'],
+      ['Tedium is the tax. Pay it once and move on.', 'discipline'],
+      ['Your brain is asking for a hit of novelty. Tell it later.', 'attention'],
+
+      // Nonism / Stoic / Buddhist substrate
+      ['It is all happening. It will all be okay.', 'nonism'],
+      ['Suspend the verdict. The wheel has not arrived yet.', 'nonism'],
+      ['Reality may be a simulation. Work the symbols anyway.', 'nonism'],
+      ['Help others first. Help yourself second. The work is help.', 'nonism'],
+      ['It would be okay if I die today. So I might as well finish this.', 'mantra'],
+
+      // Subtraction / focus
+      ['Whatever else you could be doing, this is the one you chose. Do it.', 'choice'],
+      ['What you keep choosing not to do becomes who you are.', 'choice'],
+      ['Subtract distraction first, then add focus.', 'subtract'],
+      ['The simplest move is the next move.', 'subtract'],
+
+      // Dry / self-deprecating
+      ['Eight tabs open. The work is in this one.', 'dry'],
+      ['You will check Twitter again. Just not now.', 'dry'],
+      ['If the world ends in twenty-five minutes, this still mattered.', 'dry'],
+    ];
+    let pomoQuoteTimer = null;
+    let pomoQuoteRecent = []; // avoid immediate repeats
+
+    function pomoPickQuote() {
+      let i, tries = 0;
+      do {
+        i = Math.floor(Math.random() * POMO_QUOTES.length);
+        tries++;
+      } while (pomoQuoteRecent.includes(i) && tries < 8);
+      pomoQuoteRecent.push(i);
+      if (pomoQuoteRecent.length > 5) pomoQuoteRecent.shift();
+      return POMO_QUOTES[i];
+    }
+
+    function pomoShowQuote() {
+      const el = document.getElementById('pomo-quote');
+      if (!el) return;
+      const [text, src] = pomoPickQuote();
+      el.classList.remove('in');
+      setTimeout(() => {
+        el.innerHTML = `${text}<span class="src">— ${src}</span>`;
+        // Force reflow then fade in
+        void el.offsetWidth;
+        el.classList.add('in');
+      }, 600);
+    }
+
+    function pomoQuoteStart() {
+      pomoShowQuote();                          // immediate
+      clearInterval(pomoQuoteTimer);
+      pomoQuoteTimer = setInterval(pomoShowQuote, 40_000);
+    }
+    function pomoQuoteStop() {
+      clearInterval(pomoQuoteTimer);
+      pomoQuoteTimer = null;
+      const el = document.getElementById('pomo-quote');
+      if (el) el.classList.remove('in');
     }
 
     // Hold-to-exit (3 seconds)

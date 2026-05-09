@@ -20,6 +20,7 @@ const DOMAINS = [
   "tkcx.nonarkara.org",
   "tkc-digital-twin.fly.dev",
   "monitor.nonarkara.org",
+  "bangkok-ioc.pages.dev",
   "conflict.nonarkara.org",
   "mem.nonarkara.org",
   "geo.nonarkara.org",
