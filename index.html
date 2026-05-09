@@ -854,10 +854,20 @@
        borders, three text sizes only. Tap targets ≥ 44 px. The
        3D room is opt-in via the ENTER ROOM button at the bottom.
        Same modals, same handlers, same data. */
+    /* In plan view: hide the room WITHOUT display:none — WebGL contexts
+       on a display:none canvas can hang the renderer in some browsers.
+       visibility:hidden keeps the layout (and the GL context happy) while
+       making the canvas un-paintable and un-clickable. The plan div sits
+       on top via z-index. */
     body[data-view="plan"] #canvas-root,
     body[data-view="plan"] .overlay,
     body[data-view="plan"] .menu-btn,
-    body[data-view="plan"] .tip { display: none !important; }
+    body[data-view="plan"] .tip {
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }
+    body[data-view="plan"] .menu-btn,
+    body[data-view="plan"] .tip { display: none !important; }   /* these are tiny, safe to hide */
     body[data-view="room"] #plan { display: none; }
 
     #plan {
