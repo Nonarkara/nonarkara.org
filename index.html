@@ -950,11 +950,56 @@
 
     .plan-stat {
       display: flex; align-items: center; justify-content: space-between;
-      gap: 12px; margin-bottom: 22px;
+      gap: 12px; margin-bottom: 14px;
       font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
     }
     .plan-stat .label { color: var(--dim); }
     .plan-stat .value { color: var(--fg); font-variant-numeric: tabular-nums; }
+
+    /* ── Telemetry ribbon — cyberpunk monitoring vibe in the NON aesthetic.
+       Hairline borders only, mono caps, amber pulse, tabular-nums. No blue,
+       no glassmorphism, no shadows. The pulse animates 2s opacity only. */
+    .plan-ribbon {
+      display: flex; align-items: stretch; gap: 0;
+      margin-bottom: 22px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--dim);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .plan-ribbon::-webkit-scrollbar { display: none; }
+    .plan-ribbon .stat {
+      padding: 8px 12px;
+      border-right: 1px solid var(--line);
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .plan-ribbon .stat:last-child { border-right: 0; }
+    .plan-ribbon .stat .v { color: var(--fg); }
+    .plan-ribbon .live { color: var(--amber); }
+    .plan-ribbon .live::before {
+      content: '';
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;             /* true circle exception */
+      background: var(--amber);
+      animation: livePulse 2s ease-in-out infinite;
+    }
+    @keyframes livePulse {
+      0%, 100% { opacity: 1; }
+      50%      { opacity: 0.25; }
+    }
+    .plan-ribbon .spacer { flex: 1; min-width: 8px; }
+    /* Subtle flash on the fleet status when a refresh lands */
+    .plan-stat .value.flash { animation: statFlash 0.6s ease-out; }
+    @keyframes statFlash {
+      0%   { color: var(--amber); }
+      100% { color: var(--fg); }
+    }
 
     .plan-section { margin-bottom: 26px; }
     .plan-section-label {
@@ -1241,6 +1286,15 @@
       <span class="value" id="plan-stat-summary">— / —</span>
     </section>
 
+    <section class="plan-ribbon" id="plan-ribbon">
+      <div class="stat live">live</div>
+      <div class="stat"><span>last</span> <span class="v" id="ribbon-last">—</span></div>
+      <div class="stat"><span>median</span> <span class="v" id="ribbon-ms">— ms</span></div>
+      <div class="stat"><span>up</span> <span class="v" id="ribbon-uptime">— %</span></div>
+      <div class="spacer"></div>
+      <div class="stat"><span class="v" id="ribbon-build">2026.05.09</span></div>
+    </section>
+
     <section class="plan-section">
       <div class="plan-section-label" data-i18n="plan_projects">PROJECTS</div>
       <div class="plan-grid" id="plan-projects"></div>
@@ -1303,28 +1357,6 @@
 
     <div class="pomo-hint">hold ✕ for 3 seconds to exit · timer keeps running</div>
   </div>
-
-  <!-- Diagnostic error capture (top-level + unhandled rejection).
-       Writes the first error to window.__bootErr so the page can be
-       debugged from outside (preview, devtools, chrome MCP). Removed
-       once the bug is found. -->
-  <script>
-    window.__bootErr = null;
-    window.addEventListener('error', (e) => {
-      if (window.__bootErr) return;
-      window.__bootErr = {
-        msg: e.message,
-        file: (e.filename || '').slice(-100),
-        line: e.lineno,
-        col: e.colno,
-        stack: (e.error && e.error.stack ? e.error.stack : '').slice(0, 1500)
-      };
-    }, true);
-    window.addEventListener('unhandledrejection', (e) => {
-      if (window.__bootErr) return;
-      window.__bootErr = { rejection: String(e.reason).slice(0, 800) };
-    }, true);
-  </script>
 
   <script type="module">
     import * as THREE from 'three';
@@ -3367,6 +3399,19 @@
     function paintPlanStatus(data) { try { _paintPlanStatusBody(data); } catch (_) {} }
     function _paintPlanStatusBody(data) {
       if (!planProjEl) return;
+      // Telemetry ribbon stats — derived from the snapshot.
+      const ribLast   = document.getElementById('ribbon-last');
+      const ribMs     = document.getElementById('ribbon-ms');
+      const ribUptime = document.getElementById('ribbon-uptime');
+      if (data?.ts && ribLast) {
+        const age = Math.max(0, Math.floor((Date.now() - new Date(data.ts).getTime()) / 1000));
+        ribLast.textContent = age < 60 ? age + 's' : Math.floor(age / 60) + 'm';
+      }
+      if (data?.sites && ribMs) {
+        const ms = Object.values(data.sites).map(s => s.ms).filter(Number.isFinite).sort((a, b) => a - b);
+        const median = ms.length ? ms[Math.floor(ms.length / 2)] : 0;
+        ribMs.textContent = `${median} ms`;
+      }
       let okCount = 0, total = 0;
       planProjEl.querySelectorAll('.plan-cell').forEach(cell => {
         const code = cell.dataset.code;
@@ -3386,7 +3431,19 @@
       if (data?.sites) {
         const all = Object.values(data.sites);
         const ok2 = all.filter(s => s.code === 200 || s.code === 301 || s.code === 302).length;
-        if (planStatEl) planStatEl.textContent = `${ok2} / ${all.length}`;
+        if (planStatEl) {
+          const newText = `${ok2} / ${all.length}`;
+          if (planStatEl.textContent !== newText) {
+            planStatEl.textContent = newText;
+            planStatEl.classList.remove('flash');
+            void planStatEl.offsetWidth;        // force reflow so flash re-runs
+            planStatEl.classList.add('flash');
+          }
+        }
+        if (ribUptime) {
+          const pct = all.length ? Math.round((ok2 / all.length) * 100) : 0;
+          ribUptime.textContent = `${pct} %`;
+        }
       } else if (planStatEl) {
         planStatEl.textContent = '— / —';
       }
