@@ -26,6 +26,7 @@ const DOMAINS = [
   "cdp.nonarkara.org",
   "phuket.nonarkara.org",
   "phuket-dashboard.drnon.workers.dev/war-room",
+  "mean.nonarkara.org",
   "bus.nonarkara.org",
   "kuching.nonarkara.org",
   "solomon.nonarkara.org",

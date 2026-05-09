@@ -1238,11 +1238,6 @@
     </section>
 
     <section class="plan-section">
-      <div class="plan-section-label" data-i18n="plan_private">PRIVATE · 🔒 696969</div>
-      <div class="plan-list" id="plan-private"></div>
-    </section>
-
-    <section class="plan-section">
       <div class="plan-section-label" data-i18n="plan_world">WORLD · TIME</div>
       <div class="plan-list" id="plan-cities"></div>
     </section>
@@ -1326,7 +1321,6 @@
         plan_status:     'fleet status',
         plan_projects:   'projects',
         plan_personal:   'personal',
-        plan_private:    'private · 🔒 696969',
         plan_world:      'world · time',
         plan_room:       '▦  enter room',
         plan_theme:      'theme',
@@ -1367,7 +1361,6 @@
         plan_status:     'สถานะระบบ',
         plan_projects:   'โครงการ',
         plan_personal:   'ส่วนตัว',
-        plan_private:    'ส่วนปิด · 🔒 696969',
         plan_world:      'เวลาโลก',
         plan_room:       '▦  เข้าห้อง',
         plan_theme:      'ธีม',
@@ -1408,7 +1401,6 @@
         plan_status:     '系统状态',
         plan_projects:   '项目',
         plan_personal:   '个人',
-        plan_private:    '私密 · 🔒 696969',
         plan_world:      '世界时间',
         plan_room:       '▦  进入房间',
         plan_theme:      '主题',
@@ -1490,6 +1482,10 @@
       { code: 'PHUKET',   title: 'Phuket Dashboard',                  url: 'https://phuket.nonarkara.org',                      img: 'screenshots/phuket.jpg',    dom: 'phuket.nonarkara.org' },
       { code: 'WAR ROOM', title: 'Phuket · War Room',                 url: 'https://phuket-dashboard.drnon.workers.dev/war-room', img: 'screenshots/phuket.jpg',  dom: 'phuket-dashboard.drnon.workers.dev/war-room' },
       { code: 'BUS',      title: 'Phuket Smart Bus',                  url: 'https://bus.nonarkara.org',                         img: 'screenshots/bus.jpg',       dom: 'bus.nonarkara.org' },
+      { code: 'VIABUS',   title: 'Tech Hunt · Mobility · Viabus',     url: 'https://nonarkara.github.io/techhuntthailand/?id=mobility-cohort-001-viabus', img: 'screenshots/bus.jpg' },
+      { code: 'MEAN',     title: 'MEAN · Smart Money',                url: 'https://mean.nonarkara.org',                        img: 'screenshots/cdp.jpg',       dom: 'mean.nonarkara.org' },
+      { code: 'ATLAS',    title: 'City Tech Atlas',                   url: 'https://citytechatlas.lovable.app/',                img: 'screenshots/cdp.jpg' },
+      { code: 'AGENTIC',  title: 'Agentic AI Research · @peterthien', url: 'https://github.com/agentic-ai-research',            img: 'screenshots/academic.jpg' },
       { code: 'KUCHING',  title: 'Greater Kuching IOC',               url: 'https://kuching.nonarkara.org',                     img: 'screenshots/kuching.jpg',   dom: 'kuching.nonarkara.org' },
       { code: 'SOLOMON',  title: 'Solomon Islands · UN DESA',         url: 'https://solomon.nonarkara.org',                     img: 'screenshots/solomon.jpg',   dom: 'solomon.nonarkara.org' },
       { code: 'ASCN',     title: 'ASEAN Smart Cities Network',        url: 'https://ascn.nonarkara.org',                        img: 'screenshots/ascn.jpg',      dom: 'ascn.nonarkara.org' },
@@ -1874,100 +1870,15 @@
     // The right wall is at x=9.5 but the camera FOV doesn't reach it
     // until z<-2.7. So we mount the panel on the right wall near the
     // back-right corner where it's actually visible.
-    const TKC_LINKS = [
-      { sw: 'tkc',  label: 'TKC',  url: 'https://tkc.nonarkara.org' },
-      { sw: 'tkcx', label: 'TKCX', url: 'https://tkcx.nonarkara.org' },
-    ];
-    {
-      const PANEL_X = 9.4, PANEL_Y = 1.85, PANEL_Z = -5.0;
-      // Backplate (cosmetic)
-      const plate = new THREE.LineSegments(
-        new THREE.EdgesGeometry(new THREE.BoxGeometry(0.04, 0.55, 0.36)), matFurni);
-      plate.position.set(PANEL_X, PANEL_Y, PANEL_Z);
-      scene.add(plate);
-
-      // Permanent label plate — canvas texture so the password is visible
-      // even without hovering. Re-renders on theme change.
-      {
-        const labelCanvas = document.createElement('canvas');
-        labelCanvas.width = 384; labelCanvas.height = 540;
-        const lctx = labelCanvas.getContext('2d');
-
-        function drawSwitchLabel() {
-          const tc = themeColors();
-          const fgRgb = CURRENT_THEME === 'dark' ? '245,245,240' : '26,26,26';
-          lctx.fillStyle = tc.bgCss;
-          lctx.fillRect(0, 0, 384, 540);
-          lctx.fillStyle = tc.fgCss;
-          lctx.textAlign = 'center';
-          lctx.textBaseline = 'middle';
-          lctx.font = '300 38px "JetBrains Mono", monospace';
-          lctx.fillText('TKC',  192, 130);
-          lctx.fillText('TKCX', 192, 410);
-          lctx.strokeStyle = `rgba(${fgRgb}, 0.25)`;
-          lctx.lineWidth = 1;
-          lctx.beginPath(); lctx.moveTo(60, 270); lctx.lineTo(324, 270); lctx.stroke();
-          lctx.fillStyle = tc.accentCss;
-          lctx.font = '400 24px "JetBrains Mono", monospace';
-          lctx.fillText('🔒 696969', 192, 270);
-          labelTex.needsUpdate = true;
-        }
-
-        const labelTex = new THREE.CanvasTexture(labelCanvas);
-        labelTex.colorSpace = THREE.SRGBColorSpace;
-        const labelMat = new THREE.MeshBasicMaterial({
-          map: labelTex, transparent: true, opacity: 0,
-          side: THREE.FrontSide, depthWrite: false
-        });
-        const labelPlane = new THREE.Mesh(
-          new THREE.PlaneGeometry(0.30, 0.45), labelMat
-        );
-        labelPlane.position.set(PANEL_X - 0.025, PANEL_Y, PANEL_Z);
-        labelPlane.rotation.y = Math.PI / 2;
-        scene.add(labelPlane);
-        window.__pomoLabelPlanes = window.__pomoLabelPlanes || [];
-        window.__pomoLabelPlanes.push(labelPlane);
-        // Initial paint + register theme refresh
-        drawSwitchLabel();
-        _themeRedrawHooks.push(drawSwitchLabel);
-      }
-
-      TKC_LINKS.forEach((link, i) => {
-        // Each switch is a clickable mini-toggle
-        const sy = PANEL_Y + (i === 0 ? 0.10 : -0.10); // top + bottom
-        const group = new THREE.Group();
-        group.position.set(PANEL_X - 0.04, sy, PANEL_Z);
-        const lines = [];
-
-        // Switch toggle box (sticks out from the wall)
-        const tog = new THREE.LineSegments(
-          new THREE.EdgesGeometry(new THREE.BoxGeometry(0.06, 0.06, 0.10)), matFurni);
-        group.add(tog); lines.push(tog);
-
-        // A tiny dot beside the switch
-        const dotG = new THREE.SphereGeometry(0.012, 8, 6);
-        const dot = new THREE.LineSegments(new THREE.WireframeGeometry(dotG), matFurni);
-        dot.position.z = -0.10;
-        group.add(dot); lines.push(dot);
-
-        // Hit volume — bigger than visible toggle so it's actually clickable
-        const hit = new THREE.Mesh(
-          new THREE.BoxGeometry(0.20, 0.20, 0.30),
-          new THREE.MeshBasicMaterial({ visible: false })
-        );
-        group.add(hit);
-
-        group.userData = {
-          kind: 'switch',
-          link,
-          lines,
-          hit,
-          baseMaterial: matFurni,
-        };
-        scene.add(group);
-        INTERACTABLES.push(group);
-      });
-    }
+    // TKC removed from public surfaces. URLs are protected by Cloudflare
+    // login but the dashboard previously displayed the shared password as
+    // a label, which leaks the secret to anyone reading the page. Per
+    // Dr Non's directive — protect properly or remove. Removing for now.
+    const TKC_LINKS = [];
+    // The wall-mounted switch panel that previously held the TKC switches
+    // is gone too. The label canvas it drew rendered the shared password
+    // as a wall texture in the 3D room — same NDA leak as the plan-view
+    // label. If this comes back, gate it behind real auth, not a label.
 
     // ════════════════════════════════════════════════════════
     // Operations panel (left wall, mid-back) — live health board
@@ -2706,18 +2617,11 @@
       const ud = grp.userData;
       if (ud.kind === 'tv') {
         const p = ud.project;
-        if (p?.url) {
-          openUrlModal(p.code, p.title, p.url, p.locked ? { password: '696969' } : {});
-        }
+        if (p?.url) openUrlModal(p.code, p.title, p.url);
       } else if (ud.kind === 'furniture') {
         openFurnitureModal(ud.key);
       } else if (ud.kind === 'city') {
         openCityModal(ud.city);
-      } else if (ud.kind === 'switch') {
-        const l = ud.link;
-        if (l?.url) {
-          openUrlModal(l.label, l.label === 'TKC' ? 'TKC Digital Twin' : 'TKC Command', l.url, { password: '696969' });
-        }
       } else if (ud.kind === 'pomoBtn') {
         openPomodoro();
       } else if (ud.kind === 'chandelier') {
@@ -3203,22 +3107,14 @@
 
       // Projects
       const projItems = PROJECTS.map(p => {
-        const lock = p.locked ? '<span class="lock">🔒</span>' : '';
         return `<button class="drawer-item" data-kind="tv" data-code="${p.code}">
           <span class="code">${p.code}</span>
-          <span class="title">${p.title}</span>${lock}
+          <span class="title">${p.title}</span>
         </button>`;
       }).join('');
       sections.push(`<div class="drawer-label">PROJECTS · ${PROJECTS.length}</div>${projItems}`);
 
-      // Private (TKC switches)
-      const tkcItems = TKC_LINKS.map(l => `
-        <button class="drawer-item" data-kind="switch" data-key="${l.sw}">
-          <span class="code">${l.label}</span>
-          <span class="title">${l.label === 'TKC' ? 'TKC Digital Twin' : 'TKC · Command Center'}</span>
-          <span class="lock">🔒</span>
-        </button>`).join('');
-      sections.push(`<div class="drawer-label">PRIVATE · 🔒 696969</div>${tkcItems}`);
+      // (PRIVATE/TKC drawer entries removed — see TKC_LINKS comment.)
 
       // People (furniture modals)
       sections.push(`<div class="drawer-label">PEOPLE</div>
@@ -3267,10 +3163,7 @@
           setTimeout(() => {
             if (kind === 'tv') {
               const p = PROJECTS.find(x => x.code === btn.dataset.code);
-              if (p) openUrlModal(p.code, p.title, p.url, p.locked ? { password: '696969' } : {});
-            } else if (kind === 'switch') {
-              const l = TKC_LINKS.find(x => x.sw === btn.dataset.key);
-              if (l) openUrlModal(l.label, l.label === 'TKC' ? 'TKC Digital Twin' : 'TKC Command', l.url, { password: '696969' });
+              if (p) openUrlModal(p.code, p.title, p.url);
             } else if (kind === 'furniture') {
               openFurnitureModal(btn.dataset.key);
             } else if (kind === 'city') {
@@ -3339,7 +3232,7 @@
 
     function renderPlan() { try { _renderPlanBody(); } catch (e) { /* don't cascade */ } }
     function _renderPlanBody() {
-      if (!planProjEl || !planPersEl || !planPrivEl || !planCityEl) return;
+      if (!planProjEl || !planPersEl || !planCityEl) return;
 
       // Append live counts to section labels — only on render, so language
       // toggles refresh them too.
@@ -3361,7 +3254,7 @@
       planProjEl.querySelectorAll('.plan-cell').forEach(btn => {
         btn.addEventListener('click', () => {
           const p = PROJECTS.find(x => x.code === btn.dataset.code);
-          if (p) openUrlModal(p.code, p.title, p.url, p.locked ? { password: '696969' } : {});
+          if (p) openUrlModal(p.code, p.title, p.url);
         });
       });
 
@@ -3385,20 +3278,7 @@
         btn.addEventListener('click', personal[i].click);
       });
 
-      // Private (TKC, TKCX)
-      planPrivEl.innerHTML = TKC_LINKS.map(l => `
-        <button class="plan-row" data-key="${l.sw}">
-          <span class="glyph">🔒</span>
-          <span class="title">${l.label === 'TKC' ? 'TKC Digital Twin' : 'TKC Command Center'}</span>
-          <span class="meta">${l.label}</span>
-        </button>
-      `).join('');
-      planPrivEl.querySelectorAll('.plan-row').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const l = TKC_LINKS.find(x => x.sw === btn.dataset.key);
-          if (l) openUrlModal(l.label, l.label === 'TKC' ? 'TKC Digital Twin' : 'TKC Command', l.url, { password: '696969' });
-        });
-      });
+      // (PRIVATE/TKC section removed — was leaking the password publicly.)
 
       // Cities
       planCityEl.innerHTML = CITIES.map(c => `
@@ -3626,8 +3506,7 @@
           if (ud.kind === 'tv') {
             ud.frame.material = matHover;
             ud.screenTargetOpacity = 0.85;
-            const lockHint = ud.project.locked ? `<span class="url">🔒 ${t('password')}: 696969</span>` : '';
-            tip.innerHTML = `${ud.project.code}<span class="url">${ud.project.title.toLowerCase()}</span>${lockHint}`;
+            tip.innerHTML = `${ud.project.code}<span class="url">${ud.project.title.toLowerCase()}</span>`;
           } else if (ud.kind === 'furniture') {
             ud.lines.forEach(l => l.material = matHover);
             if (ud.key === 'cup') {
@@ -3641,9 +3520,6 @@
           } else if (ud.kind === 'city') {
             ud.lines.forEach(l => l.material = matHover);
             tip.innerHTML = `${ud.city.name.toUpperCase()}<span class="url">${ud.city.tz}</span>`;
-          } else if (ud.kind === 'switch') {
-            ud.lines.forEach(l => l.material = matHover);
-            tip.innerHTML = `${ud.link.label}<span class="url">🔒 ${t('password')}: 696969</span>`;
           } else if (ud.kind === 'pomoBtn') {
             ud.lines.forEach(l => l.material = matHover);
             tip.innerHTML = `▷  POMODORO<span class="url">25 min focus · 5 min break</span>`;
