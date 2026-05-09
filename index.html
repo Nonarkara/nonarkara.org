@@ -1234,6 +1234,30 @@
     .plan-stat .label { color: var(--dim); }
     .plan-stat .value { color: var(--fg); font-variant-numeric: tabular-nums; }
 
+    /* AI Council health row — sibling of plan-stat. Pulled live from
+       /council on the Cloudflare Worker (which proxies council-watch's
+       fail-count file from GitHub). */
+    .plan-council {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 14px;
+      font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+      font-variant-numeric: tabular-nums;
+    }
+    .plan-council .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: rgba(245, 245, 240, 0.18);
+      flex: none;
+    }
+    .plan-council[data-status="healthy"]   .dot { background: var(--amber); animation: livePulse 2s ease-in-out infinite; }
+    .plan-council[data-status="degraded"]  .dot { background: var(--amber); }
+    .plan-council[data-status="down"]      .dot { background: #c44; }
+    .plan-council .label  { color: var(--dim); }
+    .plan-council .status { color: var(--fg); }
+    .plan-council[data-status="degraded"]  .status { color: var(--amber); }
+    .plan-council[data-status="down"]      .status { color: #c44; }
+    .plan-council .meta   { color: var(--dim); margin-left: auto; }
+
     /* ── DAILY BRIEF — top-of-fold info you check every day.
        Three-cell hairline grid: USD/THB · BTC · weather. Big mono
        numerals (the room's display tier), tabular-nums, amber arrows
@@ -1910,6 +1934,13 @@
     <section class="plan-stat">
       <span class="label" data-i18n="plan_status">FLEET STATUS</span>
       <span class="value" id="plan-stat-summary">— / —</span>
+    </section>
+
+    <section class="plan-council" id="plan-council">
+      <span class="dot" id="council-dot"></span>
+      <span class="label">AI COUNCIL</span>
+      <span class="status" id="council-status">—</span>
+      <span class="meta" id="council-meta">checking</span>
     </section>
 
     <section class="plan-ribbon" id="plan-ribbon">
@@ -3078,6 +3109,15 @@
       } catch (_) {}
     }
 
+    async function fetchCouncil() {
+      try {
+        const r = await fetch('https://api.nonarkara.org/council', { cache: 'no-cache' });
+        const d = await r.json();
+        window.__brief.council = d;
+        if (window.paintCouncil) window.paintCouncil();
+      } catch (_) {}
+    }
+
     async function fetchSET() {
       try {
         const r = await fetch('https://api.nonarkara.org/quote/%5ESET.BK', { cache: 'no-cache' });
@@ -3186,7 +3226,7 @@
     });
 
     // First fetches + periodic refresh schedules
-    fetchFX(); fetchCrypto(); fetchWx(); fetchNews(); fetchCommits(); fetchStats(); fetchSET();
+    fetchFX(); fetchCrypto(); fetchWx(); fetchNews(); fetchCommits(); fetchStats(); fetchSET(); fetchCouncil();
     setInterval(fetchFX,      5  * 60_000);
     setInterval(fetchCrypto,  60_000);
     setInterval(fetchWx,      10 * 60_000);
@@ -3194,6 +3234,7 @@
     setInterval(fetchCommits, 5  * 60_000);
     setInterval(fetchStats,   60_000);
     setInterval(fetchSET,     5  * 60_000);
+    setInterval(fetchCouncil, 60_000);    // council-watch ticks every 5m, we sample every 1m
 
     // ════════════════════════════════════════════════════════
     // TVs at far wall (5 × 4 grid = 20)
@@ -4742,6 +4783,45 @@
     }
     window.paintBrief = paintBrief;        // expose so room fetchers can call
 
+    // ─── AI COUNCIL paint ─────────────────────────────────────
+    // Status semantics — count is consecutive 5-min ping failures
+    // against Dr Non's M3 (the council host):
+    //   0      → HEALTHY  (live amber pulse)
+    //   1-2    → DEGRADED (one or two strikes; recoverable)
+    //   3+     → DOWN     (Telegram alert threshold; M3 likely off)
+    function paintCouncil() {
+      try {
+        const data = (window.__brief && window.__brief.council) || null;
+        const row = document.getElementById('plan-council');
+        if (!row) return;
+        if (!data) {
+          row.dataset.status = 'unknown';
+          document.getElementById('council-status').textContent = '— ';
+          document.getElementById('council-meta').textContent = 'checking';
+          return;
+        }
+        const s = data.status || 'unknown';
+        row.dataset.status = s;
+        const statusEl = document.getElementById('council-status');
+        const metaEl = document.getElementById('council-meta');
+        statusEl.textContent =
+          s === 'healthy'  ? 'HEALTHY' :
+          s === 'degraded' ? `DEGRADED · ${data.count}` :
+          s === 'down'     ? `DOWN · ${data.count} STRIKES` :
+                             '—';
+        if (data.ts) {
+          const age = Math.max(0, Math.floor((Date.now() - new Date(data.ts).getTime()) / 60000));
+          const ago = age < 1 ? 'just now'
+                    : age < 60 ? age + 'm ago'
+                    : Math.floor(age / 60) + 'h ago';
+          metaEl.textContent = 'last check ' + ago;
+        } else {
+          metaEl.textContent = '';
+        }
+      } catch (_) {}
+    }
+    window.paintCouncil = paintCouncil;
+
     // ─── NOTE pad — Second Brain quick capture ─────────────────
     // localStorage-backed for now. Future: POST to a Cloudflare Worker
     // endpoint that forwards to the obsidian-capture-bot on his Mac.
@@ -5171,6 +5251,7 @@
     try { tickPlanClock(); } catch (_) {}
     try { paintBrief(); } catch (_) {}
     try { renderWorldMap(); } catch (_) {}
+    try { paintCouncil(); } catch (_) {}
     window.__planReady = true;
     if (viewToggleBtn) setTimeout(() => viewToggleBtn.classList.add('in'), 200);
 

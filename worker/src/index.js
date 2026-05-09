@@ -153,6 +153,42 @@ export default {
       }
     }
 
+    // AI Council health — reads council-watch's fail-count file from
+    // GitHub raw + the latest commit timestamp. council-watch pings
+    // Dr Non's M3 every 5 min and writes the consecutive-fail counter
+    // to .state/fail-count. We surface that as { count, status, ts }
+    // for the plan view, with CORS open.
+    //   count 0    → healthy
+    //   count 1-2  → degraded (one or two missed 5-min ticks)
+    //   count 3+   → down (Telegram alert threshold per the workflow)
+    if (url.pathname === "/council" || url.pathname === "/council.json") {
+      try {
+        const [countResp, commitResp] = await Promise.all([
+          fetch("https://raw.githubusercontent.com/Nonarkara/council-watch/main/.state/fail-count", { cf: { cacheTtl: 30 } }),
+          fetch("https://api.github.com/repos/Nonarkara/council-watch/commits?path=.state/fail-count&per_page=1", {
+            headers: { "User-Agent": "nonarkara-status-worker", "Accept": "application/vnd.github+json" },
+            cf: { cacheTtl: 30 },
+          }),
+        ]);
+        const countText = (await countResp.text()).trim();
+        const count = /^\d+$/.test(countText) ? parseInt(countText, 10) : null;
+        const commits = await commitResp.json();
+        const ts = commits?.[0]?.commit?.committer?.date || null;
+        const status = count === null ? "unknown"
+                     : count === 0    ? "healthy"
+                     : count <  3     ? "degraded"
+                     :                  "down";
+        return new Response(JSON.stringify({ count, status, ts }, null, 2), {
+          headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "max-age=60" },
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: String(e) }), {
+          status: 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     if (url.pathname === "/" || url.pathname === "/status" || url.pathname === "/status.json") {
       let data = await env.STATUS.get(STATUS_KEY, "json");
       // If KV is empty (first deploy, before cron has run), do an inline probe
