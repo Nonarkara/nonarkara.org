@@ -1013,6 +1013,54 @@
     .plan-stat .label { color: var(--dim); }
     .plan-stat .value { color: var(--fg); font-variant-numeric: tabular-nums; }
 
+    /* ── DAILY BRIEF — top-of-fold info you check every day.
+       Three-cell hairline grid: USD/THB · BTC · weather. Big mono
+       numerals (the room's display tier), tabular-nums, amber arrows
+       for change direction. Sits between fleet status and the project
+       grid because that's the order you scan in the morning. */
+    .plan-brief {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: var(--line);
+      border: 1px solid var(--line);
+      margin-bottom: 22px;
+    }
+    .brief-cell {
+      background: var(--bg);
+      padding: 14px 14px 12px;
+      display: flex; flex-direction: column;
+      gap: 6px;
+    }
+    .brief-cell .lbl {
+      font-size: 10px; letter-spacing: 0.32em;
+      text-transform: uppercase; color: var(--dim);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .brief-cell .val {
+      font-size: 22px; font-weight: 300;
+      letter-spacing: 0.02em;
+      color: var(--fg);
+      font-variant-numeric: tabular-nums;
+      font-family: 'JetBrains Mono', monospace;
+      line-height: 1.05;
+    }
+    .brief-cell .sub {
+      font-size: 10px; letter-spacing: 0.16em;
+      color: var(--dim);
+      font-variant-numeric: tabular-nums;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .brief-cell .sub .up   { color: var(--amber); }
+    .brief-cell .sub .down { color: #c44; }
+    /* Weather cell spans the full row underneath */
+    .plan-brief .brief-wx { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 12px; }
+    .plan-brief .brief-wx .val { font-size: 26px; }
+    @media (min-width: 480px) {
+      .plan-brief { grid-template-columns: 1fr 1fr 1fr 1fr; }
+      .plan-brief .brief-wx { grid-column: 1 / -1; }
+    }
+
     /* ── Telemetry ribbon — cyberpunk monitoring vibe in the NON aesthetic.
        Hairline borders only, mono caps, amber pulse, tabular-nums. No blue,
        no glassmorphism, no shadows. The pulse animates 2s opacity only. */
@@ -1609,6 +1657,34 @@
       <div class="stat"><span>up</span> <span class="v" id="ribbon-uptime">— %</span></div>
       <div class="spacer"></div>
       <div class="stat"><span class="v" id="ribbon-build">2026.05.09</span></div>
+    </section>
+
+    <section class="plan-brief" id="plan-brief">
+      <div class="brief-cell" id="brief-fx">
+        <span class="lbl">USD / THB</span>
+        <span class="val" id="brief-fx-val">—</span>
+        <span class="sub" id="brief-fx-sub">eur — · gbp —</span>
+      </div>
+      <div class="brief-cell" id="brief-btc">
+        <span class="lbl">BTC / USD</span>
+        <span class="val" id="brief-btc-val">—</span>
+        <span class="sub" id="brief-btc-sub">— %</span>
+      </div>
+      <div class="brief-cell" id="brief-eth">
+        <span class="lbl">ETH / USD</span>
+        <span class="val" id="brief-eth-val">—</span>
+        <span class="sub" id="brief-eth-sub">— %</span>
+      </div>
+      <div class="brief-cell" id="brief-sol">
+        <span class="lbl">SOL / USD</span>
+        <span class="val" id="brief-sol-val">—</span>
+        <span class="sub" id="brief-sol-sub">— %</span>
+      </div>
+      <div class="brief-cell brief-wx">
+        <span class="lbl">BANGKOK</span>
+        <span class="val" id="brief-wx-temp">— °C</span>
+        <span class="sub" id="brief-wx-sub">— · humidity — % · wind — km/h</span>
+      </div>
     </section>
 
     <section class="plan-section">
@@ -2725,6 +2801,9 @@
     setTickerText(tckrStats,   ' • • •  OPS STATUS  •  TUNNEL  •  WORKER  • • •  ');
 
     // ── Fetchers ────────────────────────────────────────────
+    // Cached raw data so the plan-view BRIEF can paint without re-fetching.
+    window.__brief = window.__brief || {};
+
     async function fetchFX() {
       try {
         const r = await fetch('https://open.er-api.com/v6/latest/USD', { cache: 'no-cache' });
@@ -2737,6 +2816,8 @@
         setTickerText(tckrFx,
           `USD/THB ${thb}   ▪   EUR/THB ${eurThb}   ▪   GBP/THB ${gbpThb}   ▪   JPY/THB ${jpyPer100} per 100   ▪   FX rates  ${ts} BKK   ▪   `
         );
+        window.__brief.fx = { thb, eurThb, gbpThb, jpyPer100, ts };
+        if (window.paintBrief) window.paintBrief();
       } catch (_) {}
     }
 
@@ -2756,6 +2837,16 @@
         setTickerText(tckrCrypto,
           `${fmt('bitcoin','BTC')}   ▪   ${fmt('ethereum','ETH')}   ▪   ${fmt('solana','SOL')}   ▪   crypto live   ▪   `
         );
+        const cache = (k, sym) => {
+          const p = d[k]; if (!p) return null;
+          return { sym, usd: p.usd, change: p.usd_24h_change ?? 0 };
+        };
+        window.__brief.crypto = {
+          btc: cache('bitcoin', 'BTC'),
+          eth: cache('ethereum', 'ETH'),
+          sol: cache('solana', 'SOL'),
+        };
+        if (window.paintBrief) window.paintBrief();
       } catch (_) {}
     }
 
@@ -2770,6 +2861,13 @@
         setTickerText(tckrWx,
           `BANGKOK ${c.temperature_2m}°C ${wx}   ▪   humidity ${c.relative_humidity_2m}%   ▪   wind ${c.wind_speed_10m} km/h   ▪   ${time} BKK   ▪   `
         );
+        window.__brief.wx = {
+          temp: c.temperature_2m,
+          desc: wx,
+          humidity: c.relative_humidity_2m,
+          wind: c.wind_speed_10m,
+        };
+        if (window.paintBrief) window.paintBrief();
       } catch (_) {}
     }
 
@@ -2888,6 +2986,101 @@
       INTERACTABLES.push(grp);
       TVs.push(grp);
     });
+
+    // ════════════════════════════════════════════════════════
+    // BRIEF projection — big headline numbers above the TV grid.
+    // Sits on the back wall, dominating the eye-line on first look:
+    // USD/THB · BTC · ETH · SOL · weather. Drawn via canvas texture
+    // so it can repaint live without re-creating geometry.
+    // ════════════════════════════════════════════════════════
+    {
+      const W = 8.5, H = 1.0;
+      const briefCanvas = document.createElement('canvas');
+      briefCanvas.width = 2048; briefCanvas.height = 240;
+      const bctx = briefCanvas.getContext('2d');
+
+      function drawBrief() {
+        const tc = themeColors();
+        bctx.clearRect(0, 0, 2048, 240);
+        bctx.fillStyle = tc.bgCss;
+        bctx.fillRect(0, 0, 2048, 240);
+
+        const b = window.__brief || {};
+        const cells = [];
+        if (b.fx)         cells.push({ lbl: 'USD/THB', val: b.fx.thb,                           sub: '' });
+        if (b.crypto?.btc) cells.push({ lbl: 'BTC',     val: '$' + Math.round(b.crypto.btc.usd).toLocaleString(), sub: (b.crypto.btc.change >= 0 ? '▲ ' : '▼ ') + Math.abs(b.crypto.btc.change).toFixed(1) + '%', up: b.crypto.btc.change >= 0 });
+        if (b.crypto?.eth) cells.push({ lbl: 'ETH',     val: '$' + Math.round(b.crypto.eth.usd).toLocaleString(), sub: (b.crypto.eth.change >= 0 ? '▲ ' : '▼ ') + Math.abs(b.crypto.eth.change).toFixed(1) + '%', up: b.crypto.eth.change >= 0 });
+        if (b.crypto?.sol) cells.push({ lbl: 'SOL',     val: '$' + Math.round(b.crypto.sol.usd), sub: (b.crypto.sol.change >= 0 ? '▲ ' : '▼ ') + Math.abs(b.crypto.sol.change).toFixed(1) + '%', up: b.crypto.sol.change >= 0 });
+        if (b.wx)         cells.push({ lbl: 'BANGKOK', val: b.wx.temp + '°C',                  sub: b.wx.desc });
+
+        // Loading skeleton
+        if (cells.length === 0) {
+          bctx.fillStyle = `rgba(${CURRENT_THEME === 'dark' ? '245,245,240' : '26,26,26'}, 0.25)`;
+          bctx.font = '300 36px "JetBrains Mono", monospace';
+          bctx.textAlign = 'center'; bctx.textBaseline = 'middle';
+          bctx.letterSpacing = '0.32em';
+          bctx.fillText('LOADING DAILY BRIEF', 1024, 120);
+          briefTex.needsUpdate = true;
+          return;
+        }
+
+        const colW = 2048 / cells.length;
+        cells.forEach((c, i) => {
+          const cx = colW * i + colW / 2;
+          // separator hairline
+          if (i > 0) {
+            bctx.strokeStyle = `rgba(${CURRENT_THEME === 'dark' ? '245,245,240' : '26,26,26'}, 0.20)`;
+            bctx.lineWidth = 1;
+            bctx.beginPath(); bctx.moveTo(colW * i, 50); bctx.lineTo(colW * i, 190); bctx.stroke();
+          }
+          // label
+          bctx.fillStyle = tc.fgCss;
+          bctx.globalAlpha = 0.45;
+          bctx.font = '300 22px "JetBrains Mono", monospace';
+          bctx.textAlign = 'center'; bctx.textBaseline = 'top';
+          bctx.fillText(c.lbl, cx, 36);
+          // value (big)
+          bctx.globalAlpha = 1;
+          bctx.font = '300 88px "JetBrains Mono", monospace';
+          bctx.textBaseline = 'middle';
+          bctx.fillText(c.val, cx, 130);
+          // sub
+          if (c.sub) {
+            bctx.globalAlpha = 0.6;
+            bctx.font = '300 22px "JetBrains Mono", monospace';
+            bctx.textBaseline = 'top';
+            bctx.fillStyle = c.up === false ? '#c44' : (c.up === true ? tc.accentCss : tc.fgCss);
+            bctx.fillText(c.sub, cx, 192);
+          }
+        });
+        bctx.globalAlpha = 1;
+        briefTex.needsUpdate = true;
+      }
+
+      const briefTex = new THREE.CanvasTexture(briefCanvas);
+      briefTex.colorSpace = THREE.SRGBColorSpace;
+      const briefMat = new THREE.MeshBasicMaterial({
+        map: briefTex, transparent: true, opacity: 0,
+        side: THREE.FrontSide, depthWrite: false,
+      });
+      const briefPlane = new THREE.Mesh(
+        new THREE.PlaneGeometry(W, H), briefMat
+      );
+      // Position: above the TV grid on the back wall (z=-10).
+      // TVs span y ≈ 1.4..3.7, so the brief sits at y ≈ 4.4.
+      briefPlane.position.set(0, 4.55, -9.97);
+      scene.add(briefPlane);
+      window.__brief.plane = briefPlane;
+
+      drawBrief();
+      _themeRedrawHooks.push(drawBrief);
+      // Hook into paintBrief so room repaints alongside plan
+      const _origPaintBrief = window.paintBrief;
+      window.paintBrief = function () {
+        try { drawBrief(); } catch (_) {}
+        if (_origPaintBrief) _origPaintBrief();
+      };
+    }
 
     // ════════════════════════════════════════════════════════
     // Status dots — fetch /.health/latest.json and color dots
@@ -3852,6 +4045,45 @@
     }
     setInterval(tickPlanClock, 1000);
 
+    // Daily brief — pulls from window.__brief, set by the room's
+    // existing fetchers. Painted here whenever new data lands or the
+    // language flips.
+    function paintBrief() {
+      try {
+        const b = window.__brief || {};
+        if (b.fx) {
+          const fx = b.fx;
+          const v = document.getElementById('brief-fx-val');
+          const s = document.getElementById('brief-fx-sub');
+          if (v) v.textContent = fx.thb;
+          if (s) s.textContent = `eur ${fx.eurThb} · gbp ${fx.gbpThb}`;
+        }
+        const setCoin = (key, base) => {
+          const c = b.crypto && b.crypto[key]; if (!c) return;
+          const v = document.getElementById(`brief-${base}-val`);
+          const s = document.getElementById(`brief-${base}-sub`);
+          if (v) v.textContent = c.usd >= 1000
+            ? c.usd.toLocaleString('en-US', { maximumFractionDigits: 0 })
+            : c.usd.toFixed(2);
+          if (s) {
+            const up = c.change >= 0;
+            s.innerHTML = `<span class="${up ? 'up' : 'down'}">${up ? '▲' : '▼'} ${Math.abs(c.change).toFixed(2)} %</span>`;
+          }
+        };
+        setCoin('btc', 'btc');
+        setCoin('eth', 'eth');
+        setCoin('sol', 'sol');
+        if (b.wx) {
+          const w = b.wx;
+          const v = document.getElementById('brief-wx-temp');
+          const s = document.getElementById('brief-wx-sub');
+          if (v) v.textContent = `${w.temp} °C`;
+          if (s) s.textContent = `${w.desc} · humidity ${w.humidity} % · wind ${w.wind} km/h`;
+        }
+      } catch (_) {}
+    }
+    window.paintBrief = paintBrief;        // expose so room fetchers can call
+
     function paintPlanStatus(data) { try { _paintPlanStatusBody(data); } catch (_) {} }
     function _paintPlanStatusBody(data) {
       if (!planProjEl) return;
@@ -4124,6 +4356,7 @@
     // Initial paint + reveal-in pulse for the floating ROOM/PLAN toggle
     try { renderPlan(); } catch (_) {}
     try { tickPlanClock(); } catch (_) {}
+    try { paintBrief(); } catch (_) {}
     window.__planReady = true;
     if (viewToggleBtn) setTimeout(() => viewToggleBtn.classList.add('in'), 200);
 
@@ -4208,6 +4441,8 @@
       }
       // Operations panel
       if (OPS.plane) OPS.plane.material.opacity = ease * 0.85;
+      // BRIEF projection above the TV grid — fades in alongside everything else
+      if (window.__brief?.plane) window.__brief.plane.material.opacity = ease * 0.95;
       // Initial paint of OPS (loading state) once during fade
       if (ease > 0.5 && !OPS._painted) { drawOpsPanel(); OPS._painted = true; }
 
