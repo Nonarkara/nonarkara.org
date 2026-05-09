@@ -467,6 +467,32 @@
     .modal-meta a:hover { color: var(--amber); border-color: var(--amber); }
     .modal-meta .row { display: block; }
 
+    /* City-specific modal — optional hero photo above the time */
+    .city-photo {
+      margin: -8px -4px 18px;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      aspect-ratio: 16 / 9;
+      max-height: 220px;
+    }
+    .city-photo img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+      filter: brightness(0.85);     /* sit a touch under the modal palette */
+    }
+    body[data-theme="light"] .city-photo img { filter: brightness(0.95); }
+    .city-photo-credit {
+      position: absolute; left: 8px; bottom: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8px; letter-spacing: 0.2em; text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.8);
+      background: rgba(0, 0, 0, 0.5);
+      padding: 4px 8px;
+      pointer-events: none;
+    }
+
     /* City-specific modal big-time face */
     .city-time {
       font-family: 'JetBrains Mono', monospace;
@@ -4165,8 +4191,37 @@
       musicPaintRAF = requestAnimationFrame(paintMusicUI);
     }
 
+    // City photo slot — optional hero image rendered above the time.
+    // Photos must be CC-licensed (CC0 / public domain / CC-BY) with
+    // attribution rendered below the image. Drop a file in
+    // /city-photos/<slug>.jpg and add a CITY_PHOTOS entry.
+    //
+    // Anti-regression: this is ADDITIVE. The city's memory note + the
+    // tickable clock remain the primary content; the photo gives the
+    // place a face. Cities without a photo render exactly as before.
+    const CITY_PHOTOS = {
+      // slug → { src, credit }
+      // Curated, not stock-filler. Every entry is a recognisable view
+      // of the actual city, sourced from Wikipedia / Wikimedia Commons
+      // (CC BY-SA) or another truly-license-free origin. Attribution
+      // rendered on the image.
+      bangkok:    { src: 'city-photos/bangkok.jpg',  credit: 'Bangkok montage · CC BY-SA · wikipedia' },
+      london:     { src: 'city-photos/london.jpg',   credit: 'London · Tower Bridge · CC BY-SA · wikipedia' },
+      tokyo:      { src: 'city-photos/tokyo.jpg',    credit: 'Tokyo · Morio · CC BY-SA 3.0 · wikipedia' },
+      'new-york': { src: 'city-photos/new-york.jpg', credit: 'Manhattan · Dllu · CC BY-SA 4.0 · wikipedia' },
+      sydney:     { src: 'city-photos/sydney.jpg',   credit: 'Sydney · CC BY-SA · wikipedia' },
+    };
+    function citySlug(name) { return name.toLowerCase().replace(/\s+/g, '-'); }
+
     function openCityModal(city) {
+      const photo = CITY_PHOTOS[citySlug(city.name)];
+      const photoHTML = photo ? `
+        <div class="city-photo">
+          <img src="${photo.src}" alt="${city.name}" loading="lazy">
+          <div class="city-photo-credit">${photo.credit}</div>
+        </div>` : '';
       const html = `
+        ${photoHTML}
         <div class="city-time" id="city-time"></div>
         <div class="city-tz">${city.tz} · ${city.name}</div>
         <div class="city-mem">${city.memory || ''}</div>`;
