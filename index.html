@@ -3251,7 +3251,9 @@
         'Live to the end. The fun is in the flow.',
       ];
 
-      const APH_W = 10, APH_H = 1.6;
+      // 100-inch projection screen — bigger than the in-room TVs put
+      // together. Sits centered on the front wall.
+      const APH_W = 14, APH_H = 2.8;
       const aphCanvas = document.createElement('canvas');
       aphCanvas.width = 2400; aphCanvas.height = 380;
       const actx = aphCanvas.getContext('2d');
@@ -3310,12 +3312,51 @@
         side: THREE.DoubleSide, depthWrite: false,
       });
       const aphPlane = new THREE.Mesh(new THREE.PlaneGeometry(APH_W, APH_H), aphMat);
-      aphPlane.position.set(-2.5, 2.6, FRONT_Z - 0.03);
+      aphPlane.position.set(-1.5, 2.8, FRONT_Z - 0.03);   // centered on the wall, just left of the door
       aphPlane.rotation.y = Math.PI;        // face camera when rotated 180°
       scene.add(aphPlane);
       window.__aphPlane = aphPlane;
       window.__aphMat = aphMat;
       _themeRedrawHooks.push(drawAphorism);
+
+      // ── Wireframe screen frame around the projection ──────────
+      const screenFrame = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(APH_W + 0.4, APH_H + 0.4, 0.04)),
+        matFurni
+      );
+      screenFrame.position.set(-1.5, 2.8, FRONT_Z - 0.04);
+      scene.add(screenFrame);
+
+      // ── Translucent Dr Non photo rotator ──────────────────────
+      // Photos sit BEHIND the aphorism plane (further from the camera by
+      // 0.06 units) at low opacity, so the room feels like a projection
+      // booth — words foreground, image ghosted behind.
+      const PORTRAIT_FILES = [
+        'portraits/01-speaker.jpg',
+        'portraits/02-depa.jpg',
+        'portraits/03-asean.jpg',
+        'portraits/04-roundtable.jpg',
+      ];
+      const portraitLoader = new THREE.TextureLoader();
+      const portraitMats = PORTRAIT_FILES.map(src => {
+        const tex = portraitLoader.load(src);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        return new THREE.MeshBasicMaterial({
+          map: tex, transparent: true, opacity: 0,
+          side: THREE.DoubleSide, depthWrite: false,
+        });
+      });
+      // Same geometry size as aphorism plane so words sit on top of the photo.
+      const portraitPlane = new THREE.Mesh(new THREE.PlaneGeometry(APH_W, APH_H), portraitMats[0]);
+      portraitPlane.position.set(-1.5, 2.8, FRONT_Z - 0.06);
+      portraitPlane.rotation.y = Math.PI;
+      scene.add(portraitPlane);
+      window.__portraitPlane = portraitPlane;
+      window.__portraitMats = portraitMats;
+      window.__portraitIdx = 0;
+      window.__portraitLastSwap = performance.now();
+      window.__portraitFade = 0;       // 0..1 cross-fade progress
+      window.__portraitFadeDir = 1;
 
       // tick — call from animate()
       window.__tickAphorism = function (now) {
@@ -4764,6 +4805,28 @@
       if (window.__frontDoorLockPlane) window.__frontDoorLockPlane.material.opacity = ease * 0.6;
       if (window.__ceilingEquator) window.__ceilingEquator.opacity = ease * 0.5;
       if (typeof window.__tickAphorism === 'function') window.__tickAphorism(performance.now());
+      // Translucent portrait rotator — cycles every ~30s, cross-fades 1.5s.
+      // Max opacity 0.32 so the aphorism text stays the dominant read.
+      if (window.__portraitPlane && window.__portraitMats) {
+        const now = performance.now();
+        const sinceSwap = now - window.__portraitLastSwap;
+        const TARGET_OP = 0.32;
+        if (window.__portraitFadeDir === 1) {
+          window.__portraitFade = Math.min(TARGET_OP, window.__portraitFade + 0.004);
+          if (sinceSwap > 28000) window.__portraitFadeDir = -1;
+        } else {
+          window.__portraitFade = Math.max(0, window.__portraitFade - 0.004);
+          if (window.__portraitFade <= 0) {
+            window.__portraitIdx = (window.__portraitIdx + 1) % window.__portraitMats.length;
+            window.__portraitPlane.material = window.__portraitMats[window.__portraitIdx];
+            window.__portraitFadeDir = 1;
+            window.__portraitLastSwap = now;
+          }
+        }
+        // Apply (only once material is ready)
+        const m = window.__portraitPlane.material;
+        if (m && m.map && m.map.image) m.opacity = window.__portraitFade * ease;
+      }
       // Initial paint of OPS (loading state) once during fade
       if (ease > 0.5 && !OPS._painted) { drawOpsPanel(); OPS._painted = true; }
 
@@ -4827,20 +4890,15 @@
         m.opacity += (tgt - m.opacity) * 0.12;
       });
 
-      // Camera control on phone: gyroscope is PRIMARY when active.
-      // Tilt right → look right, tilt up → look up, tilt down → look down.
-      // (Earlier additive blend was sign-inverted and fought touch-drag, so
-      //  tilting right rotated the room left. Now gyro overrides target.)
-      // Sensitivities match the touch-drag clamps (±0.7 yaw, ±0.45 pitch)
-      // so a comfortable 30°-ish phone tilt reaches the room's corners.
-      let drivenY, drivenX;
-      if (gyroEnabled) {
-        drivenY = -gyroSmoothX * 0.7;     // gamma (left/right tilt) → yaw
-        drivenX = -gyroSmoothY * 0.45;    // beta  (forward/back tilt) → pitch
-      } else {
-        drivenY = target.y;
-        drivenX = target.x;
-      }
+      // Camera control: finger drag is the primary input, gyro adds a
+      // gentle offset on top. While actively dragging, gyro fades to 0
+      // so it doesn't fight the finger; on release, gyro eases back in.
+      const gyroTarget = touchAnchor ? 0 : 1;
+      window.__gyroBlend = (window.__gyroBlend ?? 0) + ((gyroTarget - (window.__gyroBlend ?? 0)) * 0.06);
+      const gyroY = gyroEnabled ? -gyroSmoothX * 0.45 * window.__gyroBlend : 0;
+      const gyroX = gyroEnabled ? -gyroSmoothY * 0.30 * window.__gyroBlend : 0;
+      const drivenY = target.y + gyroY;
+      const drivenX = target.x + gyroX;
       camera.rotation.y += (drivenY + baseRotY - camera.rotation.y) * 0.05;
       camera.rotation.x += (drivenX + baseRotX - camera.rotation.x) * 0.05;
       camera.position.y = 1.7 + Math.sin(t * 0.4) * 0.015;

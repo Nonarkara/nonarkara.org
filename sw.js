@@ -18,7 +18,7 @@
  * the old cache is dropped on activate.
  */
 
-const CACHE_VERSION = 'non-2026-05-09-18';
+const CACHE_VERSION = 'non-2026-05-09-19';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 // Same-origin shell files — must all 200 from Pages.
@@ -34,6 +34,10 @@ const SHELL = [
   '/og.svg',
   '/cv.pdf',
   '/vendor-three-0.160.0.js',     // local Three.js, no CDN dependency
+  '/portraits/01-speaker.jpg',
+  '/portraits/02-depa.jpg',
+  '/portraits/03-asean.jpg',
+  '/portraits/04-roundtable.jpg',
 ];
 
 // 10 Suno tracks — pre-cached so the turntable plays offline.
