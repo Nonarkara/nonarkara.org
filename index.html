@@ -1290,6 +1290,28 @@
     <div class="pomo-hint">hold ✕ for 3 seconds to exit · timer keeps running</div>
   </div>
 
+  <!-- Diagnostic error capture (top-level + unhandled rejection).
+       Writes the first error to window.__bootErr so the page can be
+       debugged from outside (preview, devtools, chrome MCP). Removed
+       once the bug is found. -->
+  <script>
+    window.__bootErr = null;
+    window.addEventListener('error', (e) => {
+      if (window.__bootErr) return;
+      window.__bootErr = {
+        msg: e.message,
+        file: (e.filename || '').slice(-100),
+        line: e.lineno,
+        col: e.colno,
+        stack: (e.error && e.error.stack ? e.error.stack : '').slice(0, 1500)
+      };
+    }, true);
+    window.addEventListener('unhandledrejection', (e) => {
+      if (window.__bootErr) return;
+      window.__bootErr = { rejection: String(e.reason).slice(0, 800) };
+    }, true);
+  </script>
+
   <script type="module">
     import * as THREE from 'three';
 
