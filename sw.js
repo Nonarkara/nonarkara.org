@@ -18,7 +18,7 @@
  * the old cache is dropped on activate.
  */
 
-const CACHE_VERSION = 'non-2026-05-09-07';
+const CACHE_VERSION = 'non-2026-05-09-08';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 // Same-origin shell files — must all 200 from Pages.
@@ -33,6 +33,7 @@ const SHELL = [
   '/og.png',
   '/og.svg',
   '/cv.pdf',
+  '/vendor-three-0.160.0.js',     // local Three.js, no CDN dependency
 ];
 
 // 10 Suno tracks — pre-cached so the turntable plays offline.
@@ -43,7 +44,6 @@ const MUSIC = Array.from({ length: 10 }, (_, i) =>
 // Cross-origin assets the room depends on. Cloudflare doesn't proxy these
 // but they're stable URLs — cache once, reuse forever.
 const CDN = [
-  'https://unpkg.com/three@0.160.0/build/three.module.js',
   'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js',
 ];
 
