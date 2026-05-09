@@ -37,16 +37,40 @@
        First visit: pre-caches the shell + all 10 MP3s (~52 MB). Every
        visit after: room and music play with no network. -->
   <script>
+    // Manual nuke path — visit /?reset (or hold "swipe-up" the tab and
+    // tap the URL bar to add the query) to clear ALL caches + unregister
+    // the SW + reload. Use when a stale phone refuses to update on its
+    // own. The OLD index.html will still load this script, so the path
+    // works as a back-pocket recovery without needing a fresh deploy
+    // already on the device.
+    if (location.search.indexOf('reset') !== -1) {
+      (async () => {
+        try {
+          const ws = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(ws.map(r => r.unregister()));
+          const ks = await caches.keys();
+          await Promise.all(ks.map(k => caches.delete(k)));
+        } catch (_) {}
+        location.replace('/');
+      })();
+    }
+
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(() => {});
+        navigator.serviceWorker.register('/sw.js').then(reg => {
+          // Force an immediate update check on every load — browsers
+          // only re-fetch sw.js every 24h by default, which is too slow
+          // for a site that ships hourly. update() walks the cache and
+          // installs any newer version found.
+          try { reg.update(); } catch (_) {}
+        }).catch(() => {});
       });
       // When a NEW SW takes over after a deploy, force one reload so HTML
       // and JS are always from the same version. Critical guard: only
       // listen if a controller already exists. On the very first visit
       // the page is uncontrolled, gets controlled, fires controllerchange,
       // and reloading there → fires it again → infinite loop, frozen tab,
-      // black screen. (We hit exactly that on phones.)
+      // black screen.
       if (navigator.serviceWorker.controller) {
         let __refreshing = false;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -3825,14 +3849,22 @@
         m.opacity += (tgt - m.opacity) * 0.12;
       });
 
-      // camera parallax + breathing + (when on phone) gyroscope tilt.
-      // Gyro contribution scaled so a 35° phone tilt rotates the room
-      // ~17° horizontally and ~9° vertically — strong enough to feel
-      // physical, gentle enough not to make you motion-sick.
-      const gyroContribY = gyroEnabled ? gyroSmoothX * 0.30 : 0;
-      const gyroContribX = gyroEnabled ? gyroSmoothY * 0.16 : 0;
-      camera.rotation.y += (target.y + baseRotY + gyroContribY - camera.rotation.y) * 0.05;
-      camera.rotation.x += (target.x + baseRotX + gyroContribX - camera.rotation.x) * 0.05;
+      // Camera control on phone: gyroscope is PRIMARY when active.
+      // Tilt right → look right, tilt up → look up, tilt down → look down.
+      // (Earlier additive blend was sign-inverted and fought touch-drag, so
+      //  tilting right rotated the room left. Now gyro overrides target.)
+      // Sensitivities match the touch-drag clamps (±0.7 yaw, ±0.45 pitch)
+      // so a comfortable 30°-ish phone tilt reaches the room's corners.
+      let drivenY, drivenX;
+      if (gyroEnabled) {
+        drivenY = -gyroSmoothX * 0.7;     // gamma (left/right tilt) → yaw
+        drivenX = -gyroSmoothY * 0.45;    // beta  (forward/back tilt) → pitch
+      } else {
+        drivenY = target.y;
+        drivenX = target.x;
+      }
+      camera.rotation.y += (drivenY + baseRotY - camera.rotation.y) * 0.05;
+      camera.rotation.x += (drivenX + baseRotX - camera.rotation.x) * 0.05;
       camera.position.y = 1.7 + Math.sin(t * 0.4) * 0.015;
 
       renderer.render(scene, camera);
