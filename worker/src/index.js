@@ -48,9 +48,12 @@ async function probe(d) {
   try {
     const r = await fetch(`https://${d}`, {
       method: "GET",
-      redirect: "follow",
+      // Don't follow — Workers' fetch can't always traverse a redirect
+      // that lands on another Cloudflare Worker route (loop guard). The
+      // page treats 200/301/302 all as healthy, so storing the original
+      // 302 is correct + cheaper.
+      redirect: "manual",
       cf: { cacheTtl: 0, cacheEverything: false },
-      // Worker can wait, but cap us so a single bad host doesn't stall the run
       signal: AbortSignal.timeout(10_000),
     });
     return { code: r.status, ms: Date.now() - start };

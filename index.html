@@ -3676,20 +3676,23 @@
 
     // Universal URL modal — every clickable URL routes through this.
     // Big QR (others scan it), Visit button (you tap to go), always an X.
-    // Dr Non's personal profile surfaces — when a QR opens any of these,
-    // the modal flips to a crimson + B&W high-contrast theme. Same Harvard
-    // crimson the in-room "personal furniture" gets.
+    // Dr Non's personal profile / identity surfaces — when a QR opens
+    // any of these, the modal flips to a crimson + B&W high-contrast
+    // theme (same Harvard crimson as the in-room "personal furniture").
+    //
+    // Strict allow-list: only IDENTITY surfaces (profiles + author
+    // channels), NOT project repos or partner work. Notably:
+    //   github.com/Nonarkara/<project>   → project, not personal → no crimson
+    //   github.com/agentic-ai-research   → Peter Thien's, not Dr Non → no crimson
     function isPersonalUrl(url) {
       if (!url) return false;
       return (
-        /linkedin\.com\/in\//i.test(url)               ||
-        /researchgate\.net\/profile\//i.test(url)      ||
-        /arkaraprasertkul\.socialpsychology\.org/i.test(url) ||
-        /github\.com\/Nonarkara\b/i.test(url)          ||
-        /github\.com\/agentic-ai-research\b/i.test(url)||
-        /youtube\.com\/@nonarkara/i.test(url)          ||
-        /substack\.com\/@nonarkara/i.test(url)         ||
-        /nonsmartcity\.medium/i.test(url)              ||
+        /linkedin\.com\/in\/drnon/i.test(url)                  ||
+        /researchgate\.net\/profile\/Non-/i.test(url)          ||
+        /arkaraprasertkul\.socialpsychology\.org/i.test(url)   ||
+        /youtube\.com\/@nonarkara/i.test(url)                  ||
+        /substack\.com\/@nonarkara/i.test(url)                 ||
+        /nonsmartcity\.medium/i.test(url)                      ||
         /\/cv\.pdf$/i.test(url)
       );
     }
