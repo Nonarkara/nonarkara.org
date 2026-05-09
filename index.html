@@ -2073,7 +2073,7 @@
     // ════════════════════════════════════════════════════════
     const I18N = {
       en: {
-        palace:  'memory palace',
+        palace:  'a window to the mind',
         hint:    'tap any screen or object · drag to look around',
         contact: 'contact',
         cv_eyebrow:      'CV',
@@ -2113,7 +2113,7 @@
         philo_p3:        'If you want to talk about a city, a region, or a question, the contact card is in the personal section above. Tap it.',
       },
       th: {
-        palace:  'ห้องความทรงจำ',
+        palace:  'หน้าต่างสู่ความคิด',
         hint:    'แตะจอหรือสิ่งของใดก็ได้ · ลากเพื่อมองรอบ',
         contact: 'ติดต่อ',
         cv_eyebrow:      'ประวัติ',
@@ -2153,7 +2153,7 @@
         philo_p3:        'หากต้องการคุยเรื่องเมือง พื้นที่ หรือคำถามใด ๆ นามบัตรของผมอยู่ในส่วน "ส่วนตัว" ด้านบน แตะได้เลย',
       },
       zh: {
-        palace:  '记忆宫殿',
+        palace:  '思维之窗',
         hint:    '点按屏幕或物件 · 拖动环视',
         contact: '联系',
         cv_eyebrow:      '简历',
@@ -3777,6 +3777,174 @@
     }
 
     // ════════════════════════════════════════════════════════
+    // The mind layer — what makes the room read as a mind, not a
+    // showroom. Three pieces:
+    //   1. Synaptic graph: hairline curves between thematically-related
+    //      objects (badge → project, project → project) so you can see
+    //      the lineage of his thinking, not just the artifacts.
+    //   2. Thought pulse: a tiny bright dot travels one connection at a
+    //      time on a ~6s loop. Reads like a synapse firing.
+    //   3. Drifting cognition: ~600 ambient particles slowly falling
+    //      through the room volume. The air becomes alive.
+    // ════════════════════════════════════════════════════════
+    {
+      // Find world position for a TV by code (TVs share back-wall z=-10)
+      const tvByCode = new Map();
+      TVs.forEach(g => tvByCode.set(g.userData.project.code, g.position.clone()));
+
+      // Badges are at y=4.4, z=1.5 — index in scene by their crest hexagon
+      // (we walk INTERACTABLES instead of keeping a global registry).
+      const badgePos = {};
+      INTERACTABLES.forEach(g => {
+        if (g.userData?.kind === 'badge') {
+          badgePos[g.userData.badge.code] = g.position.clone();
+        }
+      });
+
+      // Furniture references
+      const aphPos     = new THREE.Vector3(-1.5, 2.8, 9.5);    // aphorism wall
+      const bookshelf  = new THREE.Vector3(-7.0, 1.6, -2.2);
+      const pedestal   = new THREE.Vector3( 4.0, 1.0, -2.0);
+      const recordPos  = new THREE.Vector3(-3.4, 0.78, -1.6);
+
+      // Connections — pairs that read as intellectual lineage. Each
+      // connection is one curved line. Endpoints are world positions.
+      const linksRaw = [
+        // Harvard ↔ anthropology / cities ↔ conflict
+        ['HARVARD',  tvByCode.get('CONFLICT')],
+        ['HARVARD',  tvByCode.get('MEM')],
+        ['HARVARD',  tvByCode.get('GEO')],
+        // MIT ↔ smart-city work
+        ['MIT',      tvByCode.get('SCITI')],
+        ['MIT',      tvByCode.get('SLIC')],
+        ['MIT',      tvByCode.get('KUCHING')],
+        ['MIT',      tvByCode.get('SOLOMON')],
+        // Oxford ↔ research / academic
+        ['OXFORD',   tvByCode.get('ACADEMIC')],
+        ['OXFORD',   tvByCode.get('RESEARCH')],
+        // Project clusters (smart-city family across SE Asia)
+        [tvByCode.get('SCITI'),  tvByCode.get('SLIC')],
+        [tvByCode.get('SLIC'),   tvByCode.get('KUCHING')],
+        [tvByCode.get('PHUKET'), tvByCode.get('BUS')],
+        [tvByCode.get('PHUKET'), tvByCode.get('WAR ROOM')],
+        // Conflict / geopolitics cluster
+        [tvByCode.get('CONFLICT'), tvByCode.get('MEM')],
+        [tvByCode.get('CONFLICT'), tvByCode.get('GEO')],
+        // Identity ↔ writing
+        [bookshelf, tvByCode.get('NOVELS')],
+        [bookshelf, tvByCode.get('ESSAYS')],
+        // Music ↔ aphorism wall (the soundtrack to the thinking)
+        [recordPos, aphPos],
+      ];
+
+      // Resolve string references
+      const links = linksRaw
+        .map(([a, b]) => [
+          typeof a === 'string' ? badgePos[a] : a,
+          typeof b === 'string' ? badgePos[b] : b,
+        ])
+        .filter(([a, b]) => a && b);
+
+      // Build curved geometry for each link — bezier through a midpoint
+      // raised in Y, so connections arc gently rather than cutting through
+      // the floor. 24 sample points per arc.
+      const SAMPLES = 24;
+      const linkLineMat = new THREE.LineBasicMaterial({
+        color: 0xf59e0b, transparent: true, opacity: 0.0,
+      });
+      const linkArcs = [];
+      links.forEach(([a, b]) => {
+        const mid = a.clone().lerp(b, 0.5);
+        mid.y += 1.2 + Math.random() * 0.8;       // arc up
+        const pts = [];
+        for (let i = 0; i <= SAMPLES; i++) {
+          const t = i / SAMPLES;
+          // Quadratic bezier
+          const p = a.clone().multiplyScalar((1 - t) * (1 - t))
+            .add(mid.clone().multiplyScalar(2 * (1 - t) * t))
+            .add(b.clone().multiplyScalar(t * t));
+          pts.push(p);
+        }
+        const geom = new THREE.BufferGeometry().setFromPoints(pts);
+        const line = new THREE.Line(geom, linkLineMat);
+        scene.add(line);
+        linkArcs.push({ line, pts, length: pts.length });
+      });
+      window.__linkLineMat = linkLineMat;
+
+      // Thought pulse — small amber sphere that travels one arc at a
+      // time. Picks the next arc when it reaches the end.
+      const pulseGeom = new THREE.SphereGeometry(0.07, 8, 6);
+      const pulseMat  = new THREE.MeshBasicMaterial({
+        color: 0xf59e0b, transparent: true, opacity: 0.0,
+      });
+      const pulseMesh = new THREE.Mesh(pulseGeom, pulseMat);
+      pulseMesh.visible = false;
+      scene.add(pulseMesh);
+      let pulseArcIdx = 0;
+      let pulseT = 0;          // 0..1 along current arc
+      let pulseDwell = 0;      // post-arc dwell counter
+      window.__tickPulse = function () {
+        if (!linkArcs.length) return;
+        if (pulseDwell > 0) { pulseDwell--; return; }
+        const arc = linkArcs[pulseArcIdx];
+        pulseT += 0.012;       // ~80 frames per arc, ~1.3s at 60fps
+        if (pulseT >= 1) {
+          pulseT = 0;
+          pulseArcIdx = (pulseArcIdx + 1) % linkArcs.length;
+          pulseDwell = 240 + Math.floor(Math.random() * 240);   // 4-8s pause
+          pulseMat.opacity = 0;
+          pulseMesh.visible = false;
+          return;
+        }
+        const i = Math.floor(pulseT * arc.length);
+        pulseMesh.position.copy(arc.pts[Math.min(i, arc.length - 1)]);
+        // Fade in over first 20%, hold, fade out last 20%
+        const op = pulseT < 0.2 ? pulseT / 0.2 : (pulseT > 0.8 ? (1 - pulseT) / 0.2 : 1);
+        pulseMat.opacity = op * 0.85;
+        pulseMesh.visible = true;
+      };
+
+      // Drifting cognition particles — Three.js Points geometry,
+      // ~600 motes, slowly falling through the room volume.
+      const PARTICLE_COUNT = 600;
+      const positions = new Float32Array(PARTICLE_COUNT * 3);
+      const speeds = new Float32Array(PARTICLE_COUNT);
+      for (let i = 0; i < PARTICLE_COUNT; i++) {
+        positions[i * 3 + 0] = (Math.random() - 0.5) * 18;       // x: ±9
+        positions[i * 3 + 1] = Math.random() * 5;                // y: 0..5
+        positions[i * 3 + 2] = (Math.random() - 0.5) * 18;       // z: ±9
+        speeds[i] = 0.0008 + Math.random() * 0.0014;
+      }
+      const partGeom = new THREE.BufferGeometry();
+      partGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      const partMat = new THREE.PointsMaterial({
+        color: 0xf5f5f0,
+        size: 0.04,
+        sizeAttenuation: true,
+        transparent: true,
+        opacity: 0.0,
+      });
+      const particles = new THREE.Points(partGeom, partMat);
+      scene.add(particles);
+      window.__partMat = partMat;
+      window.__tickParticles = function () {
+        const p = partGeom.attributes.position.array;
+        for (let i = 0; i < PARTICLE_COUNT; i++) {
+          p[i * 3 + 1] -= speeds[i];
+          if (p[i * 3 + 1] < 0) {
+            // recycle to top with new horizontal position — a thought
+            // returning to the source
+            p[i * 3 + 0] = (Math.random() - 0.5) * 18;
+            p[i * 3 + 1] = 5.0;
+            p[i * 3 + 2] = (Math.random() - 0.5) * 18;
+          }
+        }
+        partGeom.attributes.position.needsUpdate = true;
+      };
+    }
+
+    // ════════════════════════════════════════════════════════
     // Status dots — fetch /.health/latest.json and color dots
     // ════════════════════════════════════════════════════════
     async function refreshStatus() {
@@ -4448,6 +4616,7 @@
     // Random philosophy fragments rise and fade. Trilingual mix.
     // ════════════════════════════════════════════════════════
     const WHISPERS = [
+      // existing
       'the wheel hasn’t arrived yet',
       'subtract before adding',
       'questions over answers',
@@ -4470,6 +4639,51 @@
       'mundane · then philosophy',
       'ikigai',
       '· · ·',
+      // mind-layer additions — half-finished thoughts, observations,
+      // notes-to-self that drift through the room like idle cognition
+      'a city legible to the people who live in it',
+      'or it is not a city',
+      'eight tabs open · the work is in this one',
+      'antifragility is the only fragility worth seeking',
+      'the gap between cron and real-time is where waste lives',
+      'every UI element earns its pixels',
+      'the question above the engineering',
+      'don’t resolve · hold the tension',
+      'wheel hasn’t arrived',
+      'data isn’t in',
+      'who decides what the data means',
+      'หัวไม่มีลูป',
+      'ความเป็นไทยที่ไม่ต้องประกาศ',
+      'rousseauian · stoic · existentialist',
+      'four noble truths as a design brief',
+      'plan A is a fallback',
+      'plan B is the product',
+      '何もしないこと',
+      '形 follows 機能',
+      'no shadow without something blocking the light',
+      'the cassette of TKC',
+      'the four templated cliches',
+      'banned: roboto · inter · poppins',
+      'banned: gradients · drop shadows',
+      'never replace earned content',
+      'protect properly · or remove',
+      'photograph aging · do not fake it',
+      'craft within the chosen scope',
+      'the Codex Incident',
+      'append · do not rewrite',
+      'show the diff first',
+      'chiang mai · cooler air · slower pace',
+      'shanghai · yangpu district · three years',
+      'oxford · doctorate of philosophy',
+      'depa · senior expert · smart city',
+      '0% rounded · 100% intentional',
+      'three text sizes · hard rule',
+      'the smartphone is the first impression',
+      'the desktop is the second',
+      'a phone-broken page · not made by Thais',
+      'bake it into cadence and patience',
+      'never directly · always metaphorically',
+      'the central tension stays',
     ];
 
     function spawnWhisper() {
@@ -5398,6 +5612,11 @@
       if (window.__frontDoorLockPlane) window.__frontDoorLockPlane.material.opacity = ease * 0.6;
       if (window.__ceilingEquator) window.__ceilingEquator.opacity = ease * 0.5;
       if (window.__badgeMats) window.__badgeMats.forEach(m => m.opacity = ease * 0.95);
+      // Mind-layer fades + ticks
+      if (window.__linkLineMat) window.__linkLineMat.opacity = ease * 0.18;
+      if (window.__partMat)     window.__partMat.opacity     = ease * 0.18;
+      if (typeof window.__tickPulse === 'function')     window.__tickPulse();
+      if (typeof window.__tickParticles === 'function') window.__tickParticles();
       if (typeof window.__tickAphorism === 'function') window.__tickAphorism(performance.now());
       // Translucent portrait rotator — cycles every ~30s, cross-fades 1.5s.
       // Max opacity 0.32 so the aphorism text stays the dominant read.
