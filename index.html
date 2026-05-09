@@ -346,13 +346,15 @@
       border-color: rgba(164, 16, 52, 0.4);
     }
 
-    /* Back/X button — always present, always visible. The room respects it. */
+    /* Back/X button — always present, always visible. The room respects it.
+       Size bumped on phone so it reads as the primary "go back" affordance. */
     .modal-close {
       position: absolute;
       top: calc(14px + var(--sat));
       right: calc(14px + var(--sar));
-      width: 44px;
-      height: 44px;
+      width: 56px;
+      height: 56px;
+      font-size: 22px;
       background: transparent;
       color: var(--white);
       border: 1px solid rgba(245, 245, 240, 0.55);
@@ -1041,22 +1043,188 @@
     .plan-clock {
       border-top: 1px solid var(--line);
       border-bottom: 1px solid var(--line);
-      padding: 18px 0 16px;
+      padding: 16px 0 0;
       margin-bottom: 22px;
       text-align: center;
       font-variant-numeric: tabular-nums;
     }
     .plan-clock .time {
-      font-size: 44px; font-weight: 300;
+      font-size: 36px; font-weight: 300;
       letter-spacing: 0.04em;
       line-height: 1;
       color: var(--fg);
     }
     .plan-clock .meta {
-      margin-top: 10px;
+      margin-top: 8px;
       font-size: 9px; letter-spacing: 0.32em;
       text-transform: uppercase; color: var(--dim);
     }
+    /* Casio-graphic wireframe world map under the clock.
+       Continents drawn as polylines via JS, city dots populated
+       from the CITIES array, Bangkok highlighted in amber. */
+    .plan-worldmap {
+      display: block;
+      width: 100%;
+      height: 132px;
+      margin-top: 6px;
+    }
+    .plan-worldmap .continent {
+      fill: none;
+      stroke: var(--line);
+      stroke-width: 0.6;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+    }
+    .plan-worldmap .equator,
+    .plan-worldmap .meridian {
+      stroke: var(--line);
+      stroke-width: 0.3;
+      stroke-dasharray: 2 2;
+      opacity: 0.5;
+    }
+    .plan-worldmap .city {
+      fill: var(--fg);
+      opacity: 0.55;
+    }
+    .plan-worldmap .city.home {
+      fill: var(--amber);
+      opacity: 1;
+    }
+    .plan-worldmap .city-label {
+      fill: var(--dim);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 4px;
+      font-weight: 300;
+      letter-spacing: 0.06em;
+    }
+    .plan-worldmap .city-label.home {
+      fill: var(--amber);
+      font-size: 5px;
+      letter-spacing: 0.1em;
+    }
+
+    /* HUD — four big tappable functions at the top of plan view.
+       Always visible, always one tap away. */
+    .plan-hud {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: var(--line);
+      border: 1px solid var(--line);
+      margin-bottom: 22px;
+    }
+    .hud-btn {
+      background: var(--bg);
+      border: 0;
+      color: var(--fg);
+      cursor: pointer;
+      min-height: 84px;
+      padding: 14px 6px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 6px;
+      font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+      transition: color 0.12s, background 0.12s;
+    }
+    .hud-btn:hover { color: var(--amber); }
+    .hud-btn:active { background: rgba(245, 158, 11, 0.08); }
+    .hud-btn .g {
+      font-size: 22px; line-height: 1;
+      color: var(--amber);
+    }
+    .hud-btn .t {
+      font-size: 10px; letter-spacing: 0.32em;
+      font-weight: 400;
+    }
+    .hud-btn.focus .g { color: var(--amber); }
+
+    /* NOTE pad — capture textarea, save button, recent list. */
+    .modal-card.note {
+      max-width: 560px;
+      padding: 56px 28px 28px;
+    }
+    .note-input {
+      width: 100%;
+      min-height: 200px;
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--fg);
+      padding: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 300;
+      font-size: 14px;
+      line-height: 1.5;
+      resize: vertical;
+      margin: 18px 0 12px;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    body[data-lang="th"] .note-input { font-family: 'IBM Plex Sans Thai', monospace; }
+    body[data-lang="zh"] .note-input { font-family: 'Noto Sans SC', monospace; }
+    .note-input:focus {
+      outline: none;
+      border-color: var(--amber);
+    }
+    .note-actions {
+      display: flex; gap: 1px;
+      background: var(--line);
+      border: 1px solid var(--line);
+      margin-bottom: 12px;
+    }
+    .note-actions button {
+      flex: 1;
+      background: var(--bg);
+      border: 0;
+      color: var(--fg);
+      cursor: pointer;
+      min-height: 48px;
+      font-family: inherit;
+      font-size: 11px; letter-spacing: 0.32em;
+      text-transform: uppercase;
+      -webkit-tap-highlight-color: transparent;
+      transition: color 0.12s, background 0.12s;
+    }
+    .note-save { color: var(--amber); }
+    .note-actions button:hover { background: rgba(245, 158, 11, 0.08); }
+    .note-meta {
+      font-size: 9px; letter-spacing: 0.32em;
+      text-transform: uppercase; color: var(--dim);
+      text-align: center;
+      margin-bottom: 22px;
+    }
+    .note-list-label {
+      font-size: 10px; letter-spacing: 0.32em;
+      text-transform: uppercase; color: var(--dim);
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 12px;
+    }
+    .note-list {
+      max-height: 40vh; overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+    .note-row {
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(245, 245, 240, 0.08);
+      font-size: 13px; line-height: 1.5;
+      cursor: pointer;
+    }
+    body[data-theme="light"] .note-row { border-bottom-color: rgba(26, 26, 26, 0.10); }
+    .note-row:hover { color: var(--amber); }
+    .note-row .ts {
+      display: block;
+      font-size: 9px; letter-spacing: 0.32em;
+      text-transform: uppercase; color: var(--dim);
+      margin-bottom: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+    .note-row .body {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .note-row.empty { color: var(--dim); cursor: default; padding: 14px 0; }
 
     .plan-stat {
       display: flex; align-items: center; justify-content: space-between;
@@ -1675,6 +1843,26 @@
     <span class="hint-pair"><kbd>esc</kbd> close</span>
   </div>
 
+  <!-- ── NOTE pad (Second Brain quick capture) ─────────────────
+       Full-screen sheet with a textarea + saved-note list.
+       localStorage-backed for now; future: POST to capture endpoint. -->
+  <div class="modal" id="note-modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-bg" data-close-note="1"></div>
+    <div class="modal-card note">
+      <button class="modal-close" id="note-close" aria-label="Close">✕</button>
+      <div class="modal-eyebrow">SECOND BRAIN · CAPTURE</div>
+      <div class="modal-title">note · for later</div>
+      <textarea class="note-input" id="note-input" placeholder="A thought, a quote, a question, a reminder. Anything you want to remember."></textarea>
+      <div class="note-actions">
+        <button id="note-save" class="note-save">▾  SAVE</button>
+        <button id="note-clear" class="note-clear">CLEAR</button>
+      </div>
+      <div class="note-meta" id="note-meta">stored on this device</div>
+      <div class="note-list-label">RECENT</div>
+      <div class="note-list" id="note-list"></div>
+    </div>
+  </div>
+
   <!-- ── PLAN view (2D dashboard) ─────────────────────────────
        Default phone entry point. The 3D room is opt-in. -->
   <div id="plan" aria-hidden="true">
@@ -1693,9 +1881,30 @@
       </div>
     </header>
 
+    <!-- HUD: the four daily-use functions, ALWAYS visible at the top.
+         Deep-work · music · note (Second Brain capture) · theme. -->
+    <section class="plan-hud">
+      <button id="hud-focus" class="hud-btn focus" aria-label="Start Pomodoro focus session">
+        <span class="g">▷</span><span class="t">FOCUS</span>
+      </button>
+      <button id="hud-music" class="hud-btn" aria-label="Open music">
+        <span class="g">◯</span><span class="t">MUSIC</span>
+      </button>
+      <button id="hud-note" class="hud-btn" aria-label="Open Second Brain note pad">
+        <span class="g">✎</span><span class="t">NOTE</span>
+      </button>
+      <button id="hud-theme" class="hud-btn" aria-label="Toggle light / dark">
+        <span class="g">☼</span><span class="t">THEME</span>
+      </button>
+    </section>
+
+    <!-- Clock + Casio-graphic wireframe world map -->
     <section class="plan-clock">
       <div class="time" id="plan-time">--:--:--</div>
       <div class="meta" id="plan-date">— · BANGKOK · GMT+7</div>
+      <svg class="plan-worldmap" id="plan-worldmap"
+           viewBox="-185 -95 370 195" preserveAspectRatio="xMidYMid meet"
+           aria-label="World map with city positions"></svg>
     </section>
 
     <section class="plan-stat">
@@ -1709,7 +1918,7 @@
       <div class="stat"><span>median</span> <span class="v" id="ribbon-ms">— ms</span></div>
       <div class="stat"><span>up</span> <span class="v" id="ribbon-uptime">— %</span></div>
       <div class="spacer"></div>
-      <div class="stat"><span class="v" id="ribbon-build">2026.05.09</span></div>
+      <div class="stat"><span class="v" id="ribbon-build">2026.05.10</span></div>
     </section>
 
     <section class="plan-brief" id="plan-brief">
@@ -1750,11 +1959,6 @@
       <div class="plan-list" id="plan-personal"></div>
     </section>
 
-    <section class="plan-section">
-      <div class="plan-section-label" data-i18n="plan_world">WORLD · TIME</div>
-      <div class="plan-list" id="plan-cities"></div>
-    </section>
-
     <section class="plan-philo">
       <div class="label" data-i18n="philo_label">how this works</div>
       <p data-i18n="philo_p1">Most of the dashboards above refresh on a five-minute cron. To a person looking at one, that is indistinguishable from real-time, and it costs roughly nothing to run.</p>
@@ -1763,10 +1967,7 @@
     </section>
 
     <footer class="plan-foot">
-      <button id="plan-focus" class="focus" aria-label="Start Pomodoro focus session">▷  FOCUS</button>
-      <button id="plan-music" aria-label="Open music">◯  MUSIC</button>
-      <button id="plan-theme" aria-label="Toggle theme">☼  THEME</button>
-      <button id="plan-room"  class="room"  aria-label="Enter 3D room">▦  ROOM</button>
+      <button id="plan-room"  class="room"  aria-label="Enter 3D room">▦  ENTER ROOM</button>
     </footer>
   </div>
 
@@ -4406,7 +4607,7 @@
 
     function renderPlan() { try { _renderPlanBody(); } catch (e) { /* don't cascade */ } }
     function _renderPlanBody() {
-      if (!planProjEl || !planPersEl || !planCityEl) return;
+      if (!planProjEl || !planPersEl) return;
 
       // Append live counts to section labels — only on render, so language
       // toggles refresh them too.
@@ -4453,21 +4654,7 @@
       });
 
       // (PRIVATE/TKC section removed — was leaking the password publicly.)
-
-      // Cities
-      planCityEl.innerHTML = CITIES.map(c => `
-        <button class="plan-row plan-city" data-name="${c.name}" data-tz="${c.tz}">
-          <span class="glyph">${c.home ? '●' : '○'}</span>
-          <span class="title">${c.name}</span>
-          <span class="meta" data-city-time>—:—</span>
-        </button>
-      `).join('');
-      planCityEl.querySelectorAll('.plan-row').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const c = CITIES.find(x => x.name === btn.dataset.name);
-          if (c) openCityModal(c);
-        });
-      });
+      // (WORLD · TIME list replaced by SVG world map — see renderWorldMap)
 
       // Status dots (paint from cached data if present, else dim)
       paintPlanStatus(window.__lastStatusData || null);
@@ -4488,17 +4675,21 @@
       }).format(now).toUpperCase();
       if (planTimeEl) planTimeEl.textContent = fmt;
       if (planDateEl) planDateEl.textContent = `${dfmt} · BANGKOK · GMT+7`;
-      // City rows
-      planCityEl?.querySelectorAll('.plan-city').forEach(btn => {
-        const tz = btn.dataset.tz;
-        const out = btn.querySelector('[data-city-time]');
-        if (!out) return;
-        try {
-          out.textContent = new Intl.DateTimeFormat('en-GB', {
-            timeZone: tz, hour12: false, hour: '2-digit', minute: '2-digit',
-          }).format(now);
-        } catch { /* bad tz */ }
-      });
+      // World map labeled cities — refresh local time text below each
+      // labeled dot once a minute (the SVG label text content swap is
+      // cheap, runs every tick).
+      const svg = document.getElementById('plan-worldmap');
+      if (svg) {
+        svg.querySelectorAll('text.city-time').forEach(t => {
+          const tz = t.dataset.tz;
+          if (!tz) return;
+          try {
+            t.textContent = new Intl.DateTimeFormat('en-GB', {
+              timeZone: tz, hour12: false, hour: '2-digit', minute: '2-digit',
+            }).format(now);
+          } catch { /* bad tz */ }
+        });
+      }
     }
     setInterval(tickPlanClock, 1000);
 
@@ -4550,6 +4741,155 @@
       } catch (_) {}
     }
     window.paintBrief = paintBrief;        // expose so room fetchers can call
+
+    // ─── NOTE pad — Second Brain quick capture ─────────────────
+    // localStorage-backed for now. Future: POST to a Cloudflare Worker
+    // endpoint that forwards to the obsidian-capture-bot on his Mac.
+    const NOTE_STORAGE_KEY = 'nonarkara.notes';
+    function loadNotes() {
+      try { return JSON.parse(localStorage.getItem(NOTE_STORAGE_KEY) || '[]'); }
+      catch (_) { return []; }
+    }
+    function saveNotes(arr) {
+      try { localStorage.setItem(NOTE_STORAGE_KEY, JSON.stringify(arr)); } catch (_) {}
+    }
+    function renderNoteList() {
+      const el = document.getElementById('note-list');
+      if (!el) return;
+      const notes = loadNotes();
+      if (!notes.length) {
+        el.innerHTML = '<div class="note-row empty">no notes yet — capture one above</div>';
+        return;
+      }
+      el.innerHTML = notes.slice().reverse().map(n => `
+        <div class="note-row" data-ts="${n.ts}">
+          <span class="ts">${new Date(n.ts).toLocaleString('en-GB', { timeZone: 'Asia/Bangkok', hour12: false, day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} · BKK</span>
+          <span class="body">${(n.text || '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</span>
+        </div>
+      `).join('');
+    }
+    function openNoteModal() {
+      const m = document.getElementById('note-modal');
+      if (!m) return;
+      renderNoteList();
+      m.classList.add('in');
+      m.setAttribute('aria-hidden', 'false');
+      const ta = document.getElementById('note-input');
+      if (ta) setTimeout(() => ta.focus(), 50);
+    }
+    function closeNoteModal() {
+      const m = document.getElementById('note-modal');
+      if (!m) return;
+      m.classList.remove('in');
+      m.setAttribute('aria-hidden', 'true');
+    }
+    document.getElementById('note-close')?.addEventListener('click', closeNoteModal);
+    document.getElementById('note-modal')?.addEventListener('click', (e) => {
+      if (e.target.dataset.closeNote === '1') closeNoteModal();
+    });
+    document.getElementById('note-save')?.addEventListener('click', () => {
+      const ta = document.getElementById('note-input');
+      const text = (ta?.value || '').trim();
+      if (!text) return;
+      const notes = loadNotes();
+      notes.push({ ts: Date.now(), text });
+      saveNotes(notes);
+      ta.value = '';
+      renderNoteList();
+      const meta = document.getElementById('note-meta');
+      if (meta) {
+        meta.textContent = 'saved · ' + new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Bangkok', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setTimeout(() => { meta.textContent = 'stored on this device'; }, 3000);
+      }
+    });
+    document.getElementById('note-clear')?.addEventListener('click', () => {
+      const ta = document.getElementById('note-input');
+      if (ta) ta.value = '';
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && document.getElementById('note-modal')?.classList.contains('in')) {
+        closeNoteModal();
+      }
+    });
+
+    // ─── Casio-graphic wireframe world map ─────────────────────
+    // Continents drawn as simplified polylines (purposely abstract,
+    // not literal — Casio data-bank watch aesthetic). City dots
+    // populated from CITIES, Bangkok highlighted in amber.
+    function renderWorldMap() {
+      const svg = document.getElementById('plan-worldmap');
+      if (!svg) return;
+      // Continents: hand-drawn rough outlines in (lon,lat) → (x,-y).
+      const continents = [
+        // North America
+        'M -160,68 L -125,72 L -52,82 L -52,40 L -80,15 L -120,15 L -160,30 L -160,68',
+        // Central America
+        'M -100,15 L -85,8 L -80,15',
+        // South America
+        'M -78,12 L -55,8 L -35,5 L -35,-30 L -65,-55 L -75,-30 L -78,12',
+        // Europe + western Russia
+        'M -10,72 L 30,72 L 60,55 L 40,42 L 18,38 L -10,38 L -10,72',
+        // Africa
+        'M -15,38 L 35,38 L 50,15 L 50,-15 L 30,-35 L 15,-35 L -8,-5 L -15,38',
+        // Asia + Middle East
+        'M 30,72 L 180,72 L 145,30 L 100,8 L 70,18 L 50,15 L 35,38 L 30,72',
+        // Indian subcontinent peninsular hint
+        'M 70,28 L 88,8 L 78,8',
+        // South-East Asia hint
+        'M 100,20 L 120,2 L 110,-10',
+        // Indonesia islands
+        'M 100,-2 L 122,-7 L 138,-8',
+        // Australia
+        'M 113,-10 L 155,-15 L 155,-38 L 113,-38 L 113,-10',
+        // New Zealand
+        'M 168,-35 L 178,-42',
+        // Japan
+        'M 132,42 L 142,32',
+        // British Isles
+        'M -10,55 L -2,60 L 0,50',
+        // Madagascar
+        'M 44,-15 L 50,-25',
+      ];
+
+      // Equator + meridian
+      const guides = `
+        <line class="equator" x1="-180" y1="0" x2="180" y2="0"/>
+        <line class="meridian" x1="0" y1="-90" x2="0" y2="90"/>
+      `;
+
+      const continentSvg = continents.map(d => `<path class="continent" d="${d}"/>`).join('');
+
+      const labeled = ['Bangkok','London','Tokyo','New York','Sydney','Honiara'];
+      const dotSvg = CITIES.map(c => {
+        const x = c.lon, y = -c.lat;
+        const home = c.home ? ' home' : '';
+        const r = c.home ? 1.7 : 1.0;
+        const showLabel = c.home || labeled.includes(c.name);
+        const labelDx = c.lon > 90 ? 3 : (c.lon < -90 ? -3 : 3);
+        const anchor = c.lon > 90 ? 'start' : (c.lon < -90 ? 'end' : 'start');
+        const labelEls = showLabel ? `
+          <text class="city-label${home}" x="${x + labelDx}" y="${y - 2}" text-anchor="${anchor}">${c.name.toUpperCase()}</text>
+          <text class="city-label city-time" data-tz="${c.tz}" x="${x + labelDx}" y="${y + 5}" text-anchor="${anchor}">--:--</text>
+        ` : '';
+        return `
+          <g class="city-grp" data-name="${c.name}">
+            <circle class="city${home}" cx="${x}" cy="${y}" r="${r}"/>
+            ${labelEls}
+          </g>
+        `;
+      }).join('');
+
+      svg.innerHTML = guides + continentSvg + dotSvg;
+
+      // Tap any city group → open the city modal
+      svg.querySelectorAll('.city-grp').forEach(g => {
+        g.style.cursor = 'pointer';
+        g.addEventListener('click', () => {
+          const c = CITIES.find(x => x.name === g.dataset.name);
+          if (c) openCityModal(c);
+        });
+      });
+    }
 
     function paintPlanStatus(data) { try { _paintPlanStatusBody(data); } catch (_) {} }
     function _paintPlanStatusBody(data) {
@@ -4635,10 +4975,16 @@
     });
     if (viewToggleBtn) viewToggleBtn.addEventListener('click', () => setView('plan'));
     if (planThemeBtn)  planThemeBtn.addEventListener('click', toggleTheme);
-    const planFocusBtn = document.getElementById('plan-focus');
-    const planMusicBtn = document.getElementById('plan-music');
-    if (planFocusBtn) planFocusBtn.addEventListener('click', () => { try { openPomodoro(); } catch (_) {} });
-    if (planMusicBtn) planMusicBtn.addEventListener('click', () => { try { openMusicModal(); } catch (_) {} });
+
+    // HUD buttons at the top of plan view — the always-visible quad
+    const hudFocusEl = document.getElementById('hud-focus');
+    const hudMusicEl = document.getElementById('hud-music');
+    const hudNoteEl  = document.getElementById('hud-note');
+    const hudThemeEl = document.getElementById('hud-theme');
+    if (hudFocusEl) hudFocusEl.addEventListener('click', () => { try { openPomodoro(); } catch (_) {} });
+    if (hudMusicEl) hudMusicEl.addEventListener('click', () => { try { openMusicModal(); } catch (_) {} });
+    if (hudNoteEl)  hudNoteEl.addEventListener('click', () => { try { openNoteModal(); } catch (_) {} });
+    if (hudThemeEl) hudThemeEl.addEventListener('click', toggleTheme);
 
     // ── Room HUD: live --:--:-- clock + FOCUS chip + one-shot tilt hint ──
     // Channeling the monitoring-console vibe of nonarkara.github.io/dr-non-operating-systems.
@@ -4824,6 +5170,7 @@
     try { renderPlan(); } catch (_) {}
     try { tickPlanClock(); } catch (_) {}
     try { paintBrief(); } catch (_) {}
+    try { renderWorldMap(); } catch (_) {}
     window.__planReady = true;
     if (viewToggleBtn) setTimeout(() => viewToggleBtn.classList.add('in'), 200);
 
