@@ -292,6 +292,60 @@
     }
     .modal-card.city { padding: 56px 40px 32px; }
 
+    /* ── Personal modals (CV / LinkedIn / Contact / Dr Non profiles) ──
+       Crimson + black + white high-contrast. The page tints to a Harvard
+       red feel so the personal QR has visible authority. Crimson is
+       Harvard's actual #A41034. The card itself is high-contrast B&W —
+       printable, photographable, scannable in any light. */
+    .modal:has(.modal-card.personal) .modal-bg { background: #050108; }
+    .modal-card.personal {
+      background: #f5f5f0;
+      color: #0a0a0a;
+      border: 1px solid #A41034;
+      box-shadow: inset 0 0 0 4px #f5f5f0, inset 0 0 0 5px rgba(164, 16, 52, 0.3);
+    }
+    .modal-card.personal .modal-eyebrow {
+      color: #A41034; letter-spacing: 0.32em;
+    }
+    .modal-card.personal .modal-title { color: #0a0a0a; }
+    .modal-card.personal .modal-cap { color: rgba(10, 10, 10, 0.55); }
+    .modal-card.personal .modal-meta { color: rgba(10, 10, 10, 0.7); }
+    .modal-card.personal .modal-meta a {
+      color: #A41034;
+      border-bottom: 1px solid rgba(164, 16, 52, 0.3);
+    }
+    .modal-card.personal .modal-meta a:hover {
+      color: #fff; background: #A41034;
+      border-bottom-color: #A41034;
+    }
+    .modal-card.personal .modal-qr {
+      background: #fff;
+      border: 1px solid #0a0a0a;
+    }
+    .modal-card.personal .modal-visit {
+      color: #A41034;
+      border: 1px solid #A41034;
+    }
+    .modal-card.personal .modal-visit:hover {
+      background: #A41034; color: #fff;
+    }
+    .modal-card.personal .modal-close {
+      color: #0a0a0a;
+      border-color: rgba(10, 10, 10, 0.4);
+      background: rgba(245, 245, 240, 0.6);
+    }
+    .modal-card.personal .modal-close:hover {
+      border-color: #A41034; color: #A41034;
+    }
+    .modal-card.personal .modal-domain {
+      color: rgba(10, 10, 10, 0.5);
+      border-color: rgba(10, 10, 10, 0.2);
+    }
+    .modal-card.personal .modal-pwd {
+      color: #A41034;
+      border-color: rgba(164, 16, 52, 0.4);
+    }
+
     /* Back/X button — always present, always visible. The room respects it. */
     .modal-close {
       position: absolute;
@@ -3101,6 +3155,221 @@
     }
 
     // ════════════════════════════════════════════════════════
+    // The OTHER side — when you spin 180° from the TV grid, you face
+    // a wireframe front wall with a locked door and a big projection
+    // of rotating aphorisms from Dr Non's nonharvard blog. Sharp words
+    // in his voice, fading every 25 seconds.
+    // ════════════════════════════════════════════════════════
+    {
+      const FRONT_Z = 9.5;            // front wall sits beyond camera (camera at z=5.5..7.5)
+      const FW_W = 19, FW_H = 5;      // wall outline frame width × height
+
+      // Wireframe wall outline
+      const wallFrame = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(FW_W, FW_H, 0.04)),
+        matFurni
+      );
+      wallFrame.position.set(0, 2.5, FRONT_Z);
+      scene.add(wallFrame);
+
+      // Locked door — wireframe rectangle on the right of the wall
+      const DOOR_W = 1.4, DOOR_H = 3.2, DOOR_X = 5.5;
+      const doorFrame = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(DOOR_W, DOOR_H, 0.06)),
+        matFurni
+      );
+      doorFrame.position.set(DOOR_X, DOOR_H / 2 + 0.05, FRONT_Z - 0.03);
+      scene.add(doorFrame);
+      // Door handle — a small cube
+      const doorHandle = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(0.06, 0.06, 0.06)),
+        matBright
+      );
+      doorHandle.position.set(DOOR_X - DOOR_W * 0.4, DOOR_H * 0.5, FRONT_Z - 0.05);
+      scene.add(doorHandle);
+      // 🔒 label texture beside the door
+      {
+        const c = document.createElement('canvas');
+        c.width = 256; c.height = 96;
+        const cx = c.getContext('2d');
+        function drawLockLabel() {
+          const tc = themeColors();
+          cx.clearRect(0, 0, 256, 96);
+          cx.fillStyle = tc.fgCss;
+          cx.font = '300 32px "JetBrains Mono", monospace';
+          cx.textAlign = 'center'; cx.textBaseline = 'middle';
+          cx.globalAlpha = 0.55;
+          cx.fillText('🔒  LOCKED', 128, 48);
+          cx.globalAlpha = 1;
+          lockTex.needsUpdate = true;
+        }
+        const lockTex = new THREE.CanvasTexture(c);
+        lockTex.colorSpace = THREE.SRGBColorSpace;
+        const lockMat = new THREE.MeshBasicMaterial({
+          map: lockTex, transparent: true, opacity: 0,
+          side: THREE.DoubleSide, depthWrite: false,
+        });
+        const lockPlane = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.4), lockMat);
+        lockPlane.position.set(DOOR_X, 0.4, FRONT_Z - 0.04);
+        // Face the camera (camera looks at +Z when rotated 180°, so plane normal toward -Z works)
+        lockPlane.rotation.y = Math.PI;
+        scene.add(lockPlane);
+        window.__frontDoorLockPlane = lockPlane;
+        drawLockLabel();
+        _themeRedrawHooks.push(drawLockLabel);
+      }
+
+      // ── Aphorism projection on the front wall ─────────────────
+      // 30+ short aphorisms in Dr Non's voice, drawn from his
+      // nonharvard.wordpress.com corpus + Soul/Voice-Anchor.
+      // Rotates every 25s. Sharp words. No fluff.
+      const APHORISMS = [
+        'Harvard: a for-profit company in Massachusetts authorized by law to act as a single entity that thinks of itself as an educational institution.',
+        'It would be okay if I die today.',
+        'The wheel hasn’t arrived yet — the data isn’t in.',
+        'Boredom is the floor of creativity. Stay on it.',
+        'Reality may be a simulation. Work the symbols anyway.',
+        'Most engineering wastes itself in the gap between cron and real-time.',
+        'A dashboard refreshing every five minutes is, to a human eye, indistinguishable from real-time.',
+        'You might be right at this point.',
+        'Time is the only asset you cannot print more of.',
+        'The most expensive thing you spend today is attention.',
+        'Subtract before you add.',
+        'Every UI element must earn its pixels.',
+        'What you keep choosing not to do becomes who you are.',
+        'Help others first. Help yourself second. The work is help.',
+        'It is all happening. It will all be okay.',
+        'Confidence is built by failing in public.',
+        'No money buys back a wasted twenty-five minutes.',
+        'The simplest move is the next move.',
+        'Tedium is the tax. Pay it once and move on.',
+        'A city is legible to the people who live in it, or it is not a city.',
+        'If the world ends in twenty-five minutes, this still mattered.',
+        'Eight tabs open. The work is in this one.',
+        'Possession is the disease this whole worldview diagnoses.',
+        'Build your portfolio for yourself first. Then everyone else.',
+        'Live to the end. The fun is in the flow.',
+      ];
+
+      const APH_W = 10, APH_H = 1.6;
+      const aphCanvas = document.createElement('canvas');
+      aphCanvas.width = 2400; aphCanvas.height = 380;
+      const actx = aphCanvas.getContext('2d');
+      let aphIndex = -1;
+      let aphFade = 0;             // 0..1 fade-in progress
+      let aphFadeDir = 1;          // +1 fading in, -1 fading out
+      let aphLastSwap = performance.now();
+      let aphCurrent = '';
+      let aphNext = '';
+
+      function pickAphorism() {
+        let i;
+        do { i = Math.floor(Math.random() * APHORISMS.length); } while (i === aphIndex && APHORISMS.length > 1);
+        aphIndex = i;
+        return APHORISMS[i];
+      }
+
+      function drawAphorism() {
+        const tc = themeColors();
+        actx.clearRect(0, 0, 2400, 380);
+        // text
+        actx.fillStyle = tc.fgCss;
+        actx.globalAlpha = aphFade;
+        actx.font = '300 italic 56px "Josefin Sans", system-ui, sans-serif';
+        actx.textAlign = 'center'; actx.textBaseline = 'middle';
+        // Word-wrap if too long
+        const txt = aphCurrent;
+        const words = txt.split(' ');
+        const maxW = 2200;
+        let lines = []; let cur = '';
+        for (const w of words) {
+          const test = cur ? cur + ' ' + w : w;
+          if (actx.measureText(test).width > maxW) {
+            lines.push(cur);
+            cur = w;
+          } else {
+            cur = test;
+          }
+        }
+        if (cur) lines.push(cur);
+        const lh = 70;
+        const y0 = 380 / 2 - ((lines.length - 1) * lh) / 2;
+        lines.forEach((l, i) => actx.fillText(l, 1200, y0 + i * lh));
+        // small attribution
+        actx.font = '300 22px "JetBrains Mono", monospace';
+        actx.globalAlpha = aphFade * 0.4;
+        actx.fillText('— nonharvard', 1200, 360);
+        actx.globalAlpha = 1;
+        aphTex.needsUpdate = true;
+      }
+
+      const aphTex = new THREE.CanvasTexture(aphCanvas);
+      aphTex.colorSpace = THREE.SRGBColorSpace;
+      const aphMat = new THREE.MeshBasicMaterial({
+        map: aphTex, transparent: true, opacity: 0,
+        side: THREE.DoubleSide, depthWrite: false,
+      });
+      const aphPlane = new THREE.Mesh(new THREE.PlaneGeometry(APH_W, APH_H), aphMat);
+      aphPlane.position.set(-2.5, 2.6, FRONT_Z - 0.03);
+      aphPlane.rotation.y = Math.PI;        // face camera when rotated 180°
+      scene.add(aphPlane);
+      window.__aphPlane = aphPlane;
+      window.__aphMat = aphMat;
+      _themeRedrawHooks.push(drawAphorism);
+
+      // tick — call from animate()
+      window.__tickAphorism = function (now) {
+        const elapsedSinceSwap = now - aphLastSwap;
+        // First-time bootstrap
+        if (!aphCurrent) {
+          aphCurrent = pickAphorism();
+          aphFade = 0; aphFadeDir = 1;
+          aphLastSwap = now;
+          drawAphorism();
+        }
+        // Fade animation
+        if (aphFadeDir === 1) {
+          aphFade = Math.min(1, aphFade + 0.016);
+          if (aphFade >= 1 && elapsedSinceSwap > 23000) aphFadeDir = -1;
+          drawAphorism();
+        } else {
+          aphFade = Math.max(0, aphFade - 0.016);
+          if (aphFade <= 0) {
+            aphCurrent = pickAphorism();
+            aphFadeDir = 1;
+            aphLastSwap = now;
+          }
+          drawAphorism();
+        }
+      };
+    }
+
+    // ════════════════════════════════════════════════════════
+    // CEILING — wireframe grid that mirrors the floor. Cyberpunk.
+    // Real specular reflection is heavy on phones, so we draw the
+    // mirror visually: a grid above with the same spacing + amber
+    // equator like the floor. Looking up = seeing the room reflected.
+    // ════════════════════════════════════════════════════════
+    {
+      const CEIL_Y = 5.0;
+      const CEIL_SIZE = 22;
+      const ceilGrid = new THREE.GridHelper(CEIL_SIZE, 22, 0x666666, 0x666666);
+      ceilGrid.material = matFurni;
+      ceilGrid.position.y = CEIL_Y;
+      scene.add(ceilGrid);
+      // Inverted-perspective amber equator — a single line across the ceiling
+      // matching the floor's amber stripe. Adds the "reflected" feel.
+      const equatorGeom = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-CEIL_SIZE / 2, CEIL_Y - 0.001, 0),
+        new THREE.Vector3( CEIL_SIZE / 2, CEIL_Y - 0.001, 0),
+      ]);
+      const equatorMat = new THREE.LineBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0 });
+      const equator = new THREE.Line(equatorGeom, equatorMat);
+      scene.add(equator);
+      window.__ceilingEquator = equatorMat;
+    }
+
+    // ════════════════════════════════════════════════════════
     // Status dots — fetch /.health/latest.json and color dots
     // ════════════════════════════════════════════════════════
     async function refreshStatus() {
@@ -3239,12 +3508,12 @@
       const dx = (t.clientX - touchAnchor.x) / window.innerWidth;
       const dy = (t.clientY - touchAnchor.y) / window.innerHeight;
       if (Math.abs(dx) > 0.015 || Math.abs(dy) > 0.015) touchMoved = true;
-      // Touch drag rotates further than mouse parallax — feels like swiping the room
-      target.y = touchAnchor.targetY - dx * 0.85;
-      target.x = touchAnchor.targetX + dy * 0.55;
-      // clamp gently so you can't spin around forever
-      target.y = Math.max(-0.7, Math.min(0.7, target.y));
-      target.x = Math.max(-0.45, Math.min(0.45, target.x));
+      // Drag-to-rotate: 360° on the horizontal (you can spin all the way
+      // around to see the aphorism wall behind you), gentle pitch clamp
+      // on the vertical so you don't end up looking at your own feet.
+      target.y = touchAnchor.targetY - dx * Math.PI;     // full screen drag = ~180°
+      target.x = touchAnchor.targetX + dy * 0.65;
+      target.x = Math.max(-0.55, Math.min(0.55, target.x));
       // Update mouse for ongoing raycast (so the city/tv they're sliding over highlights)
       mouse.x = (t.clientX / window.innerWidth) * 2 - 1;
       mouse.y = -(t.clientY / window.innerHeight) * 2 + 1;
@@ -3330,14 +3599,14 @@
           <div class="modal-qr"><img src="${buildQR(url, 'M')}" alt="QR"></div>
           <div class="modal-cap">${t('cv_cap')}</div>
           <div class="modal-meta"><a class="row" href="cv.pdf" target="_blank" rel="noopener">${t('cv_meta')}</a></div>`;
-        showModal(t('cv_eyebrow'), t('cv_title'), html);
+        showModal(t('cv_eyebrow'), t('cv_title'), html, 'personal');
       } else if (key === 'pedestal') {
         const url = 'https://www.linkedin.com/in/drnon/';
         const html = `
           <div class="modal-qr"><img src="${buildQR(url, 'M')}" alt="QR"></div>
           <div class="modal-cap">${t('li_cap')}</div>
           <div class="modal-meta"><a class="row" href="${url}" target="_blank" rel="noopener">linkedin.com/in/drnon</a></div>`;
-        showModal(t('li_eyebrow'), t('li_title'), html);
+        showModal(t('li_eyebrow'), t('li_title'), html, 'personal');
       } else if (key === 'coffee') {
         const html = `
           <div class="modal-qr"><img src="${buildQR(VCARD, 'L')}" alt="QR"></div>
@@ -3349,7 +3618,7 @@
             <span class="row">+66 65 709 5258 · +66 2 026 2333</span>
             <span class="row">234/431 Bldg A · Ladprao Lane 10 · Bangkok 10900</span>
           </div>`;
-        showModal(t('contact_eyebrow'), t('contact_title'), html);
+        showModal(t('contact_eyebrow'), t('contact_title'), html, 'personal');
       } else if (key === 'cup') {
         // Easter egg — sabai sabai (left here for the curious)
         const url = 'https://sabaisabai-airdnd.pages.dev/';
@@ -3366,6 +3635,24 @@
 
     // Universal URL modal — every clickable URL routes through this.
     // Big QR (others scan it), Visit button (you tap to go), always an X.
+    // Dr Non's personal profile surfaces — when a QR opens any of these,
+    // the modal flips to a crimson + B&W high-contrast theme. Same Harvard
+    // crimson the in-room "personal furniture" gets.
+    function isPersonalUrl(url) {
+      if (!url) return false;
+      return (
+        /linkedin\.com\/in\//i.test(url)               ||
+        /researchgate\.net\/profile\//i.test(url)      ||
+        /arkaraprasertkul\.socialpsychology\.org/i.test(url) ||
+        /github\.com\/Nonarkara\b/i.test(url)          ||
+        /github\.com\/agentic-ai-research\b/i.test(url)||
+        /youtube\.com\/@nonarkara/i.test(url)          ||
+        /substack\.com\/@nonarkara/i.test(url)         ||
+        /nonsmartcity\.medium/i.test(url)              ||
+        /\/cv\.pdf$/i.test(url)
+      );
+    }
+
     function openUrlModal(eyebrow, title, url, opts = {}) {
       const passwordRow = opts.password
         ? `<div class="modal-pwd">🔒 ${t('password')}: ${opts.password}</div>`
@@ -3379,7 +3666,8 @@
         ${passwordRow}
         <div class="modal-domain"><a href="${url}" target="_blank" rel="noopener">${url.replace(/^https?:\/\//, '')}</a></div>
       `;
-      showModal(eyebrow, title, html);
+      const klass = isPersonalUrl(url) ? 'personal' : '';
+      showModal(eyebrow, title, html, klass);
     }
 
     // ────────── Music player ──────────
@@ -4471,6 +4759,11 @@
       if (OPS.plane) OPS.plane.material.opacity = ease * 0.85;
       // BRIEF projection above the TV grid — fades in alongside everything else
       if (window.__brief?.plane) window.__brief.plane.material.opacity = ease * 0.95;
+      // Aphorism wall + door label fade in alongside everything else
+      if (window.__aphMat) window.__aphMat.opacity = ease * 0.9;
+      if (window.__frontDoorLockPlane) window.__frontDoorLockPlane.material.opacity = ease * 0.6;
+      if (window.__ceilingEquator) window.__ceilingEquator.opacity = ease * 0.5;
+      if (typeof window.__tickAphorism === 'function') window.__tickAphorism(performance.now());
       // Initial paint of OPS (loading state) once during fade
       if (ease > 0.5 && !OPS._painted) { drawOpsPanel(); OPS._painted = true; }
 
