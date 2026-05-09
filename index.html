@@ -681,6 +681,7 @@
        eye somewhere quiet to land that isn't a phone. */
     .pomo-quote {
       max-width: min(560px, calc(100vw - 48px));
+      width: calc(100% - 48px);
       margin: 36px auto 0;
       padding: 0 16px;
       font-family: 'JetBrains Mono', monospace;
@@ -691,10 +692,7 @@
       text-align: center;
       color: rgba(245, 245, 240, 0.55);
       min-height: 64px;
-      opacity: 0;
-      transition: opacity 0.9s ease;
     }
-    .pomo-quote.in { opacity: 1; }
     .pomo-quote .src {
       display: block;
       margin-top: 8px;
@@ -3974,13 +3972,19 @@
       const el = document.getElementById('pomo-quote');
       if (!el) return;
       const [text, src] = pomoPickQuote();
-      el.classList.remove('in');
-      setTimeout(() => {
-        el.innerHTML = `${text}<span class="src">— ${src}</span>`;
-        // Force reflow then fade in
-        void el.offsetWidth;
-        el.classList.add('in');
-      }, 600);
+      el.innerHTML = `${text}<span class="src">— ${src}</span>`;
+      // Fade via Web Animations API — the CSS-transition path was getting
+      // stuck on currentTime=0 in some Chrome states (transition started
+      // while parent was display:none, then never ticked when parent flipped
+      // to flex). Web Animations API bypasses that whole class-toggle dance.
+      try {
+        el.animate(
+          [{ opacity: 0 }, { opacity: 1 }],
+          { duration: 600, easing: 'ease-out', fill: 'forwards' }
+        );
+      } catch (_) {
+        el.style.opacity = '1';   // fallback for very old browsers
+      }
     }
 
     function pomoQuoteStart() {
@@ -3992,7 +3996,10 @@
       clearInterval(pomoQuoteTimer);
       pomoQuoteTimer = null;
       const el = document.getElementById('pomo-quote');
-      if (el) el.classList.remove('in');
+      if (el) {
+        el.innerHTML = '';
+        el.style.opacity = '0';
+      }
     }
 
     // Hold-to-exit (3 seconds)
