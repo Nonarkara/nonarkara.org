@@ -1225,6 +1225,218 @@
       }
     }
 
+    /* ── Room HUD: monitoring-console overlay ──────────────────────
+       Vibe pulled from nonarkara.github.io/dr-non-operating-systems —
+       monospace, bracket separators, pulsing live dot, --:--:-- clock.
+       Only visible while body[data-view="room"]. */
+    .room-hud {
+      position: fixed; inset: 0;
+      pointer-events: none;
+      z-index: 25;
+      opacity: 0;
+      transition: opacity 1.2s ease 1.5s;
+    }
+    body[data-view="room"] .room-hud { opacity: 1; }
+
+    .room-hud-cluster.top-left {
+      position: absolute;
+      top: calc(18px + var(--sat));
+      left: calc(20px + var(--sal));
+      display: inline-flex; align-items: center;
+      gap: 0.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: var(--fg);
+      mix-blend-mode: difference;
+    }
+
+    .hud-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--amber);
+      box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+      animation: hud-dot-pulse 1.6s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+    @keyframes hud-dot-pulse {
+      0%, 100% { opacity: 1;   box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.55); }
+      50%      { opacity: 0.55; box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
+    }
+
+    .hud-eyebrow { color: inherit; opacity: 0.65; }
+    .hud-sep     { color: inherit; opacity: 0.35; }
+    .hud-status  { color: var(--amber); }
+    .hud-clock   { font-feature-settings: "tnum" 1; opacity: 0.85; }
+
+    /* FOCUS chip — top-right, more obvious entry to the Pomodoro than
+       the 3D icon in the room (matches .view-toggle styling cousin). */
+    .hud-chip {
+      position: fixed;
+      top: calc(14px + var(--sat));
+      right: calc(18px + var(--sar));
+      pointer-events: auto;
+      display: inline-flex; align-items: center;
+      gap: 0.55rem;
+      min-height: 38px;
+      padding: 0 14px;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      color: var(--fg);
+      cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 1.5s ease 1.7s, color 0.15s, border-color 0.15s, background 0.6s ease;
+      -webkit-tap-highlight-color: transparent;
+      z-index: 30;
+    }
+    body[data-view="room"] .hud-chip { opacity: 0.92; pointer-events: auto; }
+    .hud-chip:hover { color: var(--amber); border-color: var(--amber); }
+    .hud-chip:active { background: rgba(245, 158, 11, 0.06); }
+    .hud-chip-glyph { font-size: 11px; color: var(--amber); }
+
+    @media (max-width: 600px) {
+      .hud-chip {
+        top: calc(14px + var(--sat));
+        right: calc(14px + var(--sar));
+        min-height: 36px;
+        padding: 0 12px;
+        font-size: 9px;
+      }
+      .room-hud-cluster.top-left {
+        font-size: 9px;
+        gap: 0.35rem;
+      }
+    }
+
+    /* Tilt-to-look hint — fades in 1s after entering room, fades out 4s later */
+    .tilt-hint {
+      position: fixed;
+      bottom: calc(140px + var(--sab));
+      left: 50%; transform: translateX(-50%);
+      display: inline-flex; gap: 0.6rem; align-items: center;
+      padding: 0.55rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      color: var(--fg);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      pointer-events: none;
+      z-index: 27;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      white-space: nowrap;
+    }
+    .tilt-hint.show { opacity: 0.92; }
+    .tilt-hint-glyph {
+      font-size: 13px;
+      color: var(--amber);
+      animation: tilt-wobble 1.6s ease-in-out infinite;
+      display: inline-block;
+      transform-origin: center;
+    }
+    @keyframes tilt-wobble {
+      0%, 100% { transform: rotate(-18deg); }
+      50%      { transform: rotate(18deg); }
+    }
+    @media (max-width: 600px) {
+      .tilt-hint { font-size: 9px; padding: 0.5rem 0.85rem; }
+    }
+
+    /* ── Intent line: top-center, click-to-edit, persists per day ── */
+    .intent-line {
+      position: fixed;
+      top: calc(20px + var(--sat));
+      left: 50%; transform: translateX(-50%);
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      background: transparent; border: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--fg);
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 1.2s ease 1.7s, color 0.15s;
+      z-index: 26;
+      -webkit-tap-highlight-color: transparent;
+      mix-blend-mode: difference;
+      max-width: min(60vw, 460px);
+      padding: 4px 6px;
+    }
+    body[data-view="room"] .intent-line { opacity: 0.85; pointer-events: auto; }
+    body[data-view="plan"] .intent-line { pointer-events: none; }
+    .intent-line:hover { color: var(--amber); }
+    .intent-eyebrow { opacity: 0.6; }
+    .intent-sep     { opacity: 0.35; }
+    .intent-text {
+      font-weight: 500;
+      border-bottom: 1px dashed currentColor;
+      padding-bottom: 1px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      max-width: 320px;
+    }
+    .intent-text.placeholder { opacity: 0.55; font-weight: 400; }
+    @media (max-width: 600px) {
+      .intent-line {
+        font-size: 9px;
+        top: calc(56px + var(--sat));   /* clear the HUD top-left cluster on phones */
+      }
+      .intent-text { max-width: 200px; }
+    }
+
+    /* Focus-minutes-today inline badge — sits in the HUD next to the clock */
+    .hud-today {
+      font-family: 'JetBrains Mono', monospace;
+      font-feature-settings: "tnum" 1;
+      color: var(--amber);
+      opacity: 0.85;
+      letter-spacing: 0.18em;
+    }
+    .hud-today.empty { display: none; }
+
+    /* ── Keyboard shortcut hints — bottom-center, desktop only ── */
+    .shortcut-hints {
+      position: fixed;
+      bottom: calc(28px + var(--sab));
+      left: 50%; transform: translateX(-50%);
+      display: inline-flex; gap: 0.55rem; align-items: baseline;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: var(--fg);
+      opacity: 0;
+      transition: opacity 1.5s ease 2.2s;
+      z-index: 24;
+      pointer-events: none;
+      mix-blend-mode: difference;
+    }
+    body[data-view="room"] .shortcut-hints { opacity: 0.55; }
+    .shortcut-hints kbd {
+      font-family: inherit;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      padding: 1px 5px;
+      border-radius: 0;
+      color: inherit;
+      font-size: inherit;
+      letter-spacing: 0.08em;
+      margin-right: 0.3rem;
+    }
+    .hint-pair { white-space: nowrap; }
+    .hint-sep  { opacity: 0.3; }
+    @media (max-width: 600px) {
+      .shortcut-hints { display: none; }
+    }
+
     @media (max-width: 600px) {
       .brand   { font-size: 16px; top: calc(18px + var(--sat)); left: calc(20px + var(--sal)); }
       .caption { font-size: 8px; top: calc(42px + var(--sat)); left: calc(20px + var(--sal)); }
@@ -1321,6 +1533,46 @@
   <!-- ── Floating MENU button (mobile-friendly escape; one click → see everything) ── -->
   <button class="menu-btn" id="menu-btn" aria-label="Open menu">MENU</button>
   <button class="view-toggle" id="view-toggle" aria-label="Switch to plan view">▢ PLAN</button>
+
+  <!-- ── Room HUD: monitoring-console overlay (visible only in room view) ── -->
+  <div class="room-hud" id="room-hud" aria-hidden="true">
+    <div class="room-hud-cluster top-left">
+      <span class="hud-dot" aria-hidden="true"></span>
+      <span class="hud-eyebrow">NON.OS · ROOM</span>
+      <span class="hud-sep">·</span>
+      <span class="hud-status">LIVE</span>
+      <span class="hud-sep">·</span>
+      <span class="hud-clock" id="hud-clock">--:--:--</span>
+    </div>
+    <button id="hud-focus" class="hud-chip" aria-label="Open Pomodoro focus timer">
+      <span class="hud-chip-glyph">▷</span>
+      <span class="hud-chip-label">FOCUS</span>
+    </button>
+  </div>
+
+  <!-- ── Tilt-to-look hint (auto-fades; only shown to gyro-capable phones) ── -->
+  <div class="tilt-hint" id="tilt-hint" aria-hidden="true">
+    <span class="tilt-hint-glyph" aria-hidden="true">↻</span>
+    <span class="tilt-hint-label">TILT PHONE TO LOOK AROUND</span>
+  </div>
+
+  <!-- ── Intent line: editable "TODAY · what are you working on" ── -->
+  <button class="intent-line" id="intent-line" aria-label="Set today's intent">
+    <span class="intent-eyebrow">TODAY</span>
+    <span class="intent-sep">·</span>
+    <span class="intent-text" id="intent-text">SET YOUR INTENT</span>
+  </button>
+
+  <!-- ── Keyboard shortcut hints (desktop only) ── -->
+  <div class="shortcut-hints" id="shortcut-hints" aria-hidden="true">
+    <span class="hint-pair"><kbd>F</kbd> focus</span>
+    <span class="hint-sep">·</span>
+    <span class="hint-pair"><kbd>M</kbd> music</span>
+    <span class="hint-sep">·</span>
+    <span class="hint-pair"><kbd>P</kbd> plan</span>
+    <span class="hint-sep">·</span>
+    <span class="hint-pair"><kbd>esc</kbd> close</span>
+  </div>
 
   <!-- ── PLAN view (2D dashboard) ─────────────────────────────
        Default phone entry point. The 3D room is opt-in. -->
@@ -3675,8 +3927,11 @@
     const planThemeBtn  = document.getElementById('plan-theme');
     if (planRoomBtn)   planRoomBtn.addEventListener('click', () => {
       // iOS needs the gyro permission request inside a user gesture.
-      // Fire-and-forget — the room is usable without gyro too.
-      enableGyro().catch(() => {});
+      // Chain the tilt hint after permission lands — only show on phones
+      // that actually granted gyro access (skip silently on desktop).
+      enableGyro()
+        .then(() => { if (gyroEnabled) showTiltHint(); })
+        .catch(() => {});
       setView('room');
     });
     if (viewToggleBtn) viewToggleBtn.addEventListener('click', () => setView('plan'));
@@ -3685,6 +3940,171 @@
     const planMusicBtn = document.getElementById('plan-music');
     if (planFocusBtn) planFocusBtn.addEventListener('click', () => { try { openPomodoro(); } catch (_) {} });
     if (planMusicBtn) planMusicBtn.addEventListener('click', () => { try { openMusicModal(); } catch (_) {} });
+
+    // ── Room HUD: live --:--:-- clock + FOCUS chip + one-shot tilt hint ──
+    // Channeling the monitoring-console vibe of nonarkara.github.io/dr-non-operating-systems.
+    const hudClockEl = document.getElementById('hud-clock');
+    function tickHudClock() {
+      if (!hudClockEl) return;
+      const d = new Date();
+      hudClockEl.textContent = d.toLocaleTimeString('en-GB', {
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+      });
+    }
+    tickHudClock();
+    setInterval(tickHudClock, 1000);
+
+    const hudFocusBtn = document.getElementById('hud-focus');
+    if (hudFocusBtn) hudFocusBtn.addEventListener('click', () => { try { openPomodoro(); } catch (_) {} });
+
+    // Tilt hint: fires once per page load, ~1s in, fades out ~4s later.
+    let tiltHintShown = false;
+    function showTiltHint() {
+      if (tiltHintShown) return;
+      tiltHintShown = true;
+      const el = document.getElementById('tilt-hint');
+      if (!el) return;
+      setTimeout(() => el.classList.add('show'), 800);
+      setTimeout(() => el.classList.remove('show'), 4800);
+    }
+
+    // ── Deep-work OS layer: intent + focus-minutes-today + keyboard shortcuts ──
+    const _pad2 = (n) => (n < 10 ? '0' + n : '' + n);
+    function _todayKey() {
+      const d = new Date();
+      return `${d.getFullYear()}-${_pad2(d.getMonth() + 1)}-${_pad2(d.getDate())}`;
+    }
+
+    // Intent: editable string, persists per day. New day → cleared so you
+    // commit to a fresh intent each morning instead of inheriting yesterday's.
+    const INTENT_KEY = 'nonarkara.intent';
+    const INTENT_DATE_KEY = 'nonarkara.intent.date';
+    function loadIntent() {
+      const date = lsGet(INTENT_DATE_KEY);
+      const intent = lsGet(INTENT_KEY);
+      if (!intent || date !== _todayKey()) return null;
+      return intent;
+    }
+    function saveIntent(s) {
+      lsSet(INTENT_KEY, s);
+      lsSet(INTENT_DATE_KEY, _todayKey());
+    }
+    function renderIntent() {
+      const el = document.getElementById('intent-text');
+      if (!el) return;
+      const cur = loadIntent();
+      if (cur) {
+        el.textContent = cur;
+        el.classList.remove('placeholder');
+      } else {
+        el.textContent = 'SET YOUR INTENT';
+        el.classList.add('placeholder');
+      }
+    }
+    renderIntent();
+    const intentBtn = document.getElementById('intent-line');
+    if (intentBtn) intentBtn.addEventListener('click', () => {
+      const cur = loadIntent() || '';
+      const next = window.prompt('What are you working on today?', cur);
+      if (next === null) return;
+      saveIntent(next.trim().slice(0, 80));
+      renderIntent();
+    });
+
+    // Focus minutes today — accumulator hooked into Pomodoro phase transitions.
+    // Counts ACTUAL elapsed work-phase seconds (not the full 25min preset),
+    // so skipping a session 5 minutes in adds 5 minutes, not 25.
+    const FOCUS_MIN_KEY  = 'nonarkara.focusMinutes';
+    const FOCUS_DATE_KEY = 'nonarkara.focusMinutes.date';
+    function loadFocusMinutes() {
+      if (lsGet(FOCUS_DATE_KEY) !== _todayKey()) {
+        lsSet(FOCUS_DATE_KEY, _todayKey());
+        lsSet(FOCUS_MIN_KEY, '0');
+        return 0;
+      }
+      return parseInt(lsGet(FOCUS_MIN_KEY) || '0', 10) || 0;
+    }
+    function addFocusMinutes(m) {
+      if (m <= 0) return;
+      lsSet(FOCUS_MIN_KEY, String(loadFocusMinutes() + m));
+      lsSet(FOCUS_DATE_KEY, _todayKey());
+      renderFocusToday();
+    }
+    function renderFocusToday() {
+      let el = document.getElementById('hud-today');
+      if (!el) {
+        const cluster = document.querySelector('.room-hud-cluster.top-left');
+        if (!cluster) return;
+        const sep = document.createElement('span');
+        sep.className = 'hud-sep';
+        sep.textContent = '·';
+        sep.id = 'hud-today-sep';
+        el = document.createElement('span');
+        el.id = 'hud-today';
+        el.className = 'hud-today empty';
+        cluster.appendChild(sep);
+        cluster.appendChild(el);
+      }
+      const m = loadFocusMinutes();
+      if (m <= 0) {
+        el.classList.add('empty');
+        el.textContent = '';
+        const sepEl = document.getElementById('hud-today-sep');
+        if (sepEl) sepEl.style.display = 'none';
+      } else {
+        el.classList.remove('empty');
+        const sepEl = document.getElementById('hud-today-sep');
+        if (sepEl) sepEl.style.display = '';
+        const hh = Math.floor(m / 60), mm = m % 60;
+        el.textContent = hh > 0 ? `+${hh}H${_pad2(mm)}M FOCUS` : `+${mm}M FOCUS`;
+      }
+    }
+    renderFocusToday();
+
+    // Wrap pomoNextPhase to credit elapsed work time on every work→break transition
+    // (both natural completion and skip). The wrap counts what was actually spent.
+    if (typeof pomoNextPhase === 'function') {
+      const _origPomoNextPhase = pomoNextPhase;
+      pomoNextPhase = function() {
+        const wasWork = POMO.phase === 'work';
+        const fullDuration = POMO.durations.work;
+        const remaining = Math.max(0, POMO.remaining);
+        const elapsed = Math.max(0, fullDuration - remaining);
+        _origPomoNextPhase.apply(this, arguments);
+        if (wasWork && elapsed >= 60) {
+          addFocusMinutes(Math.round(elapsed / 60));
+        }
+      };
+    }
+
+    // ── Keyboard shortcuts: F focus, M music, P toggle plan/room, Esc close ──
+    document.addEventListener('keydown', (e) => {
+      const t = (e.target && e.target.tagName) || '';
+      if (t === 'INPUT' || t === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return; // don't intercept modifier combos
+      const k = e.key.toLowerCase();
+      if (k === 'f') {
+        e.preventDefault();
+        try { openPomodoro(); } catch (_) {}
+      } else if (k === 'm') {
+        e.preventDefault();
+        try { openMusicModal(); } catch (_) {}
+      } else if (k === 'p') {
+        e.preventDefault();
+        const inRoom = document.body.dataset.view === 'room';
+        if (inRoom) {
+          setView('plan');
+        } else {
+          enableGyro().then(() => { if (gyroEnabled) showTiltHint(); }).catch(() => {});
+          setView('room');
+        }
+      } else if (k === 'escape') {
+        const pomo = document.getElementById('pomodoro');
+        if (pomo && pomo.classList.contains('in')) {
+          try { closePomodoro(); } catch (_) {}
+        }
+      }
+    });
 
     // Brand block in plan-head → opens contact modal (the business card)
     const planBrandBtn = document.getElementById('plan-brand-blk');
