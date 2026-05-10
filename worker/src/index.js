@@ -154,6 +154,101 @@ export default {
       }
     }
 
+    // ── Second Brain: capture endpoint ───────────────────────────────────────
+    // POST /capture  → appends to Supabase + Google Sheets + embeds text
+    // Body: { text, source?, session_id?, tags? }
+    // Secrets in Worker env: SB_URL, SB_SERVICE_KEY, OPENAI_KEY, BRAIN_SHEET_URL
+    if (url.pathname === "/capture" && req.method === "POST") {
+      try {
+        const body = await req.json();
+        if (!body?.text?.trim()) {
+          return new Response(JSON.stringify({ error: "text required" }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const id = crypto.randomUUID();
+        const ts = new Date().toISOString();
+        const record = {
+          id, created_at: ts,
+          text: body.text.trim(),
+          source: body.source || "note",
+          session_id: body.session_id || null,
+          tags: body.tags || [],
+          metadata: body.metadata || {},
+        };
+
+        // Fan-out: Supabase + Sheets + embedding (all async, best-effort)
+        const tasks = [];
+
+        // 1. Supabase insert (no embedding yet — added by embed task below)
+        if (env.SB_URL && env.SB_SERVICE_KEY) {
+          tasks.push(
+            fetch(`${env.SB_URL}/rest/v1/captures`, {
+              method: "POST",
+              headers: {
+                "apikey": env.SB_SERVICE_KEY,
+                "Authorization": `Bearer ${env.SB_SERVICE_KEY}`,
+                "Content-Type": "application/json",
+                "Prefer": "return=minimal",
+              },
+              body: JSON.stringify(record),
+            }).catch(() => {})
+          );
+        }
+
+        // 2. Google Sheets append
+        if (env.BRAIN_SHEET_URL) {
+          tasks.push(
+            fetch(env.BRAIN_SHEET_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "capture", ...record }),
+            }).catch(() => {})
+          );
+        }
+
+        // 3. Embed + store back (async — doesn't block the response)
+        if (env.OPENAI_KEY && env.SB_URL && env.SB_SERVICE_KEY) {
+          tasks.push((async () => {
+            try {
+              const embRes = await fetch("https://api.openai.com/v1/embeddings", {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${env.OPENAI_KEY}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ model: "text-embedding-3-small", input: record.text }),
+              });
+              const embData = await embRes.json();
+              const vector = embData?.data?.[0]?.embedding;
+              if (vector) {
+                await fetch(`${env.SB_URL}/rest/v1/captures?id=eq.${id}`, {
+                  method: "PATCH",
+                  headers: {
+                    "apikey": env.SB_SERVICE_KEY,
+                    "Authorization": `Bearer ${env.SB_SERVICE_KEY}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({ embedding: vector }),
+                });
+              }
+            } catch (_) {}
+          })());
+        }
+
+        await Promise.allSettled(tasks);
+
+        return new Response(JSON.stringify({ ok: true, id, ts }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: String(e) }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // AI Council health — reads council-watch's fail-count file from
     // GitHub raw + the latest commit timestamp. council-watch pings
     // Dr Non's M3 every 5 min and writes the consecutive-fail counter

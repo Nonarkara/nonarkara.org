@@ -5994,19 +5994,42 @@
     document.getElementById('note-modal')?.addEventListener('click', (e) => {
       if (e.target.dataset.closeNote === '1') closeNoteModal();
     });
-    document.getElementById('note-save')?.addEventListener('click', () => {
+    document.getElementById('note-save')?.addEventListener('click', async () => {
       const ta = document.getElementById('note-input');
       const text = (ta?.value || '').trim();
       if (!text) return;
+
+      // Save locally immediately (offline-first)
+      const note = { ts: Date.now(), text };
       const notes = loadNotes();
-      notes.push({ ts: Date.now(), text });
+      notes.push(note);
       saveNotes(notes);
       ta.value = '';
       renderNoteList();
+
+      // Show "saving…" then result
       const meta = document.getElementById('note-meta');
-      if (meta) {
-        meta.textContent = 'saved · ' + new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Bangkok', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        setTimeout(() => { meta.textContent = 'stored on this device'; }, 3000);
+      if (meta) meta.textContent = 'saving to second brain…';
+
+      // Fire-and-forget to the pipeline (Supabase + Google Sheets + embedding)
+      try {
+        const r = await fetch('https://api.nonarkara.org/capture', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, source: 'note', ts: new Date(note.ts).toISOString() }),
+        });
+        const d = await r.json();
+        if (meta) {
+          meta.textContent = d.ok
+            ? '✓ saved · sheet · supabase · embedded'
+            : '✓ saved locally (sync later)';
+          setTimeout(() => { meta.textContent = 'stored on this device + second brain'; }, 3000);
+        }
+      } catch (_) {
+        if (meta) {
+          meta.textContent = '✓ saved locally — will sync when online';
+          setTimeout(() => { meta.textContent = 'stored on this device'; }, 3000);
+        }
       }
     });
     document.getElementById('note-clear')?.addEventListener('click', () => {

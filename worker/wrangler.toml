@@ -17,3 +17,10 @@ custom_domain = true
 
 [observability]
 enabled = true
+
+# Second Brain secrets — set via: npx wrangler secret put <NAME>
+# Do NOT commit actual values here.
+# SB_URL          = https://rxalmylnjdvsbiowqari.supabase.co
+# SB_SERVICE_KEY  = (Supabase service role JWT)
+# OPENAI_KEY      = (OpenAI API key for text-embedding-3-small)
+# BRAIN_SHEET_URL = (Google Apps Script /exec URL after deployment)
