@@ -198,11 +198,14 @@ export default {
         }
 
         // 2. Google Sheets append
+        // Apps Script requires Content-Type: text/plain to bypass
+        // the CORS preflight that blocks application/json cross-origin.
         if (env.BRAIN_SHEET_URL) {
           tasks.push(
             fetch(env.BRAIN_SHEET_URL, {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: { "Content-Type": "text/plain" },
+              redirect: "follow",
               body: JSON.stringify({ action: "capture", ...record }),
             }).catch(() => {})
           );
