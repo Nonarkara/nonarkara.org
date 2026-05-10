@@ -15,7 +15,7 @@
  * and updates APPS_SCRIPT_URL in all visitor trackers.
  */
 
-const SHEET_ID = '1DYYL4B3SN4gWYetj4q0JRkmXpv-dNbXpGZ9Fa560rro';
+const SHEET_ID = '1DM66spLCh_PKJ0hncFBWVft_H-3UiePONynjTltSvQg';  // nonarkara memory palace sheet
 
 function doPost(e) {
   try {
