@@ -1086,47 +1086,78 @@
       text-transform: uppercase; color: var(--dim);
     }
     /* Casio-graphic wireframe world map under the clock.
-       Continents drawn as polylines via JS, city dots populated
-       from the CITIES array, Bangkok highlighted in amber. */
+       Braun "GMT WELTZEIT" travel-clock face, after Dieter Rams.
+       Pure timezone grid: 24 hairline meridians + equator + tropics
+       + city dots placed by lat/lon. No continent decoration. */
     .plan-worldmap {
       display: block;
       width: 100%;
-      height: 132px;
-      margin-top: 6px;
+      height: 168px;
+      margin-top: 8px;
     }
-    .plan-worldmap .continent {
-      fill: none;
-      stroke: var(--line);
-      stroke-width: 0.6;
-      stroke-linejoin: round;
-      stroke-linecap: round;
-    }
-    .plan-worldmap .equator,
+    /* The 24 timezone meridians — solid hairlines, the grid is the map */
     .plan-worldmap .meridian {
       stroke: var(--line);
       stroke-width: 0.3;
-      stroke-dasharray: 2 2;
-      opacity: 0.5;
+      opacity: 0.32;
     }
+    .plan-worldmap .meridian.prime {
+      stroke: var(--fg);
+      opacity: 0.55;
+      stroke-width: 0.4;
+    }
+    /* Equator solid; tropics dashed and softer */
+    .plan-worldmap .equator {
+      stroke: var(--fg);
+      stroke-width: 0.4;
+      opacity: 0.55;
+    }
+    .plan-worldmap .reference {
+      stroke: var(--line);
+      stroke-width: 0.25;
+      stroke-dasharray: 2 3;
+      opacity: 0.35;
+    }
+    /* Hour offset labels along the top */
+    .plan-worldmap .tz-label {
+      fill: var(--dim);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 5px;
+      font-weight: 400;
+      letter-spacing: 0.16em;
+    }
+    .plan-worldmap .tz-label.gmt {
+      fill: var(--fg);
+    }
+    /* Cities */
     .plan-worldmap .city {
       fill: var(--fg);
-      opacity: 0.55;
+      opacity: 0.7;
     }
     .plan-worldmap .city.home {
       fill: var(--amber);
       opacity: 1;
     }
     .plan-worldmap .city-label {
-      fill: var(--dim);
+      fill: var(--fg);
+      opacity: 0.7;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 4px;
+      font-size: 4.2px;
       font-weight: 300;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.04em;
     }
     .plan-worldmap .city-label.home {
       fill: var(--amber);
+      opacity: 1;
       font-size: 5px;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.08em;
+    }
+    .plan-worldmap .city-label.city-time {
+      opacity: 0.55;
+      font-variant-numeric: tabular-nums;
+    }
+    .plan-worldmap .city-label.home.city-time {
+      opacity: 0.85;
     }
 
     /* HUD — four big tappable functions at the top of plan view.
@@ -1953,8 +1984,8 @@
       <div class="time" id="plan-time">--:--:--</div>
       <div class="meta" id="plan-date">— · BANGKOK · GMT+7</div>
       <svg class="plan-worldmap" id="plan-worldmap"
-           viewBox="-185 -95 370 195" preserveAspectRatio="xMidYMid meet"
-           aria-label="World map with city positions"></svg>
+           viewBox="-185 -90 370 180" preserveAspectRatio="xMidYMid meet"
+           aria-label="World timezone face with city positions"></svg>
     </section>
 
     <section class="plan-stat">
@@ -5171,57 +5202,49 @@
     function renderWorldMap() {
       const svg = document.getElementById('plan-worldmap');
       if (!svg) return;
-      // Continents: hand-drawn rough outlines in (lon,lat) → (x,-y).
-      const continents = [
-        // North America
-        'M -160,68 L -125,72 L -52,82 L -52,40 L -80,15 L -120,15 L -160,30 L -160,68',
-        // Central America
-        'M -100,15 L -85,8 L -80,15',
-        // South America
-        'M -78,12 L -55,8 L -35,5 L -35,-30 L -65,-55 L -75,-30 L -78,12',
-        // Europe + western Russia
-        'M -10,72 L 30,72 L 60,55 L 40,42 L 18,38 L -10,38 L -10,72',
-        // Africa
-        'M -15,38 L 35,38 L 50,15 L 50,-15 L 30,-35 L 15,-35 L -8,-5 L -15,38',
-        // Asia + Middle East
-        'M 30,72 L 180,72 L 145,30 L 100,8 L 70,18 L 50,15 L 35,38 L 30,72',
-        // Indian subcontinent peninsular hint
-        'M 70,28 L 88,8 L 78,8',
-        // South-East Asia hint
-        'M 100,20 L 120,2 L 110,-10',
-        // Indonesia islands
-        'M 100,-2 L 122,-7 L 138,-8',
-        // Australia
-        'M 113,-10 L 155,-15 L 155,-38 L 113,-38 L 113,-10',
-        // New Zealand
-        'M 168,-35 L 178,-42',
-        // Japan
-        'M 132,42 L 142,32',
-        // British Isles
-        'M -10,55 L -2,60 L 0,50',
-        // Madagascar
-        'M 44,-15 L 50,-25',
-      ];
+      // Braun "GMT WELTZEIT" travel-clock face, after Dieter Rams.
+      // No continent decoration — pure timezone grid: 24 hairline
+      // meridians at 15° each, equator + tropic references, hour
+      // offsets across the top, cities placed by lat/lon as small
+      // dots with their abbreviated names. Bangkok = home in amber.
 
-      // Equator + meridian
+      // 25 vertical lines (-12h … +12h), every 15° of longitude
+      const meridians = [];
+      for (let h = -12; h <= 12; h++) {
+        const x = h * 15;
+        const cls = (h === 0) ? 'meridian prime' : 'meridian';
+        meridians.push(`<line class="${cls}" x1="${x}" y1="-72" x2="${x}" y2="72"/>`);
+      }
+
+      // Equator + soft tropic reference lines
       const guides = `
-        <line class="equator" x1="-180" y1="0" x2="180" y2="0"/>
-        <line class="meridian" x1="0" y1="-90" x2="0" y2="90"/>
+        <line class="equator"   x1="-180" y1="0"   x2="180" y2="0"/>
+        <line class="reference" x1="-180" y1="-23" x2="180" y2="-23"/>
+        <line class="reference" x1="-180" y1="23"  x2="180" y2="23"/>
       `;
 
-      const continentSvg = continents.map(d => `<path class="continent" d="${d}"/>`).join('');
+      // Hour offset numbers across the top edge — every 3h, plus the meridian
+      const hourLabels = [];
+      for (let h = -12; h <= 12; h += 3) {
+        if (h === 0) { hourLabels.push(`<text class="tz-label gmt" x="0" y="-78" text-anchor="middle">GMT</text>`); continue; }
+        const x = h * 15;
+        const lbl = h > 0 ? `+${h}` : `${h}`;
+        hourLabels.push(`<text class="tz-label" x="${x}" y="-78" text-anchor="middle">${lbl}</text>`);
+      }
 
-      const labeled = ['Bangkok','London','Tokyo','New York','Sydney','Honiara'];
+      // Cities — small dot + tiny label aligned to the meridian column
+      const labeled = ['Bangkok','London','Tokyo','New York','Sydney','Honiara','Shanghai','Dubai'];
       const dotSvg = CITIES.map(c => {
         const x = c.lon, y = -c.lat;
         const home = c.home ? ' home' : '';
-        const r = c.home ? 1.7 : 1.0;
+        const r = c.home ? 1.6 : 1.0;
         const showLabel = c.home || labeled.includes(c.name);
-        const labelDx = c.lon > 90 ? 3 : (c.lon < -90 ? -3 : 3);
-        const anchor = c.lon > 90 ? 'start' : (c.lon < -90 ? 'end' : 'start');
+        const anchor = c.lon > 120 ? 'end' : (c.lon < -120 ? 'start' : 'middle');
+        const labelDx = anchor === 'end' ? -2 : (anchor === 'start' ? 2 : 0);
+        const labelDy = c.lat >= 0 ? -3 : 7;          // above for N, below for S
         const labelEls = showLabel ? `
-          <text class="city-label${home}" x="${x + labelDx}" y="${y - 2}" text-anchor="${anchor}">${c.name.toUpperCase()}</text>
-          <text class="city-label city-time" data-tz="${c.tz}" x="${x + labelDx}" y="${y + 5}" text-anchor="${anchor}">--:--</text>
+          <text class="city-label${home}" x="${x + labelDx}" y="${y + labelDy}" text-anchor="${anchor}">${c.name.toLowerCase()}</text>
+          <text class="city-label city-time" data-tz="${c.tz}" x="${x + labelDx}" y="${y + labelDy + 5}" text-anchor="${anchor}">--:--</text>
         ` : '';
         return `
           <g class="city-grp" data-name="${c.name}">
@@ -5231,9 +5254,12 @@
         `;
       }).join('');
 
-      svg.innerHTML = guides + continentSvg + dotSvg;
+      // Bottom strip — Braun homage caption
+      const homage = `<text class="tz-label gmt" x="-178" y="83" text-anchor="start">GMT · WELTZEIT</text>
+                      <text class="tz-label" x="178" y="83" text-anchor="end">15° per hour</text>`;
 
-      // Tap any city group → open the city modal
+      svg.innerHTML = guides + meridians.join('') + hourLabels.join('') + dotSvg + homage;
+
       svg.querySelectorAll('.city-grp').forEach(g => {
         g.style.cursor = 'pointer';
         g.addEventListener('click', () => {
