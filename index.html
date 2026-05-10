@@ -2470,6 +2470,21 @@
         <span class="val" id="brief-googl-val">—</span>
         <span class="sub" id="brief-googl-sub">— %</span>
       </div>
+      <div class="brief-cell">
+        <span class="lbl">GOLD · XAU/USD</span>
+        <span class="val" id="brief-gold-val">—</span>
+        <span class="sub" id="brief-gold-sub">— %</span>
+      </div>
+      <div class="brief-cell">
+        <span class="lbl">BRENT CRUDE</span>
+        <span class="val" id="brief-brent-val">—</span>
+        <span class="sub" id="brief-brent-sub">— %</span>
+      </div>
+      <div class="brief-cell">
+        <span class="lbl">PTT · TH OIL</span>
+        <span class="val" id="brief-ptt-val">—</span>
+        <span class="sub" id="brief-ptt-sub">— %</span>
+      </div>
       <div class="brief-cell brief-wx">
         <span class="lbl">BANGKOK · WEATHER</span>
         <span class="val" id="brief-wx-temp">— °C</span>
@@ -3646,6 +3661,9 @@
         ['NVDA',    'nvda',   'Nvidia'],
         ['TSLA',    'tsla',   'Tesla'],
         ['GOOGL',   'googl',  'Google'],
+        ['GC%3DF',  'gold',   'Gold'],
+        ['BZ%3DF',  'brent',  'Brent'],
+        ['PTT.BK',  'ptt',    'PTT'],
       ];
       const results = {};
       await Promise.all(symbols.map(async ([enc, key]) => {
@@ -5737,6 +5755,9 @@
           fmtStock('nvda',   'brief-nvda-val',    'brief-nvda-sub');
           fmtStock('tsla',   'brief-tsla-val',    'brief-tsla-sub');
           fmtStock('googl',  'brief-googl-val',   'brief-googl-sub');
+          fmtStock('gold',   'brief-gold-val',    'brief-gold-sub');
+          fmtStock('brent',  'brief-brent-val',   'brief-brent-sub');
+          fmtStock('ptt',    'brief-ptt-val',     'brief-ptt-sub');
         }
         if (b.aqi) {
           const a = b.aqi;
