@@ -1863,7 +1863,7 @@
       <span class="hud-sep">·</span>
       <span class="hud-clock" id="hud-clock">--:--:--</span>
     </div>
-    <button id="hud-focus" class="hud-chip" aria-label="Open Pomodoro focus timer">
+    <button id="room-hud-focus" class="hud-chip" aria-label="Open Pomodoro focus timer">
       <span class="hud-chip-glyph">▷</span>
       <span class="hud-chip-label">FOCUS</span>
     </button>
@@ -2106,7 +2106,7 @@
         pomo_short:      'pomodoro · 25 / 5',
         sabai_short:     'sabai sabai · easter egg',
         role:            'architect · anthropologist · smart cities',
-        palace_sub:      'tap for about · memory palace',
+        palace_sub:      'tap for contact · a window to the mind',
         philo_label:     'how this works',
         philo_p1:        'Most of the dashboards above refresh on a five-minute cron. To a person looking at one, that is indistinguishable from real-time, and it costs roughly nothing to run.',
         philo_p2_html:   'The ones that <span class="accent">charge for true real-time</span> charge for what real-time costs — cloud CPU, instrumented pipelines, on-call engineering. The space between the two tiers is where most engineering wastes itself.',
@@ -2146,7 +2146,7 @@
         pomo_short:      'โพโมโดโร · 25 / 5',
         sabai_short:     'สบายๆ · อีสเตอร์เอ้ก',
         role:            'สถาปนิก · นักมานุษยวิทยา · เมืองอัจฉริยะ',
-        palace_sub:      'แตะเพื่อดูข้อมูล · ห้องความทรงจำ',
+        palace_sub:      'แตะเพื่อติดต่อ · หน้าต่างสู่ความคิด',
         philo_label:     'แนวคิดเบื้องหลัง',
         philo_p1:        'แดชบอร์ดส่วนใหญ่ข้างต้นอัปเดตทุกห้านาทีผ่าน cron ในมุมมองของผู้ใช้ มันแยกไม่ออกจากระบบเรียลไทม์ และต้นทุนแทบเป็นศูนย์',
         philo_p2_html:   'ผมเรียกค่าใช้จ่ายเฉพาะกับ <span class="accent">งานเรียลไทม์จริง</span> เพราะต้องจ่ายค่า cloud CPU, ระบบ pipeline, และทีมวิศวกร ช่องว่างระหว่างสองระดับนี้คือจุดที่งานวิศวกรรมส่วนใหญ่สูญเปล่า',
@@ -2186,7 +2186,7 @@
         pomo_short:      '番茄钟 · 25 / 5',
         sabai_short:     'sabai · 彩蛋',
         role:            '建筑师 · 人类学者 · 智慧城市',
-        palace_sub:      '点按了解更多 · 记忆宫殿',
+        palace_sub:      '点按联系 · 思维之窗',
         philo_label:     '运作原理',
         philo_p1:        '上方的仪表盘大多每五分钟通过 cron 刷新一次。对人眼而言，这与实时无异，运行成本几乎为零。',
         philo_p2_html:   '只有<span class="accent">真正实时</span>的项目才按实时成本计费——云 CPU、可观测管道、值班工程。两档之间的空间，正是大多数工程浪费自身的地方。',
@@ -2274,7 +2274,9 @@
       { code: 'YOUTUBE',  title: 'YouTube · @nonarkara',              url: 'https://www.youtube.com/@nonarkara',                img: 'screenshots/youtube.jpg' },
       { code: 'ACADEMIC', title: 'Academic Profile',                  url: 'https://arkaraprasertkul.socialpsychology.org/',    img: 'screenshots/academic.jpg' },
       { code: 'RESEARCH', title: 'ResearchGate · Profile',             url: 'https://www.researchgate.net/profile/Non-Arkaraprasertkul', img: 'screenshots/academic.jpg' },
-      { code: 'LINKEDIN', title: 'LinkedIn · @drnon',                   url: 'https://th.linkedin.com/in/drnon',                  img: 'screenshots/academic.jpg' },
+      // (LINKEDIN dropped from PROJECTS — it's identity, not project
+      //  work; the row in PERSONAL already covers it. Norman mapping:
+      //  one label, one action.)
     ];
 
     // Cities for the world map table — places that mean something to him
@@ -4931,7 +4933,7 @@
 
       // Projects → tap target grid
       planProjEl.innerHTML = PROJECTS.map(p => `
-        <button class="plan-cell" data-code="${p.code}">
+        <button class="plan-cell" data-code="${p.code}" aria-label="Open ${p.code} · ${p.title}">
           <span class="dot"></span>
           <span class="code">${p.code}</span>
         </button>
@@ -4943,13 +4945,14 @@
         });
       });
 
-      // Personal — CV / LinkedIn / Contact / Music / Pomodoro / Sabai
+      // Personal — CV / LinkedIn vCard / Contact / Sabai easter egg.
+      // Music + Pomodoro live in the HUD at the top, no need to repeat
+      // them here (Norman: same label = same action expected, so two
+      // surfaces with the same word confuse rather than help).
       const personal = [
         { glyph: '▢',  key: 'bookshelf',  title: t('cv_title_short'),  meta: 'CV',       click: () => openFurnitureModal('bookshelf') },
         { glyph: '◯',  key: 'pedestal',   title: t('li_title_short'),  meta: 'LINKEDIN', click: () => openFurnitureModal('pedestal') },
         { glyph: '☕', key: 'coffee',     title: t('co_title_short'),  meta: 'CONTACT',  click: () => openFurnitureModal('coffee') },
-        { glyph: '◯',  key: 'music',      title: t('music_short'),     meta: 'MUSIC',    click: () => openMusicModal() },
-        { glyph: '▷',  key: 'pomodoro',   title: t('pomo_short'),      meta: 'TIMER',    click: () => openPomodoro() },
         { glyph: '·',  key: 'cup',        title: t('sabai_short'),     meta: '· · ·',    click: () => openFurnitureModal('cup') },
       ];
       planPersEl.innerHTML = personal.map((row, i) => `
@@ -5348,8 +5351,8 @@
     tickHudClock();
     setInterval(tickHudClock, 1000);
 
-    const hudFocusBtn = document.getElementById('hud-focus');
-    if (hudFocusBtn) hudFocusBtn.addEventListener('click', () => { try { openPomodoro(); } catch (_) {} });
+    const roomHudFocusBtn = document.getElementById('room-hud-focus');
+    if (roomHudFocusBtn) roomHudFocusBtn.addEventListener('click', () => { try { openPomodoro(); } catch (_) {} });
 
     // Tilt hint: fires once per page load, ~1s in, fades out ~4s later.
     let tiltHintShown = false;
