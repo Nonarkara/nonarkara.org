@@ -5,33 +5,86 @@
  *   Execute as: Me
  *   Access: Anyone
  *
- * Once deployed, paste the /exec URL into the Worker as BRAIN_SHEET_URL.
+ * Handles three payload types in one endpoint:
+ *   CAPTURES  — notes/thoughts from the plan-view NOTE pad
+ *   SESSIONS  — Pomodoro / FRAME focus sessions
+ *   VISITORS  — site visitors from all nonarkara.org dashboards
  *
- * The Sheet has two auto-created tabs:
- *   CAPTURES  — every raw thought/note
- *   SESSIONS  — every focus session
+ * Once deployed, paste the /exec URL back to Claude.
+ * He sets it as BRAIN_SHEET_URL in the Cloudflare Worker
+ * and updates APPS_SCRIPT_URL in all visitor trackers.
  */
 
 const SHEET_ID = '1DYYL4B3SN4gWYetj4q0JRkmXpv-dNbXpGZ9Fa560rro';
 
-// Called by every POST from the Worker
 function doPost(e) {
   try {
     const payload = JSON.parse(e.postData.contents);
-    const action = payload.action || 'capture';
 
-    if (action === 'capture') {
-      return appendCapture(payload);
+    // Detect payload type
+    // Visitor payloads have a 'dashboard' or 'hostname' field.
+    // Capture/session payloads have an 'action' field.
+    if (payload.dashboard || payload.hostname) {
+      return appendVisitor(payload);
     }
-    if (action === 'session') {
-      return appendSession(payload);
-    }
+
+    const action = payload.action || 'capture';
+    if (action === 'capture') return appendCapture(payload);
+    if (action === 'session') return appendSession(payload);
     return jsonResponse({ ok: false, error: 'unknown action' });
   } catch (err) {
     return jsonResponse({ ok: false, error: err.message });
   }
 }
 
+// ── VISITORS ─────────────────────────────────────────────────────────────────
+function appendVisitor(p) {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  let sheet = ss.getSheetByName('VISITORS');
+  if (!sheet) {
+    sheet = ss.insertSheet('VISITORS');
+    sheet.appendRow([
+      'TIMESTAMP (BKK)', 'DATE', 'TIME',
+      'DASHBOARD', 'HOSTNAME', 'PAGE',
+      'COUNTRY', 'REGION', 'CITY', 'IP',
+      'REFERRER', 'LANGUAGE', 'SCREEN', 'TIMEZONE',
+      'USER AGENT',
+    ]);
+    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, 1, 15).setFontWeight('bold');
+    // Freeze IP + UA columns (dim them visually via narrow width)
+    sheet.setColumnWidth(10, 120);  // IP
+    sheet.setColumnWidth(15, 180); // UA
+  }
+
+  const bkk = Utilities.formatDate(
+    new Date(),
+    'Asia/Bangkok',
+    'yyyy-MM-dd HH:mm:ss'
+  );
+
+  sheet.appendRow([
+    bkk,
+    bkk.split(' ')[0],
+    bkk.split(' ')[1],
+    p.dashboard  || '',
+    p.hostname   || '',
+    p.page       || '',
+    p.country    || '',
+    p.region     || '',
+    p.city       || '',
+    p.ip         || '',
+    p.referrer   || 'Direct',
+    p.language   || '',
+    p.screen     || '',
+    p.timezone   || '',
+    (p.userAgent || '').slice(0, 200),
+  ]);
+
+  return jsonResponse({ ok: true });
+}
+
+// ── CAPTURES ──────────────────────────────────────────────────────────────────
 function appendCapture(p) {
   const ss = SpreadsheetApp.openById(SHEET_ID);
   let sheet = ss.getSheetByName('CAPTURES');
@@ -41,7 +94,6 @@ function appendCapture(p) {
       'ID', 'TIMESTAMP (BKK)', 'DATE', 'TIME', 'TEXT',
       'SOURCE', 'TAGS', 'SESSION_ID', 'WORDS',
     ]);
-    // Freeze header, bold it
     sheet.setFrozenRows(1);
     sheet.getRange(1, 1, 1, 9).setFontWeight('bold');
   }
@@ -51,25 +103,24 @@ function appendCapture(p) {
     'Asia/Bangkok',
     'yyyy-MM-dd HH:mm:ss'
   );
-  const date = bkk.split(' ')[0];
-  const time = bkk.split(' ')[1];
   const words = (p.text || '').trim().split(/\s+/).length;
 
   sheet.appendRow([
-    p.id || '',
+    p.id          || '',
     bkk,
-    date,
-    time,
-    p.text || '',
-    p.source || 'note',
+    bkk.split(' ')[0],
+    bkk.split(' ')[1],
+    p.text        || '',
+    p.source      || 'note',
     (p.tags || []).join(', '),
-    p.session_id || '',
+    p.session_id  || '',
     words,
   ]);
 
   return jsonResponse({ ok: true, row: sheet.getLastRow() });
 }
 
+// ── SESSIONS ──────────────────────────────────────────────────────────────────
 function appendSession(p) {
   const ss = SpreadsheetApp.openById(SHEET_ID);
   let sheet = ss.getSheetByName('SESSIONS');
@@ -83,24 +134,25 @@ function appendSession(p) {
     sheet.getRange(1, 1, 1, 8).setFontWeight('bold');
   }
 
-  const fmt = (ts) => ts
+  const fmt = ts => ts
     ? Utilities.formatDate(new Date(ts), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss')
     : '';
 
   sheet.appendRow([
-    p.id || '',
+    p.id           || '',
     fmt(p.started_at),
     fmt(p.ended_at),
     p.duration_min || 25,
-    p.type || 'pomodoro',
-    p.completed ? 'YES' : 'NO',
-    p.reflection || '',
+    p.type         || 'pomodoro',
+    p.completed    ? 'YES' : 'NO',
+    p.reflection   || '',
     (p.tags || []).join(', '),
   ]);
 
   return jsonResponse({ ok: true });
 }
 
+// ── HELPERS ───────────────────────────────────────────────────────────────────
 function jsonResponse(obj) {
   return ContentService
     .createTextOutput(JSON.stringify(obj))
