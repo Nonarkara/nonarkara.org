@@ -705,8 +705,9 @@
     }
 
     /* ── PORTRAIT GALLERY ─────────────────────────────────────
-       Full-screen viewer for Dr Non's headshots. Image fills the
-       screen (object-contain). Bottom bar: prev, name, share, next. */
+       Full-screen viewer. Image fills top area. Big SHARE button
+       at the bottom — iOS native share sheet handles LINE /
+       WhatsApp / Telegram / Outlook / AirDrop / etc. */
     .pga {
       position: fixed; inset: 0;
       background: #000;
@@ -718,66 +719,89 @@
     .pga-img {
       flex: 1 1 auto;
       min-height: 0;
-      width: 100%; height: 100%;
+      width: 100%;
       object-fit: contain;
       object-position: center;
       display: block;
-      transition: opacity 0.5s ease;
+      transition: opacity 0.45s ease;
     }
-    .pga-bar {
+
+    /* slim nav row above the share button */
+    .pga-nav-row {
       flex: none;
-      display: flex; align-items: center; gap: 0;
-      background: #000;
-      border-top: 1px solid rgba(245,245,240,0.18);
-      padding: calc(12px) calc(16px + var(--sar)) calc(12px + var(--sab)) calc(16px + var(--sal));
-      min-height: 64px;
+      display: flex; align-items: center;
+      background: rgba(0,0,0,0.92);
+      border-top: 1px solid rgba(245,245,240,0.12);
+      padding: 8px 16px;
+      min-height: 52px;
     }
     .pga-nav {
       flex: none;
       background: transparent; border: 0;
-      color: rgba(245,245,240,0.7);
+      color: rgba(245,245,240,0.6);
       font-size: 22px; cursor: pointer;
-      padding: 8px 14px; min-height: 48px; min-width: 48px;
+      padding: 6px 14px; min-height: 44px; min-width: 48px;
       -webkit-tap-highlight-color: transparent;
+      transition: color 0.1s;
     }
     .pga-nav:active { color: var(--amber); }
     .pga-info {
       flex: 1; text-align: center;
-      display: flex; flex-direction: column; gap: 3px;
+      display: flex; flex-direction: column; gap: 2px;
     }
     .pga-name {
       font-family: 'Josefin Sans', sans-serif;
-      font-size: 13px; letter-spacing: 0.06em; color: #f5f5f0;
+      font-size: 13px; letter-spacing: 0.04em; color: #f5f5f0;
     }
     .pga-count {
       font-family: 'JetBrains Mono', monospace;
       font-size: 9px; letter-spacing: 0.32em;
-      color: rgba(245,245,240,0.45); text-transform: uppercase;
+      color: rgba(245,245,240,0.4); text-transform: uppercase;
     }
+
+    /* big share button — the whole point of this screen */
     .pga-share {
       flex: none;
-      background: var(--amber); border: 0;
-      color: #000; cursor: pointer;
+      width: 100%;
+      background: var(--amber);
+      border: 0;
+      color: #000;
+      cursor: pointer;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 11px; letter-spacing: 0.28em;
-      padding: 10px 16px; min-height: 44px;
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      min-height: 72px;
       -webkit-tap-highlight-color: transparent;
       transition: opacity 0.12s;
     }
-    .pga-share:active { opacity: 0.75; }
+    .pga-share:active { opacity: 0.78; }
+    .pga-share-glyph { font-size: 28px; line-height: 1; }
+    .pga-share-label { font-size: 14px; letter-spacing: 0.42em; font-weight: 400; }
+
+    /* dim app-list hint below the button */
+    .pga-apps {
+      flex: none;
+      background: rgba(0,0,0,0.92);
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase;
+      color: rgba(245,245,240,0.32);
+      padding: calc(8px) calc(16px + var(--sar)) calc(12px + var(--sab)) calc(16px + var(--sal));
+    }
+
     .pga-close {
       position: absolute;
       top: calc(14px + var(--sat));
       right: calc(14px + var(--sar));
-      width: 56px; height: 56px;
-      background: transparent;
-      border: 1px solid rgba(245,245,240,0.55);
-      color: #f5f5f0; font-size: 22px;
+      width: 52px; height: 52px;
+      background: rgba(0,0,0,0.65);
+      border: 1px solid rgba(245,245,240,0.45);
+      color: #f5f5f0; font-size: 20px;
       cursor: pointer; display: grid; place-items: center;
       font-family: 'JetBrains Mono', monospace;
       z-index: 4;
       -webkit-tap-highlight-color: transparent;
     }
+    .pga-close:active { border-color: var(--amber); color: var(--amber); }
 
     /* ── FRAME — full-screen museum slideshow ─────────────────
        Black-on-black, art object-contains so the painting reads at
@@ -2182,15 +2206,24 @@
        Full-screen, prev/next, native share sheet via Web Share API. ──-->
   <div class="pga" id="pga" role="dialog" aria-label="Portrait gallery">
     <img class="pga-img" id="pga-img" alt="">
-    <div class="pga-bar">
+
+    <!-- nav row: prev · name · count · next -->
+    <div class="pga-nav-row">
       <button class="pga-nav" id="pga-prev" aria-label="Previous portrait">◀</button>
       <div class="pga-info">
         <span class="pga-name" id="pga-name">—</span>
-        <span class="pga-count" id="pga-count">1 / 4</span>
+        <span class="pga-count" id="pga-count">1 / 7</span>
       </div>
-      <button class="pga-share" id="pga-share" aria-label="Share / download portrait">↗ SHARE</button>
       <button class="pga-nav" id="pga-next" aria-label="Next portrait">▶</button>
     </div>
+
+    <!-- big share button -->
+    <button class="pga-share" id="pga-share" aria-label="Share portrait">
+      <span class="pga-share-glyph">↗</span>
+      <span class="pga-share-label">SAVE · SHARE</span>
+    </button>
+    <div class="pga-apps">LINE · WhatsApp · Telegram · Outlook · AirDrop · Instagram</div>
+
     <button class="pga-close" id="pga-close" aria-label="Close">✕</button>
   </div>
 
@@ -5625,7 +5658,13 @@
       const img = document.getElementById('pga-img');
       const nameEl = document.getElementById('pga-name');
       const countEl = document.getElementById('pga-count');
-      if (img) { img.style.opacity = '0'; img.src = p.file; img.onload = () => { img.style.opacity = '1'; }; }
+      if (img) {
+        img.style.opacity = '0';
+        const next = new Image();
+        next.onload = () => { img.src = next.src; requestAnimationFrame(() => { img.style.opacity = '1'; }); };
+        next.onerror = () => { img.src = p.file; img.style.opacity = '1'; };
+        next.src = p.file;
+      }
       if (nameEl) nameEl.textContent = p.name;
       if (countEl) countEl.textContent = `${pgaIdx + 1} / ${PORTRAITS.length}`;
     }
@@ -5652,13 +5691,14 @@
         // Desktop fallback: <a download> trigger.
         const r = await fetch(p.file);
         const blob = await r.blob();
-        const fname = p.name.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase() + '.jpg';
+        // Clean filename — e.g. "dr-non-blue-suit-window.jpg"
+        const fname = 'dr-non-' + p.name.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase().replace(/-+/g, '-').replace(/^-|-$/g, '') + '.jpg';
         const file = new File([blob], fname, { type: 'image/jpeg' });
         if (navigator.share && navigator.canShare({ files: [file] })) {
           await navigator.share({
             files: [file],
-            title: 'Dr Non Arkaraprasertkul · ' + p.name,
-            text: 'Portrait of Dr Non Arkaraprasertkul — architect, anthropologist, smart city specialist · depa Thailand',
+            title: 'Dr Non Arkaraprasertkul',
+            text: 'Dr Non Arkaraprasertkul · architect, anthropologist, smart city · depa Thailand · nonarkara.org',
           });
         } else {
           // Fallback: direct download link
