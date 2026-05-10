@@ -761,12 +761,25 @@
       color: rgba(245, 245, 240, 0.75);
       text-transform: lowercase;
     }
+    .frame-caption .note {
+      font-family: 'Josefin Sans', sans-serif;
+      font-style: italic;
+      font-weight: 300;
+      font-size: 13px;
+      line-height: 1.55;
+      color: rgba(245, 245, 240, 0.78);
+      margin-top: 8px;
+      max-width: min(80vw, 640px);
+    }
+    body[data-lang="th"] .frame-caption .note { font-family: 'IBM Plex Sans Thai', serif; }
+    body[data-lang="zh"] .frame-caption .note { font-family: 'Noto Sans SC', serif; }
+    .frame-caption .note:empty { display: none; }
     .frame-caption .museum {
       font-family: 'JetBrains Mono', monospace;
       font-size: 9px; letter-spacing: 0.32em;
       color: rgba(245, 158, 11, 0.85);
       text-transform: uppercase;
-      margin-top: 2px;
+      margin-top: 6px;
     }
     .frame-hint {
       position: absolute;
@@ -2055,6 +2068,7 @@
       <div class="frame-caption" id="frame-caption">
         <span class="title">— —</span>
         <span class="artist">—</span>
+        <span class="note">—</span>
         <span class="museum">—</span>
       </div>
     </div>
@@ -5347,6 +5361,8 @@
       if (cap) {
         cap.querySelector('.title').textContent  = w.title;
         cap.querySelector('.artist').textContent = w.artist + (w.year ? ' · ' + w.year : '');
+        const noteEl = cap.querySelector('.note');
+        if (noteEl) noteEl.textContent = w.note || '';
         cap.querySelector('.museum').textContent = w.museum;
       }
       showFrameMeta();
