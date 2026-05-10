@@ -18,7 +18,7 @@
  * the old cache is dropped on activate.
  */
 
-const CACHE_VERSION = 'non-2026-05-10-13';
+const CACHE_VERSION = 'non-2026-05-10-14';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 // Same-origin shell files — must all 200 from Pages.
@@ -39,6 +39,11 @@ const SHELL = [
   '/portraits/02-depa.jpg',
   '/portraits/03-asean.jpg',
   '/portraits/04-roundtable.jpg',
+  '/portraits/total-domination.jpg',
+  '/portraits/p-01-formal-2024.jpg',
+  '/portraits/p-02-formal-2026.jpg',
+  '/portraits/p-03-formal-alt.jpg',
+  '/portraits/p-04-john-wick.jpg',
   '/city-photos/bangkok.jpg',
   '/city-photos/london.jpg',
   '/city-photos/tokyo.jpg',

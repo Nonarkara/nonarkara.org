@@ -704,6 +704,81 @@
       opacity: 0.3;
     }
 
+    /* ── PORTRAIT GALLERY ─────────────────────────────────────
+       Full-screen viewer for Dr Non's headshots. Image fills the
+       screen (object-contain). Bottom bar: prev, name, share, next. */
+    .pga {
+      position: fixed; inset: 0;
+      background: #000;
+      z-index: 260;
+      display: none;
+      flex-direction: column;
+    }
+    .pga.in { display: flex; }
+    .pga-img {
+      flex: 1 1 auto;
+      min-height: 0;
+      width: 100%; height: 100%;
+      object-fit: contain;
+      object-position: center;
+      display: block;
+      transition: opacity 0.5s ease;
+    }
+    .pga-bar {
+      flex: none;
+      display: flex; align-items: center; gap: 0;
+      background: #000;
+      border-top: 1px solid rgba(245,245,240,0.18);
+      padding: calc(12px) calc(16px + var(--sar)) calc(12px + var(--sab)) calc(16px + var(--sal));
+      min-height: 64px;
+    }
+    .pga-nav {
+      flex: none;
+      background: transparent; border: 0;
+      color: rgba(245,245,240,0.7);
+      font-size: 22px; cursor: pointer;
+      padding: 8px 14px; min-height: 48px; min-width: 48px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .pga-nav:active { color: var(--amber); }
+    .pga-info {
+      flex: 1; text-align: center;
+      display: flex; flex-direction: column; gap: 3px;
+    }
+    .pga-name {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 13px; letter-spacing: 0.06em; color: #f5f5f0;
+    }
+    .pga-count {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; letter-spacing: 0.32em;
+      color: rgba(245,245,240,0.45); text-transform: uppercase;
+    }
+    .pga-share {
+      flex: none;
+      background: var(--amber); border: 0;
+      color: #000; cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; letter-spacing: 0.28em;
+      padding: 10px 16px; min-height: 44px;
+      -webkit-tap-highlight-color: transparent;
+      transition: opacity 0.12s;
+    }
+    .pga-share:active { opacity: 0.75; }
+    .pga-close {
+      position: absolute;
+      top: calc(14px + var(--sat));
+      right: calc(14px + var(--sar));
+      width: 56px; height: 56px;
+      background: transparent;
+      border: 1px solid rgba(245,245,240,0.55);
+      color: #f5f5f0; font-size: 22px;
+      cursor: pointer; display: grid; place-items: center;
+      font-family: 'JetBrains Mono', monospace;
+      z-index: 4;
+      -webkit-tap-highlight-color: transparent;
+    }
+
     /* ── FRAME — full-screen museum slideshow ─────────────────
        Black-on-black, art object-contains so the painting reads at
        its true ratio. Caption auto-hides after 5s, comes back on tap. */
@@ -2101,6 +2176,22 @@
     <span class="hint-pair"><kbd>P</kbd> plan</span>
     <span class="hint-sep">·</span>
     <span class="hint-pair"><kbd>esc</kbd> close</span>
+  </div>
+
+  <!-- ── PORTRAIT GALLERY — Dr Non's headshots for conference posters etc.
+       Full-screen, prev/next, native share sheet via Web Share API. ──-->
+  <div class="pga" id="pga" role="dialog" aria-label="Portrait gallery">
+    <img class="pga-img" id="pga-img" alt="">
+    <div class="pga-bar">
+      <button class="pga-nav" id="pga-prev" aria-label="Previous portrait">◀</button>
+      <div class="pga-info">
+        <span class="pga-name" id="pga-name">—</span>
+        <span class="pga-count" id="pga-count">1 / 4</span>
+      </div>
+      <button class="pga-share" id="pga-share" aria-label="Share / download portrait">↗ SHARE</button>
+      <button class="pga-nav" id="pga-next" aria-label="Next portrait">▶</button>
+    </div>
+    <button class="pga-close" id="pga-close" aria-label="Close">✕</button>
   </div>
 
   <!-- ── FRAME — full-screen art slideshow tied to a 25-min Pomodoro.
@@ -3926,6 +4017,131 @@
     }
 
     // ════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════
+    // Side-wall posters
+    //   RIGHT WALL  — Total Domination (x=+9.3, facing left).
+    //                 Click → opens the FRAME gallery (25-min museum).
+    //   LEFT WALL   — Portrait gallery (x=-9.3, facing right).
+    //                 Click → opens the portrait picker / share sheet.
+    // ════════════════════════════════════════════════════════
+    {
+      const texLoader2 = new THREE.TextureLoader();
+
+      // ── 1. Total Domination poster ──────────────────────────
+      const tdTex = texLoader2.load('portraits/total-domination.jpg');
+      tdTex.colorSpace = THREE.SRGBColorSpace;
+      const tdMat = new THREE.MeshBasicMaterial({
+        map: tdTex, transparent: true, opacity: 0,
+        side: THREE.FrontSide, depthWrite: false,
+      });
+      const TD_W = 2.2, TD_H = 2.8;
+      const tdPlane = new THREE.Mesh(new THREE.PlaneGeometry(TD_W, TD_H), tdMat);
+      tdPlane.position.set(9.25, 2.5, -1.5);
+      tdPlane.rotation.y = -Math.PI / 2;          // face into room
+      scene.add(tdPlane);
+
+      // Wireframe poster border
+      const tdBorder = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(TD_W + 0.06, TD_H + 0.06, 0.04)),
+        matBright
+      );
+      tdBorder.position.copy(tdPlane.position);
+      tdBorder.rotation.copy(tdPlane.rotation);
+      scene.add(tdBorder);
+
+      // Hit volume
+      const tdHit = new THREE.Mesh(
+        new THREE.BoxGeometry(0.3, TD_H + 0.2, TD_W + 0.2),
+        new THREE.MeshBasicMaterial({ visible: false })
+      );
+      tdHit.position.copy(tdPlane.position);
+      const tdGroup = new THREE.Group();
+      tdGroup.position.set(0, 0, 0);
+      scene.add(tdGroup);
+      // Use a flat group at the plane's world pos — simpler approach:
+      const tdObj = new THREE.Group();
+      tdObj.position.copy(tdPlane.position);
+      scene.add(tdObj);
+      const tdHitLocal = new THREE.Mesh(
+        new THREE.BoxGeometry(0.3, TD_H + 0.4, TD_W + 0.4),
+        new THREE.MeshBasicMaterial({ visible: false })
+      );
+      tdObj.add(tdHitLocal);
+      tdObj.userData = {
+        kind: 'poster',
+        action: 'frame',
+        lines: [tdBorder],
+        hit: tdHitLocal,
+        baseMaterial: matFurni,
+      };
+      INTERACTABLES.push(tdObj);
+      window.__tdMat = tdMat;
+      FADE_TARGETS.push({ mat: tdMat, target: 0.95 });
+
+      // ── 2. Portrait gallery frame ───────────────────────────
+      // Shows portrait-01 (the pink-background formal) as a preview.
+      const p1Tex = texLoader2.load('portraits/p-01-formal-2024.jpg');
+      p1Tex.colorSpace = THREE.SRGBColorSpace;
+      const pgMat = new THREE.MeshBasicMaterial({
+        map: p1Tex, transparent: true, opacity: 0,
+        side: THREE.FrontSide, depthWrite: false,
+      });
+      const PG_W = 1.5, PG_H = 2.0;
+      const pgPlane = new THREE.Mesh(new THREE.PlaneGeometry(PG_W, PG_H), pgMat);
+      pgPlane.position.set(-9.25, 2.6, 0.8);
+      pgPlane.rotation.y = Math.PI / 2;           // face into room
+      scene.add(pgPlane);
+
+      // Frame border — slightly amber to read as "portrait gallery"
+      const pgBorder = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(PG_W + 0.08, PG_H + 0.08, 0.04)),
+        matHover
+      );
+      pgBorder.position.copy(pgPlane.position);
+      pgBorder.rotation.copy(pgPlane.rotation);
+      scene.add(pgBorder);
+
+      const pgObj = new THREE.Group();
+      pgObj.position.copy(pgPlane.position);
+      scene.add(pgObj);
+      const pgHit = new THREE.Mesh(
+        new THREE.BoxGeometry(0.3, PG_H + 0.4, PG_W + 0.4),
+        new THREE.MeshBasicMaterial({ visible: false })
+      );
+      pgObj.add(pgHit);
+      pgObj.userData = {
+        kind: 'poster',
+        action: 'portraits',
+        lines: [pgBorder],
+        hit: pgHit,
+        baseMaterial: matHover,
+      };
+      INTERACTABLES.push(pgObj);
+      FADE_TARGETS.push({ mat: pgMat, target: 0.95 });
+
+      // Small "PORTRAITS" label below the frame
+      const pgLabelC = document.createElement('canvas');
+      pgLabelC.width = 512; pgLabelC.height = 80;
+      const pgLCtx = pgLabelC.getContext('2d');
+      pgLCtx.fillStyle = 'rgba(0,0,0,0)';
+      pgLCtx.fillRect(0, 0, 512, 80);
+      pgLCtx.fillStyle = '#f5f5f0';
+      pgLCtx.font = '300 28px "JetBrains Mono", monospace';
+      pgLCtx.textAlign = 'center';
+      pgLCtx.letterSpacing = '0.28em';
+      pgLCtx.fillText('DR NON · PORTRAITS', 256, 50);
+      const pgLabelTex = new THREE.CanvasTexture(pgLabelC);
+      const pgLabelMat = new THREE.MeshBasicMaterial({
+        map: pgLabelTex, transparent: true, opacity: 0,
+        side: THREE.FrontSide, depthWrite: false,
+      });
+      const pgLabel = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.22), pgLabelMat);
+      pgLabel.position.set(-9.22, pgPlane.position.y - PG_H / 2 - 0.2, pgPlane.position.z);
+      pgLabel.rotation.y = Math.PI / 2;
+      scene.add(pgLabel);
+      FADE_TARGETS.push({ mat: pgLabelMat, target: 0.85 });
+    }
+
     // CEILING — wireframe grid that mirrors the floor. Cyberpunk.
     // Real specular reflection is heavy on phones, so we draw the
     // mirror visually: a grid above with the same spacing + amber
@@ -4402,6 +4618,9 @@
       } else if (ud.kind === 'badge') {
         const b = ud.badge;
         if (b?.url) openUrlModal(b.label, b.label + ' · ' + b.sub, b.url);
+      } else if (ud.kind === 'poster') {
+        if (ud.action === 'frame')     { try { openFrame(); }          catch (_) {} }
+        if (ud.action === 'portraits') { try { openPortraitGallery(); } catch (_) {} }
       }
     }
     window.addEventListener('click', onClick);
@@ -5216,15 +5435,13 @@
         });
       });
 
-      // Personal — CV / LinkedIn vCard / Contact / Sabai easter egg.
-      // Music + Pomodoro live in the HUD at the top, no need to repeat
-      // them here (Norman: same label = same action expected, so two
-      // surfaces with the same word confuse rather than help).
+      // Personal — identity surfaces + portrait gallery.
       const personal = [
-        { glyph: '▢',  key: 'bookshelf',  title: t('cv_title_short'),  meta: 'CV',       click: () => openFurnitureModal('bookshelf') },
-        { glyph: '◯',  key: 'pedestal',   title: t('li_title_short'),  meta: 'LINKEDIN', click: () => openFurnitureModal('pedestal') },
-        { glyph: '☕', key: 'coffee',     title: t('co_title_short'),  meta: 'CONTACT',  click: () => openFurnitureModal('coffee') },
-        { glyph: '·',  key: 'cup',        title: t('sabai_short'),     meta: '· · ·',    click: () => openFurnitureModal('cup') },
+        { glyph: '▢',  key: 'bookshelf',  title: t('cv_title_short'),  meta: 'CV',         click: () => openFurnitureModal('bookshelf') },
+        { glyph: '◯',  key: 'pedestal',   title: t('li_title_short'),  meta: 'LINKEDIN',   click: () => openFurnitureModal('pedestal') },
+        { glyph: '☕', key: 'coffee',     title: t('co_title_short'),  meta: 'CONTACT',    click: () => openFurnitureModal('coffee') },
+        { glyph: '◈',  key: 'portraits',  title: 'portraits · share hi-res', meta: 'PHOTOS', click: () => { try { openPortraitGallery(); } catch (_) {} } },
+        { glyph: '·',  key: 'cup',        title: t('sabai_short'),     meta: '· · ·',      click: () => openFurnitureModal('cup') },
       ];
       planPersEl.innerHTML = personal.map((row, i) => `
         <button class="plan-row" data-i="${i}">
@@ -5388,6 +5605,82 @@
     // ─── NOTE pad — Second Brain quick capture ─────────────────
     // localStorage-backed for now. Future: POST to a Cloudflare Worker
     // endpoint that forwards to the obsidian-capture-bot on his Mac.
+    // ─── PORTRAIT GALLERY ──────────────────────────────────────
+    // Dr Non's headshots. Full-screen viewer, prev/next, native share.
+    // Drop any new portrait as portraits/p-05-*.jpg — it auto-appears.
+    const PORTRAITS = [
+      { file: 'portraits/p-01-formal-2024.jpg', name: 'Formal · Pink · 2024' },
+      { file: 'portraits/p-02-formal-2026.jpg', name: 'Formal · 2026' },
+      { file: 'portraits/p-03-formal-alt.jpg',  name: 'Formal Alt · White' },
+      { file: 'portraits/p-04-john-wick.jpg',   name: 'John Wick Style' },
+    ];
+    let pgaIdx = 0;
+
+    function pgaShow(idx) {
+      pgaIdx = ((idx % PORTRAITS.length) + PORTRAITS.length) % PORTRAITS.length;
+      const p = PORTRAITS[pgaIdx];
+      const img = document.getElementById('pga-img');
+      const nameEl = document.getElementById('pga-name');
+      const countEl = document.getElementById('pga-count');
+      if (img) { img.style.opacity = '0'; img.src = p.file; img.onload = () => { img.style.opacity = '1'; }; }
+      if (nameEl) nameEl.textContent = p.name;
+      if (countEl) countEl.textContent = `${pgaIdx + 1} / ${PORTRAITS.length}`;
+    }
+
+    function openPortraitGallery() {
+      const el = document.getElementById('pga');
+      if (!el) return;
+      el.classList.add('in');
+      pgaShow(0);
+    }
+    function closePortraitGallery() {
+      document.getElementById('pga')?.classList.remove('in');
+    }
+
+    document.getElementById('pga-close')?.addEventListener('click', closePortraitGallery);
+    document.getElementById('pga-prev')?.addEventListener('click', () => pgaShow(pgaIdx - 1));
+    document.getElementById('pga-next')?.addEventListener('click', () => pgaShow(pgaIdx + 1));
+    document.getElementById('pga-share')?.addEventListener('click', async () => {
+      const p = PORTRAITS[pgaIdx];
+      try {
+        // Fetch the current portrait as a Blob and share via native sheet.
+        // iOS: opens AirDrop / Messages / WhatsApp / etc.
+        // Android: same native share tray.
+        // Desktop fallback: <a download> trigger.
+        const r = await fetch(p.file);
+        const blob = await r.blob();
+        const fname = p.name.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase() + '.jpg';
+        const file = new File([blob], fname, { type: 'image/jpeg' });
+        if (navigator.share && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'Dr Non Arkaraprasertkul · ' + p.name,
+            text: 'Portrait of Dr Non Arkaraprasertkul — architect, anthropologist, smart city specialist · depa Thailand',
+          });
+        } else {
+          // Fallback: direct download link
+          const a = Object.assign(document.createElement('a'), {
+            href: URL.createObjectURL(blob), download: fname,
+          });
+          document.body.appendChild(a); a.click();
+          setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(a.href); }, 500);
+        }
+      } catch (e) {
+        if (e.name !== 'AbortError') console.warn('share failed', e);
+      }
+    });
+    // Swipe left/right to navigate
+    (() => {
+      const el = document.getElementById('pga');
+      if (!el) return;
+      let sx = 0;
+      el.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
+      el.addEventListener('touchend', e => {
+        const dx = e.changedTouches[0].clientX - sx;
+        if (Math.abs(dx) > 48) pgaShow(dx < 0 ? pgaIdx + 1 : pgaIdx - 1);
+      }, { passive: true });
+    })();
+
     // ─── FRAME — museum-art focus session ─────────────────────
     // Tap FRAME → full-screen black, famous public-domain artwork
     // fades in, 20s rotation, 25-min countdown in the corner. Hold ✕
@@ -6135,6 +6428,12 @@
           } else if (ud.kind === 'badge') {
             ud.lines.forEach(l => l.material = matHover);
             tip.innerHTML = `${ud.badge.label}<span class="url">${ud.badge.sub.toLowerCase()}</span>`;
+          } else if (ud.kind === 'poster') {
+            ud.lines.forEach(l => l.material = matHover);
+            if (ud.action === 'frame')
+              tip.innerHTML = `TOTAL DOMINATION<span class="url">tap · gallery focus · 25 min</span>`;
+            else
+              tip.innerHTML = `DR NON · PORTRAITS<span class="url">tap · view + share hi-res</span>`;
           }
           tip.classList.add('in');
           document.body.style.cursor = 'pointer';
