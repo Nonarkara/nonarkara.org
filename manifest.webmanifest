@@ -1,17 +1,28 @@
 {
-  "name": "NON — Memory Palace",
+  "name": "NON",
   "short_name": "NON",
-  "description": "A wireframe memory palace by Dr Non Arkaraprasertkul.",
-  "start_url": "/",
+  "description": "A window to the mind. Time · space · order.",
+  "start_url": "/?pwa=1",
   "scope": "/",
-  "display": "standalone",
-  "orientation": "any",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "portrait",
   "background_color": "#000000",
   "theme_color": "#000000",
+  "categories": ["productivity", "lifestyle"],
   "icons": [
     { "src": "icon.svg",              "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
     { "src": "apple-touch-icon.png",  "sizes": "180x180", "type": "image/png", "purpose": "any" },
     { "src": "icon-192.png",          "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
     { "src": "icon-512.png",          "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "screenshots": [
+    {
+      "src": "og.png",
+      "type": "image/png",
+      "sizes": "1200x630",
+      "form_factor": "narrow",
+      "label": "NON — a window to the mind"
+    }
   ]
 }

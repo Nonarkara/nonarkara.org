@@ -935,6 +935,48 @@
       .frame-caption .title { font-size: 14px; }
     }
 
+    /* ── Boot screen ──────────────────────────────────────────
+       NON wordmark on full-black for 1.2s then fades. Makes the
+       PWA feel like a native app on launch, not a website refresh. */
+    #boot {
+      position: fixed; inset: 0; z-index: 9999;
+      background: #000;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 18px;
+      pointer-events: none;
+      transition: opacity 0.8s ease 1.2s;
+    }
+    #boot.gone { opacity: 0; }
+    .boot-logo {
+      font-family: 'Josefin Sans', sans-serif;
+      font-weight: 700;
+      font-size: clamp(72px, 22vw, 120px);
+      letter-spacing: 0.08em;
+      color: #f5f5f0;
+      display: flex; align-items: baseline; gap: 2px;
+      line-height: 1;
+    }
+    .boot-o {
+      /* Hollow amber O — same gimmick as the wordmark */
+      font-size: inherit;
+      color: transparent;
+      -webkit-text-stroke: 3px #f59e0b;
+      text-stroke: 3px #f59e0b;
+    }
+    .boot-sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; letter-spacing: 0.42em;
+      text-transform: uppercase;
+      color: rgba(245, 245, 240, 0.45);
+    }
+
+    /* ── Plan ↔ Room transition ────────────────────────────────
+       Smooth crossfade so switching views feels like navigation
+       in a native app, not a DOM display: toggle. */
+    #plan { transition: opacity 0.3s ease; }
+    #plan.view-leaving { opacity: 0; pointer-events: none; }
+
     /* Pomodoro quote — Nonist focus aphorism. Sits below the cycle row,
        above the controls. Rotates every 35s. The point is to give the
        eye somewhere quiet to land that isn't a phone. */
@@ -1566,6 +1608,27 @@
     .plan-stat .label { color: var(--dim); }
     .plan-stat .value { color: var(--fg); font-variant-numeric: tabular-nums; }
 
+    /* Steps row — daily step count, manual for now */
+    .plan-steps {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 14px;
+      font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    }
+    .plan-steps .label { color: var(--dim); }
+    .steps-val {
+      background: transparent; border: 0; border-bottom: 1px solid var(--line);
+      color: var(--fg); cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 22px; font-weight: 300;
+      letter-spacing: 0.04em; font-variant-numeric: tabular-nums;
+      padding: 0 4px 2px;
+      min-width: 80px; text-align: right;
+      -webkit-tap-highlight-color: transparent;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .steps-val:active { color: var(--amber); border-color: var(--amber); }
+    .steps-sub { color: var(--dim); font-size: 9px; letter-spacing: 0.28em; }
+
     /* AI Council health row — sibling of plan-stat. Pulled live from
        /council on the Cloudflare Worker (which proxies council-watch's
        fail-count file from GitHub). */
@@ -2123,6 +2186,15 @@
 </head>
 <body data-lang="en">
 
+  <!-- Boot screen — shows on first render, fades away like an OS logo.
+       Gives the impression of an app launching, not a website loading. -->
+  <div id="boot" aria-hidden="true">
+    <div class="boot-logo">
+      <span class="boot-n">N</span><span class="boot-o">O</span><span class="boot-n2">N</span>
+    </div>
+    <div class="boot-sub">a window to the mind</div>
+  </div>
+
   <div id="canvas-root"></div>
 
   <div class="overlay">
@@ -2326,6 +2398,14 @@
     <section class="plan-stat">
       <span class="label" data-i18n="plan_status">FLEET STATUS</span>
       <span class="value" id="plan-stat-summary">— / —</span>
+    </section>
+
+    <!-- Steps row — tap the number to enter today's steps. Simple
+         personal data captured into the second brain pipeline. -->
+    <section class="plan-steps" id="plan-steps" aria-label="Log today's steps">
+      <span class="label">STEPS TODAY</span>
+      <button class="steps-val" id="steps-val" aria-label="Enter step count">—</button>
+      <span class="steps-sub" id="steps-sub">tap to log</span>
     </section>
 
     <section class="plan-council" id="plan-council">
@@ -6411,6 +6491,46 @@
     try { paintBrief(); } catch (_) {}
     try { renderWorldMap(); } catch (_) {}
     try { paintCouncil(); } catch (_) {}
+
+    // ── Daily steps ─────────────────────────────────────────────
+    const STEPS_KEY = 'nonarkara.steps';
+    function todayKey() { return new Date().toISOString().slice(0, 10); }
+    function loadSteps() {
+      try { return (JSON.parse(localStorage.getItem(STEPS_KEY) || '{}'))[todayKey()] ?? null; }
+      catch (_) { return null; }
+    }
+    function saveStepsLocal(n) {
+      try {
+        const d = JSON.parse(localStorage.getItem(STEPS_KEY) || '{}');
+        d[todayKey()] = n;
+        const pruned = {};
+        Object.keys(d).sort().slice(-30).forEach(k => { pruned[k] = d[k]; });
+        localStorage.setItem(STEPS_KEY, JSON.stringify(pruned));
+      } catch (_) {}
+    }
+    function paintSteps() {
+      const v = document.getElementById('steps-val');
+      const s = document.getElementById('steps-sub');
+      const n = loadSteps();
+      if (v) v.textContent = n != null ? Number(n).toLocaleString() : '—';
+      if (s) s.textContent = n != null ? `${todayKey()} · tap to update` : 'tap to log today';
+    }
+    document.getElementById('steps-val')?.addEventListener('click', () => {
+      const cur = loadSteps();
+      const input = window.prompt('Steps today?', cur != null ? String(cur) : '');
+      if (input === null) return;
+      const n = parseInt(input, 10);
+      if (!isNaN(n) && n >= 0) {
+        saveStepsLocal(n);
+        paintSteps();
+        fetch('https://api.nonarkara.org/capture', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: `Steps ${todayKey()}: ${n.toLocaleString()}`, source: 'steps', metadata: { steps: n, date: todayKey() } }),
+        }).catch(() => {});
+      }
+    });
+    paintSteps();
+
     window.__planReady = true;
     if (viewToggleBtn) setTimeout(() => viewToggleBtn.classList.add('in'), 200);
 
@@ -6448,6 +6568,35 @@
     // ════════════════════════════════════════════════════════
     // Reveal + render loop
     // ════════════════════════════════════════════════════════
+    // ── Boot screen ─────────────────────────────────────────────
+    // Fade out after 1.2s (the CSS transition handles the 0.8s fade).
+    const bootEl = document.getElementById('boot');
+    if (bootEl) {
+      setTimeout(() => {
+        bootEl.classList.add('gone');
+        setTimeout(() => { bootEl.style.display = 'none'; }, 900);
+      }, 1200);
+    }
+
+    // ── Plan ↔ Room smooth transition ───────────────────────────
+    // Wrap setView so it crossfades instead of snapping.
+    const _origSetView = setView;
+    window.setView = function(v) {
+      const planEl = document.getElementById('plan');
+      if (v === 'room' && planEl && document.body.dataset.view === 'plan') {
+        planEl.classList.add('view-leaving');
+        setTimeout(() => { _origSetView(v); planEl.classList.remove('view-leaving'); }, 280);
+      } else {
+        _origSetView(v);
+      }
+    };
+    // Re-wire buttons to the wrapped version
+    document.getElementById('plan-room')?.addEventListener('click', null);
+    document.getElementById('plan-room')?.addEventListener('click', () => {
+      enableGyro().then(() => { if (gyroEnabled) showTiltHint(); }).catch(() => {});
+      window.setView('room');
+    });
+
     const startTime = performance.now();
     document.querySelector('.veil').classList.add('gone');
     setTimeout(() => {
