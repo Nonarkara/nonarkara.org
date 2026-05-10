@@ -2365,6 +2365,31 @@
         <span class="val" id="brief-set-val">—</span>
         <span class="sub" id="brief-set-sub">— %</span>
       </div>
+      <div class="brief-cell">
+        <span class="lbl">DOW JONES</span>
+        <span class="val" id="brief-dji-val">—</span>
+        <span class="sub" id="brief-dji-sub">— %</span>
+      </div>
+      <div class="brief-cell">
+        <span class="lbl">NASDAQ</span>
+        <span class="val" id="brief-nasdaq-val">—</span>
+        <span class="sub" id="brief-nasdaq-sub">— %</span>
+      </div>
+      <div class="brief-cell">
+        <span class="lbl">NVIDIA · NVDA</span>
+        <span class="val" id="brief-nvda-val">—</span>
+        <span class="sub" id="brief-nvda-sub">— %</span>
+      </div>
+      <div class="brief-cell">
+        <span class="lbl">TESLA · TSLA</span>
+        <span class="val" id="brief-tsla-val">—</span>
+        <span class="sub" id="brief-tsla-sub">— %</span>
+      </div>
+      <div class="brief-cell">
+        <span class="lbl">GOOGLE · GOOGL</span>
+        <span class="val" id="brief-googl-val">—</span>
+        <span class="sub" id="brief-googl-sub">— %</span>
+      </div>
       <div class="brief-cell brief-wx">
         <span class="lbl">BANGKOK · WEATHER</span>
         <span class="val" id="brief-wx-temp">— °C</span>
@@ -2653,20 +2678,34 @@
 
     // Cities for the world map table — places that mean something to him
     const CITIES = [
-      { name: 'Bangkok',    lat: 13.75,  lon: 100.50, tz: 'Asia/Bangkok',     home: true,  memory: 'home base · ผม' },
-      { name: 'Chiang Mai', lat: 18.79,  lon:  98.98, tz: 'Asia/Bangkok',     memory: 'good coffee · slower pace' },
-      { name: 'Phuket',     lat:  7.88,  lon:  98.39, tz: 'Asia/Bangkok',     memory: 'governor demo' },
-      { name: 'Singapore',  lat:  1.35,  lon: 103.81, tz: 'Asia/Singapore',   memory: 'tunnel to ASEAN' },
-      { name: 'Kuching',    lat:  1.55,  lon: 110.36, tz: 'Asia/Kuching',     memory: 'Greater Kuching IOC' },
-      { name: 'Tokyo',      lat: 35.68,  lon: 139.69, tz: 'Asia/Tokyo',       memory: 'east' },
-      { name: 'Shanghai',   lat: 31.23,  lon: 121.47, tz: 'Asia/Shanghai',    memory: 'NYU · Yangpu · IDEO' },
-      { name: 'Honiara',    lat: -9.43,  lon: 159.95, tz: 'Pacific/Guadalcanal', memory: 'UN DESA · Solomon Islands' },
-      { name: 'Sydney',     lat: -33.87, lon: 151.21, tz: 'Australia/Sydney', memory: 'Sydney Uni · honorary lecturer' },
-      { name: 'Dubai',      lat: 25.20,  lon:  55.27, tz: 'Asia/Dubai',       memory: 'GITEX' },
-      { name: 'Krakow',     lat: 50.06,  lon:  19.93, tz: 'Europe/Warsaw',    memory: 'Jagiellonian · visiting professor' },
-      { name: 'Oxford',     lat: 51.75,  lon:  -1.25, tz: 'Europe/London',    memory: 'PhD years' },
-      { name: 'New York',   lat: 40.71,  lon: -74.00, tz: 'America/New_York', memory: 'NYU global postdoc' },
-      { name: 'Boston',     lat: 42.36,  lon: -71.06, tz: 'America/New_York', memory: 'Harvard · MIT' },
+      // SE Asia home base
+      { name: 'Bangkok',      lat: 13.75,  lon: 100.50, tz: 'Asia/Bangkok',         home: true,  memory: 'home base · ผม' },
+      { name: 'Chiang Mai',   lat: 18.79,  lon:  98.98, tz: 'Asia/Bangkok',                      memory: 'good coffee · slower pace' },
+      { name: 'Phuket',       lat:  7.88,  lon:  98.39, tz: 'Asia/Bangkok',                      memory: 'governor demo' },
+      { name: 'Singapore',    lat:  1.35,  lon: 103.81, tz: 'Asia/Singapore',                    memory: 'tunnel to ASEAN' },
+      { name: 'Kuching',      lat:  1.55,  lon: 110.36, tz: 'Asia/Kuching',                      memory: 'Greater Kuching IOC' },
+      { name: 'Manila',       lat: 14.60,  lon: 120.98, tz: 'Asia/Manila',                       memory: 'Philippines · ASEAN corridor' },
+      // East Asia
+      { name: 'Seoul',        lat: 37.57,  lon: 126.98, tz: 'Asia/Seoul',                        memory: 'Korea · smart city benchmark' },
+      { name: 'Tokyo',        lat: 35.68,  lon: 139.69, tz: 'Asia/Tokyo',                        memory: 'east' },
+      { name: 'Shanghai',     lat: 31.23,  lon: 121.47, tz: 'Asia/Shanghai',                     memory: 'NYU · Yangpu · IDEO' },
+      { name: 'Honiara',      lat: -9.43,  lon: 159.95, tz: 'Pacific/Guadalcanal',               memory: 'UN DESA · Solomon Islands' },
+      { name: 'Sydney',       lat: -33.87, lon: 151.21, tz: 'Australia/Sydney',                  memory: 'Sydney Uni · honorary lecturer' },
+      // Middle East
+      { name: 'Dubai',        lat: 25.20,  lon:  55.27, tz: 'Asia/Dubai',                        memory: 'GITEX' },
+      // Europe
+      { name: 'Moscow',       lat: 55.75,  lon:  37.62, tz: 'Europe/Moscow',                     memory: 'GMT+3' },
+      { name: 'Istanbul',     lat: 41.01,  lon:  28.97, tz: 'Europe/Istanbul',                   memory: 'bridge city' },
+      { name: 'Amsterdam',    lat: 52.37,  lon:   4.90, tz: 'Europe/Amsterdam',                  memory: 'IABR · architecture' },
+      { name: 'Paris',        lat: 48.86,  lon:   2.35, tz: 'Europe/Paris',                      memory: 'good coffee · good question' },
+      { name: 'Krakow',       lat: 50.06,  lon:  19.93, tz: 'Europe/Warsaw',                     memory: 'Jagiellonian · visiting professor' },
+      { name: 'Oxford',       lat: 51.75,  lon:  -1.25, tz: 'Europe/London',                     memory: 'PhD years' },
+      { name: 'London',       lat: 51.51,  lon:  -0.13, tz: 'Europe/London',                     memory: 'global hub' },
+      // Americas
+      { name: 'New York',     lat: 40.71,  lon: -74.00, tz: 'America/New_York',                  memory: 'NYU global postdoc' },
+      { name: 'Boston',       lat: 42.36,  lon: -71.06, tz: 'America/New_York',                  memory: 'Harvard · MIT' },
+      { name: 'Chicago',      lat: 41.88,  lon: -87.63, tz: 'America/Chicago',                   memory: 'US Central · architecture' },
+      { name: 'Los Angeles',  lat: 34.05,  lon: -118.24, tz: 'America/Los_Angeles',              memory: 'US West Coast' },
     ];
 
     const VCARD = [
@@ -3518,6 +3557,30 @@
       } catch (_) {}
     }
 
+    // Fetch Dow Jones, NASDAQ, and key stocks via the existing
+    // /quote/ endpoint on api.nonarkara.org (Yahoo Finance proxy).
+    async function fetchStocks() {
+      const symbols = [
+        ['%5EDJI',  'dji',    'Dow Jones'],
+        ['%5EIXIC', 'nasdaq', 'NASDAQ'],
+        ['NVDA',    'nvda',   'Nvidia'],
+        ['TSLA',    'tsla',   'Tesla'],
+        ['GOOGL',   'googl',  'Google'],
+      ];
+      const results = {};
+      await Promise.all(symbols.map(async ([enc, key]) => {
+        try {
+          const r = await fetch(`https://api.nonarkara.org/quote/${enc}`, { cache: 'no-cache' });
+          const d = await r.json();
+          if (d?.price != null) results[key] = { price: d.price, change: d.change ?? 0 };
+        } catch (_) {}
+      }));
+      if (Object.keys(results).length) {
+        window.__brief.stocks = results;
+        if (window.paintBrief) window.paintBrief();
+      }
+    }
+
     async function fetchSET() {
       try {
         const r = await fetch('https://api.nonarkara.org/quote/%5ESET.BK', { cache: 'no-cache' });
@@ -3648,7 +3711,7 @@
     });
 
     // First fetches + periodic refresh schedules
-    fetchFX(); fetchCrypto(); fetchWx(); fetchAQI(); fetchNews(); fetchCommits(); fetchStats(); fetchSET(); fetchCouncil();
+    fetchFX(); fetchCrypto(); fetchWx(); fetchAQI(); fetchNews(); fetchCommits(); fetchStats(); fetchSET(); fetchStocks(); fetchCouncil();
     setInterval(fetchFX,      5  * 60_000);
     setInterval(fetchCrypto,  60_000);
     setInterval(fetchWx,      10 * 60_000);
@@ -3657,6 +3720,7 @@
     setInterval(fetchCommits, 5  * 60_000);
     setInterval(fetchStats,   60_000);
     setInterval(fetchSET,     5  * 60_000);
+    setInterval(fetchStocks,  5  * 60_000);
     setInterval(fetchCouncil, 60_000);    // council-watch ticks every 5m, we sample every 1m
 
     // ════════════════════════════════════════════════════════
@@ -5571,6 +5635,28 @@
           const s = document.getElementById('brief-wx-sub');
           if (v) v.textContent = `${w.temp} °C`;
           if (s) s.textContent = `${w.desc} · humidity ${w.humidity} % · wind ${w.wind} km/h`;
+        }
+        // Stock market cells — Dow, NASDAQ, NVDA, TSLA, GOOGL
+        if (b.stocks) {
+          const fmtStock = (key, valId, subId) => {
+            const s = b.stocks[key];
+            if (!s) return;
+            const v = document.getElementById(valId);
+            const sub = document.getElementById(subId);
+            const price = s.price >= 1000
+              ? s.price.toLocaleString('en-US', { maximumFractionDigits: 0 })
+              : s.price.toFixed(2);
+            if (v) v.textContent = price;
+            if (sub) {
+              const up = s.change >= 0;
+              sub.innerHTML = `<span class="${up ? 'up' : 'down'}">${up ? '▲' : '▼'} ${Math.abs(s.change).toFixed(2)} %</span>`;
+            }
+          };
+          fmtStock('dji',    'brief-dji-val',    'brief-dji-sub');
+          fmtStock('nasdaq', 'brief-nasdaq-val',  'brief-nasdaq-sub');
+          fmtStock('nvda',   'brief-nvda-val',    'brief-nvda-sub');
+          fmtStock('tsla',   'brief-tsla-val',    'brief-tsla-sub');
+          fmtStock('googl',  'brief-googl-val',   'brief-googl-sub');
         }
         if (b.aqi) {
           const a = b.aqi;
