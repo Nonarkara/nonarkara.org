@@ -1298,7 +1298,7 @@
        Always visible, always one tap away. */
     .plan-hud {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 1px;
       background: var(--line);
       border: 1px solid var(--line);
@@ -1329,6 +1329,48 @@
       font-weight: 400;
     }
     .hud-btn.focus .g { color: var(--amber); }
+
+    /* Gallery card — full-width, reads like a framed object */
+    .plan-gallery {
+      display: flex; align-items: center; gap: 16px;
+      width: 100%;
+      min-height: 72px;
+      background: var(--bg);
+      border: 1px solid var(--amber);   /* amber frame — it's the art button */
+      color: var(--amber);
+      cursor: pointer;
+      padding: 14px 18px;
+      font-family: inherit;
+      margin-bottom: 22px;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.12s, color 0.12s;
+    }
+    .plan-gallery:hover  { background: rgba(245, 158, 11, 0.07); }
+    .plan-gallery:active { background: rgba(245, 158, 11, 0.14); }
+    .gallery-glyph {
+      font-size: 28px;
+      flex: none;
+      line-height: 1;
+    }
+    .gallery-body {
+      flex: 1;
+      display: flex; flex-direction: column; gap: 4px;
+      text-align: left;
+    }
+    .gallery-title {
+      font-size: 11px; letter-spacing: 0.34em;
+      font-weight: 400;
+    }
+    .gallery-sub {
+      font-size: 9px; letter-spacing: 0.18em;
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+    .gallery-arrow {
+      font-size: 18px;
+      flex: none;
+      opacity: 0.7;
+    }
 
     /* NOTE pad — capture textarea, save button, recent list. */
     .modal-card.note {
@@ -2116,18 +2158,13 @@
       </div>
     </header>
 
-    <!-- HUD: the five daily-use functions, ALWAYS visible at the top.
-         Deep-work · music · note (Second Brain capture) · frame
-         (museum-art Pomodoro) · theme. -->
+    <!-- HUD: four core actions -->
     <section class="plan-hud">
       <button id="hud-focus" class="hud-btn focus" aria-label="Start Pomodoro focus session">
         <span class="g">▷</span><span class="t">FOCUS</span>
       </button>
       <button id="hud-music" class="hud-btn" aria-label="Open music">
         <span class="g">◯</span><span class="t">MUSIC</span>
-      </button>
-      <button id="hud-frame" class="hud-btn" aria-label="Start art-frame focus session — museum slideshow + 25 min timer">
-        <span class="g">▣</span><span class="t">FRAME</span>
       </button>
       <button id="hud-note" class="hud-btn" aria-label="Open Second Brain note pad">
         <span class="g">✎</span><span class="t">NOTE</span>
@@ -2136,6 +2173,19 @@
         <span class="g">☼</span><span class="t">THEME</span>
       </button>
     </section>
+
+    <!-- GALLERY card — stands alone so it reads clearly as "the art thing".
+         Wider and taller than the HUD buttons; the outer border reads like
+         a picture frame. Tap → 25-min museum slideshow. -->
+    <button class="plan-gallery" id="hud-frame"
+            aria-label="Start museum gallery focus session — 47 famous paintings, 25 min, one every 20 seconds">
+      <span class="gallery-glyph">▣</span>
+      <span class="gallery-body">
+        <span class="gallery-title">GALLERY · FOCUS</span>
+        <span class="gallery-sub">47 famous paintings · The Met + AIC · changes every 20 s · 25 min</span>
+      </span>
+      <span class="gallery-arrow">→</span>
+    </button>
 
     <!-- Clock + Casio-graphic wireframe world map -->
     <section class="plan-clock">
