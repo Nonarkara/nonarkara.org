@@ -1092,8 +1092,8 @@
     .plan-worldmap {
       display: block;
       width: 100%;
-      height: 168px;
-      margin-top: 8px;
+      height: clamp(260px, 60vw, 380px);
+      margin-top: 12px;
     }
     /* The 24 timezone meridians — solid hairlines, the grid is the map */
     .plan-worldmap .meridian {
@@ -1122,17 +1122,18 @@
     .plan-worldmap .tz-label {
       fill: var(--dim);
       font-family: 'JetBrains Mono', monospace;
-      font-size: 5px;
+      font-size: 6.5px;
       font-weight: 400;
       letter-spacing: 0.16em;
     }
     .plan-worldmap .tz-label.gmt {
       fill: var(--fg);
+      font-size: 7px;
     }
     /* Cities */
     .plan-worldmap .city {
       fill: var(--fg);
-      opacity: 0.7;
+      opacity: 0.85;
     }
     .plan-worldmap .city.home {
       fill: var(--amber);
@@ -1140,24 +1141,25 @@
     }
     .plan-worldmap .city-label {
       fill: var(--fg);
-      opacity: 0.7;
+      opacity: 0.8;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 4.2px;
+      font-size: 6px;
       font-weight: 300;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.05em;
     }
     .plan-worldmap .city-label.home {
       fill: var(--amber);
       opacity: 1;
-      font-size: 5px;
-      letter-spacing: 0.08em;
+      font-size: 7.5px;
+      letter-spacing: 0.10em;
+      font-weight: 400;
     }
     .plan-worldmap .city-label.city-time {
-      opacity: 0.55;
+      opacity: 0.6;
       font-variant-numeric: tabular-nums;
     }
     .plan-worldmap .city-label.home.city-time {
-      opacity: 0.85;
+      opacity: 0.9;
     }
 
     /* HUD — four big tappable functions at the top of plan view.
@@ -5232,19 +5234,31 @@
         hourLabels.push(`<text class="tz-label" x="${x}" y="-78" text-anchor="middle">${lbl}</text>`);
       }
 
-      // Cities — small dot + tiny label aligned to the meridian column
+      // Cities — dot + label + live time. Per-city offsets nudge labels
+      // out of overlap zones (Tokyo/Shanghai/Bangkok/Sydney/Honiara all
+      // crowd the eastern hemisphere; offsets give each one breathing
+      // room without lying about their actual lat/lon dot positions).
       const labeled = ['Bangkok','London','Tokyo','New York','Sydney','Honiara','Shanghai','Dubai'];
+      const offsets = {
+        // name → { dx, dy, anchor }   in viewBox units
+        'Bangkok':  { dx:  3, dy:  2, anchor: 'start' },     // east-down so it doesn't crash into Shanghai
+        'London':   { dx:  0, dy: -4, anchor: 'middle' },    // straight up at GMT
+        'Tokyo':    { dx:  3, dy: -4, anchor: 'start' },     // up-east
+        'Shanghai': { dx: -3, dy: -4, anchor: 'end' },       // up-west of dot
+        'New York': { dx:  3, dy: -4, anchor: 'start' },     // up-east
+        'Sydney':   { dx:  3, dy:  9, anchor: 'start' },     // below
+        'Honiara':  { dx: -3, dy:  9, anchor: 'end' },       // below-west
+        'Dubai':    { dx: -3, dy: -4, anchor: 'end' },       // up-west
+      };
       const dotSvg = CITIES.map(c => {
         const x = c.lon, y = -c.lat;
         const home = c.home ? ' home' : '';
-        const r = c.home ? 1.6 : 1.0;
+        const r = c.home ? 2.2 : 1.4;
         const showLabel = c.home || labeled.includes(c.name);
-        const anchor = c.lon > 120 ? 'end' : (c.lon < -120 ? 'start' : 'middle');
-        const labelDx = anchor === 'end' ? -2 : (anchor === 'start' ? 2 : 0);
-        const labelDy = c.lat >= 0 ? -3 : 7;          // above for N, below for S
+        const o = offsets[c.name] || { dx: 3, dy: -4, anchor: 'start' };
         const labelEls = showLabel ? `
-          <text class="city-label${home}" x="${x + labelDx}" y="${y + labelDy}" text-anchor="${anchor}">${c.name.toLowerCase()}</text>
-          <text class="city-label city-time" data-tz="${c.tz}" x="${x + labelDx}" y="${y + labelDy + 5}" text-anchor="${anchor}">--:--</text>
+          <text class="city-label${home}" x="${x + o.dx}" y="${y + o.dy}" text-anchor="${o.anchor}">${c.name.toLowerCase()}</text>
+          <text class="city-label city-time" data-tz="${c.tz}" x="${x + o.dx}" y="${y + o.dy + 7}" text-anchor="${o.anchor}">--:--</text>
         ` : '';
         return `
           <g class="city-grp" data-name="${c.name}">
