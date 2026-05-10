@@ -18,7 +18,7 @@
  * the old cache is dropped on activate.
  */
 
-const CACHE_VERSION = 'non-2026-05-10-08';
+const CACHE_VERSION = 'non-2026-05-10-09';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 // Same-origin shell files — must all 200 from Pages.
@@ -33,6 +33,7 @@ const SHELL = [
   '/og.png',
   '/og.svg',
   '/cv.pdf',
+  '/art-manifest.json',           // FRAME — museum slideshow manifest
   '/vendor-three-0.160.0.js',     // local Three.js, no CDN dependency
   '/portraits/01-speaker.jpg',
   '/portraits/02-depa.jpg',
@@ -65,6 +66,8 @@ const CDN_HOSTS = new Set([
   'cdn.jsdelivr.net',
   'fonts.googleapis.com',
   'fonts.gstatic.com',
+  'images.metmuseum.org',          // FRAME slideshow (The Met)
+  'www.artic.edu',                  // FRAME slideshow (Art Institute Chicago)
 ]);
 
 self.addEventListener('install', (event) => {

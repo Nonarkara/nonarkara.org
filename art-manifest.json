@@ -1,0 +1,472 @@
+[
+  {
+    "id": "met-11417",
+    "title": "Washington Crossing the Delaware",
+    "artist": "Emanuel Leutze",
+    "year": "1851",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ad/original/DP215410.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ad/web-large/DP215410.jpg"
+  },
+  {
+    "id": "met-437394",
+    "title": "Aristotle with a Bust of Homer",
+    "artist": "Rembrandt",
+    "year": "1653",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ep/original/DP-30758-001.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-30758-001.jpg"
+  },
+  {
+    "id": "met-436532",
+    "title": "Self-Portrait with a Straw Hat",
+    "artist": "Vincent van Gogh",
+    "year": "1887",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ep/original/DT1502_cropped2.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ep/web-large/DT1502_cropped2.jpg"
+  },
+  {
+    "id": "met-436535",
+    "title": "Wheat Field with Cypresses",
+    "artist": "Vincent van Gogh",
+    "year": "1889",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ep/original/DP-42549-001.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-42549-001.jpg"
+  },
+  {
+    "id": "met-436533",
+    "title": "Shoes",
+    "artist": "Vincent van Gogh",
+    "year": "1888",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ep/original/DT1947.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ep/web-large/DT1947.jpg"
+  },
+  {
+    "id": "met-437328",
+    "title": "Midas Washing at the Source of the Pactolus",
+    "artist": "Nicolas Poussin",
+    "year": "ca. 1627",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ep/original/DP123854.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ep/web-large/DP123854.jpg"
+  },
+  {
+    "id": "met-436944",
+    "title": "The Spanish Singer",
+    "artist": "Edouard Manet",
+    "year": "1860",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ep/original/dp130799.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ep/web-large/dp130799.jpg"
+  },
+  {
+    "id": "met-437853",
+    "title": "Venice, from the Porch of Madonna della Salute",
+    "artist": "Joseph Mallord William Turner",
+    "year": "ca. 1835",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ep/original/DP169568.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ep/web-large/DP169568.jpg"
+  },
+  {
+    "id": "met-437654",
+    "title": "Circus Sideshow",
+    "artist": "Georges Seurat",
+    "year": "1887\u201388",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ep/original/DP375450_cropped.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ep/web-large/DP375450_cropped.jpg"
+  },
+  {
+    "id": "met-435882",
+    "title": "Still Life with Apples and a Pot of Primroses",
+    "artist": "Paul C\u00e9zanne",
+    "year": "ca. 1890",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ep/original/DT47.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ep/web-large/DT47.jpg"
+  },
+  {
+    "id": "met-438821",
+    "title": "Ia Orana Maria",
+    "artist": "Paul Gauguin",
+    "year": "1891",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ep/original/DT1025.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ep/web-large/DT1025.jpg"
+  },
+  {
+    "id": "met-436524",
+    "title": "Sunflowers",
+    "artist": "Vincent van Gogh",
+    "year": "1887",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ep/original/DP-41223-001.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-41223-001.jpg"
+  },
+  {
+    "id": "met-437984",
+    "title": "La Berceuse",
+    "artist": "Vincent van Gogh",
+    "year": "1889",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ep/original/DP-19279-001.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-19279-001.jpg"
+  },
+  {
+    "id": "met-437532",
+    "title": "Rubens, Helena Fourment",
+    "artist": "Peter Paul Rubens",
+    "year": "ca. 1635",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ep/original/DP-14286-003.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-14286-003.jpg"
+  },
+  {
+    "id": "met-437342",
+    "title": "The Lamentation",
+    "artist": "Scipione Pulzone",
+    "year": "1593",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ep/original/DT7692.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ep/web-large/DT7692.jpg"
+  },
+  {
+    "id": "met-437428",
+    "title": "Still Life with Peaches and Grapes",
+    "artist": "Auguste Renoir",
+    "year": "1881",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ep/original/DP-23203-001.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-23203-001.jpg"
+  },
+  {
+    "id": "met-437485",
+    "title": "Portrait of a Girl",
+    "artist": "Sampson Towgood Roch",
+    "year": "ca. 1790",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ep/original/DP-31482-001.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-31482-001.jpg"
+  },
+  {
+    "id": "met-437881",
+    "title": "Young Woman with a Water Pitcher",
+    "artist": "Johannes Vermeer",
+    "year": "ca. 1662",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ep/original/DP353257.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ep/web-large/DP353257.jpg"
+  },
+  {
+    "id": "met-437877",
+    "title": "Allegory of the Catholic Faith",
+    "artist": "Johannes Vermeer",
+    "year": "ca. 1670\u201372",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ep/original/DP145924.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ep/web-large/DP145924.jpg"
+  },
+  {
+    "id": "met-437891",
+    "title": "Mars and Venus United by Love",
+    "artist": "Paolo Veronese",
+    "year": "1570s",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ep/original/DP167124.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ep/web-large/DP167124.jpg"
+  },
+  {
+    "id": "met-45434",
+    "title": "Under the Wave off Kanagawa",
+    "artist": "Katsushika Hokusai",
+    "year": "ca. 1830\u201332",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/as/original/DP130155.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/as/web-large/DP130155.jpg"
+  },
+  {
+    "id": "met-207118",
+    "title": "Hunter with Hounds",
+    "artist": "H\u00f6chst Manufactory",
+    "year": "ca. 1760",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/es/original/ES6307.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/es/web-large/ES6307.jpg"
+  },
+  {
+    "id": "met-437433",
+    "title": "The Farm at Les Collettes, Cagnes",
+    "artist": "Auguste Renoir",
+    "year": "1908\u201314",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ep/original/DP-22988-001.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-22988-001.jpg"
+  },
+  {
+    "id": "met-436948",
+    "title": "Boy with a Sword",
+    "artist": "Edouard Manet",
+    "year": "1861",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ep/original/DP-14936-027.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-14936-027.jpg"
+  },
+  {
+    "id": "met-438134",
+    "title": "Saint Catherine of Alexandria in Prison",
+    "artist": "Paolo Veronese",
+    "year": "ca. 1585",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ep/original/DP-18296-035.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-18296-035.jpg"
+  },
+  {
+    "id": "met-437978",
+    "title": "Christ Presented to the People",
+    "artist": "Sodoma",
+    "year": "ca. 1540\u201349",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ep/original/DT4034.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ep/web-large/DT4034.jpg"
+  },
+  {
+    "id": "met-459123",
+    "title": "Madame Roulin and Her Baby",
+    "artist": "Vincent van Gogh",
+    "year": "1888",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/rl/original/DT3154.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/rl/web-large/DT3154.jpg"
+  },
+  {
+    "id": "met-438722",
+    "title": "The Potato Peeler",
+    "artist": "Vincent van Gogh",
+    "year": "1885",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ep/original/DT1503.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ep/web-large/DT1503.jpg"
+  },
+  {
+    "id": "met-437409",
+    "title": "Portrait of a Woman",
+    "artist": "Rembrandt",
+    "year": "",
+    "museum": "The Met",
+    "license": "CC0",
+    "image": "https://images.metmuseum.org/CRDImages/ep/original/DP146483.jpg",
+    "thumb": "https://images.metmuseum.org/CRDImages/ep/web-large/DP146483.jpg"
+  },
+  {
+    "id": "aic-27992",
+    "title": "A Sunday on La Grande Jatte",
+    "artist": "Georges Seurat",
+    "year": "1884\u201386, border added 1888\u201389",
+    "museum": "Art Institute of Chicago",
+    "license": "CC0",
+    "image": "https://www.artic.edu/iiif/2/2d484387-2509-5e8e-2c43-22f9981972eb/full/1686,/0/default.jpg",
+    "thumb": "https://www.artic.edu/iiif/2/2d484387-2509-5e8e-2c43-22f9981972eb/full/843,/0/default.jpg"
+  },
+  {
+    "id": "aic-28560",
+    "title": "The Bedroom",
+    "artist": "Vincent van Gogh",
+    "year": "1889",
+    "museum": "Art Institute of Chicago",
+    "license": "CC0",
+    "image": "https://www.artic.edu/iiif/2/6644829f-f292-c5c4-a73c-0356a6fdbf0d/full/1686,/0/default.jpg",
+    "thumb": "https://www.artic.edu/iiif/2/6644829f-f292-c5c4-a73c-0356a6fdbf0d/full/843,/0/default.jpg"
+  },
+  {
+    "id": "aic-20684",
+    "title": "Paris Street; Rainy Day",
+    "artist": "Gustave Caillebotte",
+    "year": "1877",
+    "museum": "Art Institute of Chicago",
+    "license": "CC0",
+    "image": "https://www.artic.edu/iiif/2/f8fd76e9-c396-5678-36ed-6a348c904d27/full/1686,/0/default.jpg",
+    "thumb": "https://www.artic.edu/iiif/2/f8fd76e9-c396-5678-36ed-6a348c904d27/full/843,/0/default.jpg"
+  },
+  {
+    "id": "aic-16568",
+    "title": "Water Lilies",
+    "artist": "Claude Monet",
+    "year": "1906",
+    "museum": "Art Institute of Chicago",
+    "license": "CC0",
+    "image": "https://www.artic.edu/iiif/2/3c27b499-af56-f0d5-93b5-a7f2f1ad5813/full/1686,/0/default.jpg",
+    "thumb": "https://www.artic.edu/iiif/2/3c27b499-af56-f0d5-93b5-a7f2f1ad5813/full/843,/0/default.jpg"
+  },
+  {
+    "id": "aic-14655",
+    "title": "Two Sisters (On the Terrace)",
+    "artist": "Pierre-Auguste Renoir",
+    "year": "1881",
+    "museum": "Art Institute of Chicago",
+    "license": "CC0",
+    "image": "https://www.artic.edu/iiif/2/3a608f55-d76e-fa96-d0b1-0789fbc48f1e/full/1686,/0/default.jpg",
+    "thumb": "https://www.artic.edu/iiif/2/3a608f55-d76e-fa96-d0b1-0789fbc48f1e/full/843,/0/default.jpg"
+  },
+  {
+    "id": "aic-14598",
+    "title": "The Beach at Sainte-Adresse",
+    "artist": "Claude Monet",
+    "year": "1867",
+    "museum": "Art Institute of Chicago",
+    "license": "CC0",
+    "image": "https://www.artic.edu/iiif/2/95be2572-b53d-8e7b-abc9-10eb48d4fa5d/full/1686,/0/default.jpg",
+    "thumb": "https://www.artic.edu/iiif/2/95be2572-b53d-8e7b-abc9-10eb48d4fa5d/full/843,/0/default.jpg"
+  },
+  {
+    "id": "aic-14574",
+    "title": "Henri Degas and His Niece Lucie Degas (The Artist's Uncle and Cousin)",
+    "artist": "Edgar Degas",
+    "year": "1875\u201376",
+    "museum": "Art Institute of Chicago",
+    "license": "CC0",
+    "image": "https://www.artic.edu/iiif/2/ba4d7ead-bd10-e02d-6f5f-613050d7062e/full/1686,/0/default.jpg",
+    "thumb": "https://www.artic.edu/iiif/2/ba4d7ead-bd10-e02d-6f5f-613050d7062e/full/843,/0/default.jpg"
+  },
+  {
+    "id": "aic-64818",
+    "title": "Stacks of Wheat (End of Summer)",
+    "artist": "Claude Monet",
+    "year": "1890\u201391",
+    "museum": "Art Institute of Chicago",
+    "license": "CC0",
+    "image": "https://www.artic.edu/iiif/2/a38e2828-ec6f-ece1-a30f-70243449197b/full/1686,/0/default.jpg",
+    "thumb": "https://www.artic.edu/iiif/2/a38e2828-ec6f-ece1-a30f-70243449197b/full/843,/0/default.jpg"
+  },
+  {
+    "id": "aic-14586",
+    "title": "The Poet's Garden",
+    "artist": "Vincent van Gogh",
+    "year": "1888",
+    "museum": "Art Institute of Chicago",
+    "license": "CC0",
+    "image": "https://www.artic.edu/iiif/2/d4bc1723-7cbc-d36d-a9cb-f84553f2a6f6/full/1686,/0/default.jpg",
+    "thumb": "https://www.artic.edu/iiif/2/d4bc1723-7cbc-d36d-a9cb-f84553f2a6f6/full/843,/0/default.jpg"
+  },
+  {
+    "id": "aic-14591",
+    "title": "Woman Reading",
+    "artist": "\u00c9douard Manet",
+    "year": "1880\u201382",
+    "museum": "Art Institute of Chicago",
+    "license": "CC0",
+    "image": "https://www.artic.edu/iiif/2/fd991fea-0c13-8444-7879-aba467f1d9db/full/1686,/0/default.jpg",
+    "thumb": "https://www.artic.edu/iiif/2/fd991fea-0c13-8444-7879-aba467f1d9db/full/843,/0/default.jpg"
+  },
+  {
+    "id": "aic-25865",
+    "title": "The Herring Net",
+    "artist": "Winslow Homer",
+    "year": "1885",
+    "museum": "Art Institute of Chicago",
+    "license": "CC0",
+    "image": "https://www.artic.edu/iiif/2/5dca7347-c6dc-24dd-d073-d705b9cdc575/full/1686,/0/default.jpg",
+    "thumb": "https://www.artic.edu/iiif/2/5dca7347-c6dc-24dd-d073-d705b9cdc575/full/843,/0/default.jpg"
+  },
+  {
+    "id": "aic-14572",
+    "title": "The Millinery Shop",
+    "artist": "Edgar Degas",
+    "year": "1879-86",
+    "museum": "Art Institute of Chicago",
+    "license": "CC0",
+    "image": "https://www.artic.edu/iiif/2/6f513908-03cc-b974-633b-adfce56b7936/full/1686,/0/default.jpg",
+    "thumb": "https://www.artic.edu/iiif/2/6f513908-03cc-b974-633b-adfce56b7936/full/843,/0/default.jpg"
+  },
+  {
+    "id": "aic-16487",
+    "title": "The Bay of Marseille, Seen from L'Estaque",
+    "artist": "Paul Cezanne",
+    "year": "c. 1885",
+    "museum": "Art Institute of Chicago",
+    "license": "CC0",
+    "image": "https://www.artic.edu/iiif/2/d4ca6321-8656-3d3f-a362-2ee297b2b813/full/1686,/0/default.jpg",
+    "thumb": "https://www.artic.edu/iiif/2/d4ca6321-8656-3d3f-a362-2ee297b2b813/full/843,/0/default.jpg"
+  },
+  {
+    "id": "aic-11723",
+    "title": "Woman at Her Toilette",
+    "artist": "Berthe Morisot",
+    "year": "1875\u201380",
+    "museum": "Art Institute of Chicago",
+    "license": "CC0",
+    "image": "https://www.artic.edu/iiif/2/78c80988-6524-cec7-c661-a4c0a706d06f/full/1686,/0/default.jpg",
+    "thumb": "https://www.artic.edu/iiif/2/78c80988-6524-cec7-c661-a4c0a706d06f/full/843,/0/default.jpg"
+  },
+  {
+    "id": "aic-14643",
+    "title": "Physician's Tray",
+    "artist": "Alcora Pottery",
+    "year": "c. 1760",
+    "museum": "Art Institute of Chicago",
+    "license": "CC0",
+    "image": "https://www.artic.edu/iiif/2/22a61e22-cc32-75eb-e459-cf63ba897f73/full/1686,/0/default.jpg",
+    "thumb": "https://www.artic.edu/iiif/2/22a61e22-cc32-75eb-e459-cf63ba897f73/full/843,/0/default.jpg"
+  },
+  {
+    "id": "aic-80607",
+    "title": "Self-Portrait",
+    "artist": "Vincent van Gogh",
+    "year": "1887",
+    "museum": "Art Institute of Chicago",
+    "license": "CC0",
+    "image": "https://www.artic.edu/iiif/2/47c5bcb8-62ef-e5d7-55e7-f5121f409a30/full/1686,/0/default.jpg",
+    "thumb": "https://www.artic.edu/iiif/2/47c5bcb8-62ef-e5d7-55e7-f5121f409a30/full/843,/0/default.jpg"
+  },
+  {
+    "id": "aic-80084",
+    "title": "The Crucifixion",
+    "artist": "Francisco de Zurbar\u00e1n",
+    "year": "1627",
+    "museum": "Art Institute of Chicago",
+    "license": "CC0",
+    "image": "https://www.artic.edu/iiif/2/c8ee825f-bc8c-c76b-1f05-5d692d9a6b47/full/1686,/0/default.jpg",
+    "thumb": "https://www.artic.edu/iiif/2/c8ee825f-bc8c-c76b-1f05-5d692d9a6b47/full/843,/0/default.jpg"
+  },
+  {
+    "id": "aic-80539",
+    "title": "Portrait of a Young Lady",
+    "artist": "Paulus Moreelse",
+    "year": "c. 1620",
+    "museum": "Art Institute of Chicago",
+    "license": "CC0",
+    "image": "https://www.artic.edu/iiif/2/a3ec9571-7c26-2d6a-3c60-28872828ddcf/full/1686,/0/default.jpg",
+    "thumb": "https://www.artic.edu/iiif/2/a3ec9571-7c26-2d6a-3c60-28872828ddcf/full/843,/0/default.jpg"
+  }
+]
