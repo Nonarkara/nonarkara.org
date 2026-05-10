@@ -1534,6 +1534,9 @@
     /* Weather cell spans the full row underneath */
     .plan-brief .brief-wx { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 12px; }
     .plan-brief .brief-wx .val { font-size: 26px; }
+    /* AQI spans full row too — it's Bangkok-context, like weather */
+    .plan-brief .brief-aqi { grid-column: 1 / -1; }
+    .plan-brief .brief-aqi .val { font-size: 26px; transition: color 0.3s ease; }
     @media (min-width: 480px) {
       .plan-brief { grid-template-columns: 1fr 1fr 1fr 1fr; }
       .plan-brief .brief-wx { grid-column: 1 / -1; }
@@ -2239,9 +2242,14 @@
         <span class="sub" id="brief-set-sub">— %</span>
       </div>
       <div class="brief-cell brief-wx">
-        <span class="lbl">BANGKOK</span>
+        <span class="lbl">BANGKOK · WEATHER</span>
         <span class="val" id="brief-wx-temp">— °C</span>
         <span class="sub" id="brief-wx-sub">— · humidity — % · wind — km/h</span>
+      </div>
+      <div class="brief-cell brief-aqi" id="brief-aqi-cell">
+        <span class="lbl">BKK · AQI</span>
+        <span class="val" id="brief-aqi-val">—</span>
+        <span class="sub" id="brief-aqi-sub">pm2.5 — µg/m³</span>
       </div>
     </section>
 
@@ -3449,6 +3457,28 @@
       } catch (_) {}
     }
 
+    async function fetchAQI() {
+      // Open-Meteo air quality API — free, no key, CORS open.
+      // Returns US AQI + PM2.5 for Bangkok. AQI categories:
+      //   0–50    Good · 51–100 Moderate · 101–150 Sensitive · 151–200 Unhealthy
+      //   201–300 Very Unhealthy · 301+ Hazardous
+      try {
+        const r = await fetch('https://air-quality-api.open-meteo.com/v1/air-quality?latitude=13.75&longitude=100.5&current=us_aqi,pm2_5', { cache: 'no-cache' });
+        const d = await r.json();
+        const aqi = d.current?.us_aqi;
+        const pm25 = d.current?.pm2_5;
+        const level = aqi == null ? '—'
+          : aqi <= 50  ? 'good'
+          : aqi <= 100 ? 'moderate'
+          : aqi <= 150 ? 'sensitive'
+          : aqi <= 200 ? 'unhealthy'
+          : aqi <= 300 ? 'very unhealthy'
+          :              'hazardous';
+        window.__brief.aqi = { aqi, pm25, level };
+        if (window.paintBrief) window.paintBrief();
+      } catch (_) {}
+    }
+
     async function fetchNews() {
       try {
         const idsResp = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json', { cache: 'no-cache' });
@@ -3493,10 +3523,11 @@
     });
 
     // First fetches + periodic refresh schedules
-    fetchFX(); fetchCrypto(); fetchWx(); fetchNews(); fetchCommits(); fetchStats(); fetchSET(); fetchCouncil();
+    fetchFX(); fetchCrypto(); fetchWx(); fetchAQI(); fetchNews(); fetchCommits(); fetchStats(); fetchSET(); fetchCouncil();
     setInterval(fetchFX,      5  * 60_000);
     setInterval(fetchCrypto,  60_000);
     setInterval(fetchWx,      10 * 60_000);
+    setInterval(fetchAQI,     15 * 60_000);   // AQI changes slowly
     setInterval(fetchNews,    15 * 60_000);
     setInterval(fetchCommits, 5  * 60_000);
     setInterval(fetchStats,   60_000);
@@ -5289,6 +5320,26 @@
           const s = document.getElementById('brief-wx-sub');
           if (v) v.textContent = `${w.temp} °C`;
           if (s) s.textContent = `${w.desc} · humidity ${w.humidity} % · wind ${w.wind} km/h`;
+        }
+        if (b.aqi) {
+          const a = b.aqi;
+          const v = document.getElementById('brief-aqi-val');
+          const s = document.getElementById('brief-aqi-sub');
+          const cell = document.getElementById('brief-aqi-cell');
+          if (v) v.textContent = a.aqi ?? '—';
+          if (s) s.textContent = a.pm25 != null ? `${a.level} · pm2.5 ${a.pm25} µg/m³` : a.level;
+          // Colour-code the AQI value by level — uses CSS custom property
+          // so it respects light/dark theme automatically.
+          if (v && cell) {
+            const color = a.aqi == null ? ''
+              : a.aqi <= 50  ? 'var(--fg)'           // good — neutral
+              : a.aqi <= 100 ? 'var(--amber)'         // moderate — amber
+              : a.aqi <= 150 ? 'var(--amber)'         // sensitive
+              : '#c44';                               // unhealthy+
+            v.style.color = color;
+            if (a.aqi > 150) cell.style.borderColor = 'rgba(204,68,68,0.4)';
+            else cell.style.borderColor = '';
+          }
         }
       } catch (_) {}
     }
