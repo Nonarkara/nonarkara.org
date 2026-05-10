@@ -35,6 +35,7 @@ const DOMAINS = [
   "ascn.nonarkara.org",
   "asean.nonarkara.org",
   "scl.nonarkara.org",
+  "dao.nonarkara.org",
   "solitude.nonarkara.org",
   "oil.nonarkara.org",
   "bot.nonarkara.org",
