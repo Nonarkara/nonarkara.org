@@ -1,0 +1,2312 @@
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --black: #000000;
+      --white: #f5f5f0;
+      --amber: #f59e0b;
+      --dim:   rgba(245, 245, 240, 0.35);
+      --bg:    #000000;
+      --fg:    #f5f5f0;
+      --line:  rgba(245, 245, 240, 0.55);
+
+      /* iPhone notch / Dynamic Island / home-indicator inset.
+         All overlay UI uses these so nothing hides under the chrome. */
+      --sat: env(safe-area-inset-top, 0px);
+      --sar: env(safe-area-inset-right, 0px);
+      --sab: env(safe-area-inset-bottom, 0px);
+      --sal: env(safe-area-inset-left, 0px);
+    }
+    /* Light theme — toggled by clicking the cubical chandelier in the room */
+    body[data-theme="light"] {
+      --black: #f5f5f0;
+      --white: #1a1a1a;
+      --amber: #b85c28;
+      --dim:   rgba(26, 26, 26, 0.45);
+      --bg:    #f5f5f0;
+      --fg:    #1a1a1a;
+      --line:  rgba(26, 26, 26, 0.55);
+    }
+
+    /* 100dvh tracks the dynamic viewport on mobile Safari (no URL-bar bounce);
+       100vh fallback for older engines. */
+    html, body {
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      background: var(--bg);
+      transition: background 0.6s ease;
+      overscroll-behavior: none;
+    }
+    body {
+      color: var(--white);
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 300;
+      cursor: crosshair;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    /* lang-specific font swaps */
+    body[data-lang="th"] { font-family: 'IBM Plex Sans Thai', 'JetBrains Mono', monospace; }
+    body[data-lang="zh"] { font-family: 'Noto Sans SC', 'JetBrains Mono', monospace; }
+
+    canvas { display: block; touch-action: none; }
+    #canvas-root { touch-action: none; }
+
+    /* ── Overlay UI ── */
+    .overlay { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+
+    .brand {
+      position: absolute;
+      top: calc(28px + var(--sat)); left: calc(32px + var(--sal));
+      font-family: 'Josefin Sans', sans-serif;
+      font-weight: 700; font-size: 18px;
+      letter-spacing: 0.05em;
+      opacity: 0;
+      transition: opacity 1.6s ease 1.2s, color 0.2s ease, transform 0.15s ease;
+      cursor: pointer;
+      pointer-events: auto;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .brand.in { opacity: 1; }
+    .brand.tap { color: var(--amber); transform: scale(0.96); }
+
+    .caption {
+      position: absolute; top: calc(54px + var(--sat)); left: calc(32px + var(--sal));
+      font-size: 9px; letter-spacing: 0.32em;
+      text-transform: uppercase; color: var(--dim);
+      opacity: 0; transition: opacity 2s ease 2s;
+    }
+    .caption.in { opacity: 1; }
+
+    .hint {
+      position: absolute; bottom: calc(28px + var(--sab)); left: calc(32px + var(--sal));
+      font-size: 9px; letter-spacing: 0.28em;
+      text-transform: uppercase; color: var(--dim);
+      opacity: 0; transition: opacity 2.5s ease 2.5s;
+    }
+    .hint.in { opacity: 0.6; }
+
+    .meta {
+      position: absolute; bottom: calc(28px + var(--sab)); right: calc(32px + var(--sar));
+      display: flex; gap: 24px;
+      font-size: 9px; letter-spacing: 0.16em;
+      text-transform: uppercase; color: var(--dim);
+      opacity: 0; transition: opacity 2.5s ease 2.5s;
+      pointer-events: auto;
+    }
+    .meta.in { opacity: 0.6; }
+    .meta a { color: inherit; text-decoration: none; }
+    .meta a:hover { color: var(--white); }
+
+    /* ── Trilingual toggle (top-right) ── */
+    .lang {
+      position: absolute; top: calc(28px + var(--sat)); right: calc(32px + var(--sar));
+      display: flex; gap: 2px; align-items: center;
+      pointer-events: auto;
+      opacity: 0; transition: opacity 2s ease 2s;
+    }
+    .lang.in { opacity: 0.5; }
+    .lang button {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--white);
+      cursor: pointer;
+      padding: 4px 8px;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      font-family: inherit;
+      transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+      opacity: 0.55;
+    }
+    .lang button:hover { opacity: 1; }
+    .lang button.on { color: var(--amber); border-color: var(--amber); opacity: 1; }
+    .lang .sep { color: var(--dim); font-size: 11px; pointer-events: none; }
+
+    /* ── Tooltip on hover ── */
+    .tip {
+      position: fixed; pointer-events: none; z-index: 20;
+      padding: 8px 12px;
+      border: 1px solid rgba(245, 245, 240, 0.4);
+      background: rgba(0, 0, 0, 0.85);
+      color: var(--white);
+      font-size: 10px; letter-spacing: 0.18em;
+      text-transform: uppercase; white-space: nowrap;
+      opacity: 0; transform: translate(12px, 12px);
+      transition: opacity 0.15s ease;
+    }
+    .tip.in { opacity: 1; }
+    .tip .url {
+      display: block; font-size: 8px; margin-top: 3px;
+      letter-spacing: 0.1em; color: var(--dim);
+      text-transform: lowercase;
+    }
+
+    .veil {
+      position: fixed; inset: 0; background: var(--black);
+      z-index: 5; pointer-events: none;
+      transition: opacity 2.5s ease;
+    }
+    .veil.gone { opacity: 0; }
+    /* On plan view (dashboard), reveal is instant — no theatrical fade. */
+    body[data-view="plan"] .veil { transition: opacity 0.4s ease; }
+    body[data-view="plan"] #plan { z-index: 10; }   /* sit above veil */
+
+    /* ── Modal (CV / LinkedIn / Contact / City) ── */
+    .modal {
+      position: fixed; inset: 0; z-index: 100;
+      display: none; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    .modal.in { display: flex; }
+    .modal-bg {
+      position: absolute; inset: 0;
+      background: rgba(0, 0, 0, 0.94);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+      animation: fadeBg 0.3s ease;
+    }
+    @keyframes fadeBg { from { opacity: 0; } to { opacity: 1; } }
+
+    .modal-card {
+      position: relative; width: 100%; max-width: 480px;
+      border: 1px solid rgba(245, 245, 240, 0.4);
+      background: var(--black);
+      padding: 56px 40px 40px;
+      animation: rise 0.35s ease;
+    }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .modal-card.city { padding: 56px 40px 32px; }
+
+    /* ── Personal modals (CV / LinkedIn / Contact / Dr Non profiles) ──
+       Crimson + black + white high-contrast. The page tints to a Harvard
+       red feel so the personal QR has visible authority. Crimson is
+       Harvard's actual #A41034. The card itself is high-contrast B&W —
+       printable, photographable, scannable in any light. */
+    .modal:has(.modal-card.personal) .modal-bg { background: #050108; }
+    .modal-card.personal {
+      background: #f5f5f0;
+      color: #0a0a0a;
+      border: 1px solid #A41034;
+      box-shadow: inset 0 0 0 4px #f5f5f0, inset 0 0 0 5px rgba(164, 16, 52, 0.3);
+    }
+    .modal-card.personal .modal-eyebrow {
+      color: #A41034; letter-spacing: 0.32em;
+    }
+    .modal-card.personal .modal-title { color: #0a0a0a; }
+    .modal-card.personal .modal-cap { color: rgba(10, 10, 10, 0.55); }
+    .modal-card.personal .modal-meta { color: rgba(10, 10, 10, 0.7); }
+    .modal-card.personal .modal-meta a {
+      color: #A41034;
+      border-bottom: 1px solid rgba(164, 16, 52, 0.3);
+    }
+    .modal-card.personal .modal-meta a:hover {
+      color: #fff; background: #A41034;
+      border-bottom-color: #A41034;
+    }
+    .modal-card.personal .modal-qr {
+      background: #fff;
+      border: 1px solid #0a0a0a;
+    }
+    .modal-card.personal .modal-visit {
+      color: #A41034;
+      border: 1px solid #A41034;
+    }
+    .modal-card.personal .modal-visit:hover {
+      background: #A41034; color: #fff;
+    }
+    .modal-card.personal .modal-close {
+      color: #0a0a0a;
+      border-color: rgba(10, 10, 10, 0.4);
+      background: rgba(245, 245, 240, 0.6);
+    }
+    .modal-card.personal .modal-close:hover {
+      border-color: #A41034; color: #A41034;
+    }
+    .modal-card.personal .modal-domain {
+      color: rgba(10, 10, 10, 0.5);
+      border-color: rgba(10, 10, 10, 0.2);
+    }
+    .modal-card.personal .modal-pwd {
+      color: #A41034;
+      border-color: rgba(164, 16, 52, 0.4);
+    }
+
+    /* Back/X button — always present, always visible. The room respects it.
+       Size bumped on phone so it reads as the primary "go back" affordance. */
+    .modal-close {
+      position: absolute;
+      top: calc(14px + var(--sat));
+      right: calc(14px + var(--sar));
+      width: 56px;
+      height: 56px;
+      font-size: 22px;
+      background: transparent;
+      color: var(--white);
+      border: 1px solid rgba(245, 245, 240, 0.55);
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+      font-family: 'JetBrains Mono', monospace;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+      display: grid;
+      place-items: center;
+    }
+    .modal-close:hover {
+      border-color: var(--amber);
+      color: var(--amber);
+      background: rgba(245, 158, 11, 0.06);
+    }
+    /* ESC hint sits below the modal card, far enough from the close button to never overlap */
+    .modal-card::after {
+      content: 'ESC · CLICK OUT · OR ✕ ABOVE';
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      transform: translateY(14px);
+      text-align: center;
+      font-size: 8px;
+      letter-spacing: 0.28em;
+      color: rgba(245, 245, 240, 0.35);
+      pointer-events: none;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Visit button — white-on-black, the action invitation */
+    .modal-visit {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin: 12px auto 0;
+      padding: 14px 30px;
+      background: var(--white);
+      color: var(--black);
+      border: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      text-decoration: none;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.15s;
+      min-height: 44px;
+    }
+    .modal-visit:hover { opacity: 0.85; transform: translateY(-1px); }
+    .modal-visit-row { display: flex; justify-content: center; }
+    .modal-domain {
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-align: center;
+      color: var(--dim);
+      margin-top: 18px;
+      word-break: break-all;
+    }
+    .modal-domain a { color: inherit; text-decoration: none; }
+    .modal-pwd {
+      font-size: 11px;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      text-align: center;
+      color: var(--amber);
+      margin-top: 14px;
+    }
+
+    .modal-eyebrow {
+      font-size: 10px; letter-spacing: 0.4em;
+      text-transform: uppercase; color: var(--amber);
+      margin-bottom: 8px; text-align: center;
+    }
+    .modal-title {
+      font-family: 'Josefin Sans', sans-serif;
+      font-weight: 700; font-size: 28px;
+      letter-spacing: 0.04em;
+      text-align: center; margin-bottom: 28px;
+    }
+    .modal-qr {
+      width: 256px; height: 256px;
+      margin: 0 auto 24px;
+      background: var(--white);
+      padding: 12px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .modal-qr canvas, .modal-qr img {
+      width: 100%; height: 100%; image-rendering: pixelated;
+    }
+    .modal-cap {
+      font-size: 10px; letter-spacing: 0.2em;
+      text-transform: uppercase; text-align: center;
+      color: var(--dim); margin-bottom: 22px;
+    }
+    .modal-meta {
+      font-size: 11px; line-height: 1.85; text-align: center;
+      color: rgba(245, 245, 240, 0.7);
+      letter-spacing: 0.05em;
+    }
+    .modal-meta a {
+      color: inherit; text-decoration: none;
+      border-bottom: 1px solid rgba(245, 245, 240, 0.25);
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .modal-meta a:hover { color: var(--amber); border-color: var(--amber); }
+    .modal-meta .row { display: block; }
+
+    /* City-specific modal — optional hero photo above the time */
+    .city-photo {
+      margin: -8px -4px 18px;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      aspect-ratio: 16 / 9;
+      max-height: 220px;
+    }
+    .city-photo img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+      filter: brightness(0.85);     /* sit a touch under the modal palette */
+    }
+    body[data-theme="light"] .city-photo img { filter: brightness(0.95); }
+    .city-photo-credit {
+      position: absolute; left: 8px; bottom: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8px; letter-spacing: 0.2em; text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.8);
+      background: rgba(0, 0, 0, 0.5);
+      padding: 4px 8px;
+      pointer-events: none;
+    }
+
+    /* City-specific modal big-time face */
+    .city-time {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 56px; font-weight: 300;
+      letter-spacing: 0.04em;
+      text-align: center;
+      margin: 4px 0 18px;
+      color: var(--white);
+    }
+    .city-tz {
+      font-size: 10px; letter-spacing: 0.28em;
+      text-transform: uppercase; text-align: center;
+      color: var(--dim); margin-bottom: 20px;
+    }
+    .city-mem {
+      font-size: 12px; line-height: 1.6;
+      text-align: center;
+      font-style: italic;
+      color: rgba(245, 245, 240, 0.6);
+    }
+
+    /* ── Music player (modal variant) ── */
+    .modal-card.music { padding: 56px 32px 28px; max-width: 460px; }
+    .music-now {
+      font-size: 11px;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: var(--dim);
+      text-align: center;
+      margin-bottom: 4px;
+    }
+    .music-title-cur {
+      font-family: 'Josefin Sans', 'IBM Plex Sans Thai', sans-serif;
+      font-weight: 400;
+      font-size: 22px;
+      letter-spacing: 0.02em;
+      text-align: center;
+      color: var(--fg);
+      margin-bottom: 4px;
+      min-height: 30px;
+    }
+    .music-title-alt {
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      text-align: center;
+      color: var(--dim);
+      margin-bottom: 18px;
+      min-height: 14px;
+    }
+    .music-progress {
+      position: relative;
+      height: 2px;
+      background: rgba(245, 245, 240, 0.18);
+      cursor: pointer;
+      margin: 4px 0 6px;
+    }
+    body[data-theme="light"] .music-progress { background: rgba(26, 26, 26, 0.18); }
+    .music-progress-bar {
+      position: absolute; top: 0; left: 0;
+      height: 100%;
+      width: 0%;
+      background: var(--amber);
+      transition: width 0.18s linear;
+    }
+    .music-time {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      letter-spacing: 0.16em;
+      color: var(--dim);
+      margin-bottom: 18px;
+      font-variant-numeric: tabular-nums;
+    }
+    .music-controls {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 22px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .music-controls button {
+      flex: 0 0 auto;
+      min-width: 64px;
+      min-height: 56px;
+      background: transparent;
+      border: 0;
+      border-left: 1px solid var(--line);
+      color: var(--fg);
+      cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 16px;
+      letter-spacing: 0.1em;
+      transition: color 0.15s, background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .music-controls button:first-child { border-left: 0; }
+    .music-controls button:hover { color: var(--amber); }
+    .music-controls .play { min-width: 96px; font-size: 20px; }
+    .music-controls .play.playing { color: var(--amber); }
+    .music-tracks {
+      max-height: 38vh;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      border-top: 1px solid var(--line);
+    }
+    .music-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      min-height: 48px;
+      padding: 10px 6px;
+      background: transparent;
+      border: 0;
+      border-bottom: 1px solid rgba(245, 245, 240, 0.08);
+      color: var(--fg);
+      cursor: pointer;
+      font-family: 'JetBrains Mono', 'IBM Plex Sans Thai', monospace;
+      font-size: 12px;
+      font-weight: 300;
+      text-align: left;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body[data-theme="light"] .music-row { border-bottom-color: rgba(26, 26, 26, 0.10); }
+    .music-row:hover, .music-row.active { color: var(--amber); }
+    .music-row .num {
+      flex: none; width: 28px;
+      font-size: 10px; letter-spacing: 0.18em; color: var(--dim);
+      font-variant-numeric: tabular-nums;
+    }
+    .music-row .name { flex: 1; }
+    .music-row .alt {
+      flex: none;
+      font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--dim);
+    }
+    .music-row.active .num { color: var(--amber); }
+    .music-row.playing .num::before { content: '▶ '; }
+
+    /* ── Pomodoro full-screen mode ── */
+    .pomodoro {
+      position: fixed; inset: 0;
+      background: #000;
+      color: var(--white);
+      z-index: 200;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .pomodoro.in { display: flex; }
+    .pomodoro.work { color: var(--white); }
+    .pomodoro.break { color: rgba(245, 158, 11, 0.85); }
+
+    .pomo-phase {
+      font-size: 12px;
+      letter-spacing: 0.55em;
+      text-transform: uppercase;
+      opacity: 0.45;
+      margin-bottom: 32px;
+    }
+    .pomo-time {
+      font-size: clamp(96px, 22vw, 280px);
+      font-weight: 200;
+      letter-spacing: -0.02em;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .pomo-cycle {
+      font-size: 10px;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      opacity: 0.35;
+      margin-top: 28px;
+      min-height: 14px;
+    }
+    .pomo-controls {
+      display: flex;
+      gap: 1px;
+      margin-top: 64px;
+      background: rgba(245, 245, 240, 0.18);
+    }
+    .pomo-controls button {
+      background: #000;
+      border: none;
+      color: var(--white);
+      font-family: inherit;
+      font-size: 11px;
+      letter-spacing: 0.32em;
+      padding: 14px 28px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: color 0.15s, background 0.15s;
+    }
+    .pomo-controls button:hover { color: var(--amber); }
+    .pomo-controls button.primary { color: var(--amber); }
+
+    .pomo-hint {
+      position: absolute;
+      bottom: 28px;
+      font-size: 9px;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      opacity: 0.3;
+    }
+
+    /* ── PORTRAIT GALLERY ─────────────────────────────────────
+       Full-screen viewer. Image fills top area. Big SHARE button
+       at the bottom — iOS native share sheet handles LINE /
+       WhatsApp / Telegram / Outlook / AirDrop / etc. */
+    .pga {
+      position: fixed; inset: 0;
+      background: #000;
+      z-index: 260;
+      display: none;
+      flex-direction: column;
+    }
+    .pga.in { display: flex; }
+    .pga-img {
+      flex: 1 1 auto;
+      min-height: 0;
+      width: 100%;
+      object-fit: contain;
+      object-position: center;
+      display: block;
+      transition: opacity 0.45s ease;
+    }
+
+    /* slim nav row above the share button */
+    .pga-nav-row {
+      flex: none;
+      display: flex; align-items: center;
+      background: rgba(0,0,0,0.92);
+      border-top: 1px solid rgba(245,245,240,0.12);
+      padding: 8px 16px;
+      min-height: 52px;
+    }
+    .pga-nav {
+      flex: none;
+      background: transparent; border: 0;
+      color: rgba(245,245,240,0.6);
+      font-size: 22px; cursor: pointer;
+      padding: 6px 14px; min-height: 44px; min-width: 48px;
+      -webkit-tap-highlight-color: transparent;
+      transition: color 0.1s;
+    }
+    .pga-nav:active { color: var(--amber); }
+    .pga-info {
+      flex: 1; text-align: center;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .pga-name {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 13px; letter-spacing: 0.04em; color: #f5f5f0;
+    }
+    .pga-count {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; letter-spacing: 0.32em;
+      color: rgba(245,245,240,0.4); text-transform: uppercase;
+    }
+
+    /* big share button — the whole point of this screen */
+    .pga-share {
+      flex: none;
+      width: 100%;
+      background: var(--amber);
+      border: 0;
+      color: #000;
+      cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      min-height: 72px;
+      -webkit-tap-highlight-color: transparent;
+      transition: opacity 0.12s;
+    }
+    .pga-share:active { opacity: 0.78; }
+    .pga-share-glyph { font-size: 28px; line-height: 1; }
+    .pga-share-label { font-size: 14px; letter-spacing: 0.42em; font-weight: 400; }
+
+    /* dim app-list hint below the button */
+    .pga-apps {
+      flex: none;
+      background: rgba(0,0,0,0.92);
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase;
+      color: rgba(245,245,240,0.32);
+      padding: calc(8px) calc(16px + var(--sar)) calc(12px + var(--sab)) calc(16px + var(--sal));
+    }
+
+    .pga-close {
+      position: absolute;
+      top: calc(14px + var(--sat));
+      right: calc(14px + var(--sar));
+      width: 52px; height: 52px;
+      background: rgba(0,0,0,0.65);
+      border: 1px solid rgba(245,245,240,0.45);
+      color: #f5f5f0; font-size: 20px;
+      cursor: pointer; display: grid; place-items: center;
+      font-family: 'JetBrains Mono', monospace;
+      z-index: 4;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .pga-close:active { border-color: var(--amber); color: var(--amber); }
+
+    /* ── FRAME — full-screen museum slideshow ─────────────────
+       Black-on-black, art object-contains so the painting reads at
+       its true ratio. Caption auto-hides after 5s, comes back on tap. */
+    .frame {
+      position: fixed; inset: 0;
+      background: #000;
+      z-index: 250;
+      display: none;
+      overflow: hidden;
+    }
+    .frame.in { display: block; }
+    .frame-img {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      object-fit: contain;
+      object-position: center;
+      transition: opacity 1.2s ease;
+    }
+    .frame-meta {
+      position: absolute;
+      left: calc(20px + var(--sal));
+      bottom: calc(60px + var(--sab));
+      display: flex; flex-direction: column;
+      gap: 4px;
+      transition: opacity 0.6s ease;
+    }
+    .frame-meta.hidden { opacity: 0; pointer-events: none; }
+    .frame-time {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 36px;
+      font-weight: 300;
+      color: #f5f5f0;
+      letter-spacing: 0.04em;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 1px 8px rgba(0,0,0,0.85);
+    }
+    .frame-caption {
+      display: flex; flex-direction: column;
+      gap: 2px;
+      max-width: min(72vw, 560px);
+      text-shadow: 0 1px 8px rgba(0,0,0,0.85);
+    }
+    .frame-caption .title {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 16px;
+      font-weight: 400;
+      color: #f5f5f0;
+      letter-spacing: 0.02em;
+      line-height: 1.3;
+    }
+    .frame-caption .artist {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; letter-spacing: 0.16em;
+      color: rgba(245, 245, 240, 0.75);
+      text-transform: lowercase;
+    }
+    .frame-caption .note {
+      font-family: 'Josefin Sans', sans-serif;
+      font-style: italic;
+      font-weight: 300;
+      font-size: 13px;
+      line-height: 1.55;
+      color: rgba(245, 245, 240, 0.78);
+      margin-top: 8px;
+      max-width: min(80vw, 640px);
+    }
+    body[data-lang="th"] .frame-caption .note { font-family: 'IBM Plex Sans Thai', serif; }
+    body[data-lang="zh"] .frame-caption .note { font-family: 'Noto Sans SC', serif; }
+    .frame-caption .note:empty { display: none; }
+    .frame-caption .museum {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; letter-spacing: 0.32em;
+      color: rgba(245, 158, 11, 0.85);
+      text-transform: uppercase;
+      margin-top: 6px;
+    }
+    .frame-hint {
+      position: absolute;
+      bottom: calc(20px + var(--sab));
+      left: 50%; transform: translateX(-50%);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: rgba(245, 245, 240, 0.32);
+      transition: opacity 0.6s ease;
+    }
+    .frame.captionless .frame-hint { opacity: 0; }
+    /* Hold-to-exit X — same pattern as Pomodoro */
+    .frame-exit {
+      position: absolute;
+      top: calc(20px + var(--sat));
+      right: calc(20px + var(--sar));
+      width: 56px; height: 56px;
+      background: transparent;
+      border: 1px solid rgba(245, 245, 240, 0.55);
+      color: #f5f5f0;
+      font-size: 22px; line-height: 1;
+      cursor: pointer;
+      display: grid; place-items: center;
+      font-family: 'JetBrains Mono', monospace;
+      -webkit-tap-highlight-color: transparent;
+      z-index: 4;
+    }
+    .frame-exit-bar {
+      position: absolute;
+      top: calc(20px + var(--sat));
+      right: calc(20px + var(--sar));
+      width: 56px; height: 56px;
+      background: rgba(245, 158, 11, 0);
+      pointer-events: none;
+      z-index: 3;
+      transition: background-color 0.05s linear;
+    }
+    .frame-exit-label {
+      position: absolute;
+      top: calc(80px + var(--sat));
+      right: calc(20px + var(--sar));
+      width: 56px;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: rgba(245, 245, 240, 0.4);
+      pointer-events: none;
+      z-index: 4;
+    }
+    @media (max-width: 480px) {
+      .frame-time { font-size: 28px; }
+      .frame-caption .title { font-size: 14px; }
+    }
+
+    /* ── Boot screen ──────────────────────────────────────────
+       NON wordmark on full-black for 1.2s then fades. Makes the
+       PWA feel like a native app on launch, not a website refresh. */
+    #boot {
+      position: fixed; inset: 0; z-index: 9999;
+      background: #000;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 18px;
+      pointer-events: none;
+      transition: opacity 0.8s ease 1.2s;
+    }
+    #boot.gone { opacity: 0; }
+    .boot-logo {
+      font-family: 'Josefin Sans', sans-serif;
+      font-weight: 700;
+      font-size: clamp(72px, 22vw, 120px);
+      letter-spacing: 0.08em;
+      color: #f5f5f0;
+      display: flex; align-items: baseline; gap: 2px;
+      line-height: 1;
+    }
+    .boot-o {
+      /* Hollow amber O — same gimmick as the wordmark */
+      font-size: inherit;
+      color: transparent;
+      -webkit-text-stroke: 3px #f59e0b;
+      text-stroke: 3px #f59e0b;
+    }
+    .boot-sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; letter-spacing: 0.42em;
+      text-transform: uppercase;
+      color: rgba(245, 245, 240, 0.45);
+    }
+
+    /* ── Plan ↔ Room transition ────────────────────────────────
+       Smooth crossfade so switching views feels like navigation
+       in a native app, not a DOM display: toggle. */
+    #plan { transition: opacity 0.3s ease; }
+    #plan.view-leaving { opacity: 0; pointer-events: none; }
+
+    /* Pomodoro quote — Nonist focus aphorism. Sits below the cycle row,
+       above the controls. Rotates every 35s. The point is to give the
+       eye somewhere quiet to land that isn't a phone. */
+    .pomo-quote {
+      max-width: min(560px, calc(100vw - 48px));
+      width: calc(100% - 48px);
+      margin: 36px auto 0;
+      padding: 0 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 300;
+      font-size: 13px;
+      line-height: 1.6;
+      letter-spacing: 0.01em;
+      text-align: center;
+      color: rgba(245, 245, 240, 0.55);
+      min-height: 64px;
+      opacity: 1;
+    }
+    .pomo-quote .src {
+      display: block;
+      margin-top: 8px;
+      font-size: 9px;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: rgba(245, 245, 240, 0.3);
+    }
+    .pomodoro.break .pomo-quote { color: rgba(245, 158, 11, 0.55); }
+    .pomodoro.break .pomo-quote .src { color: rgba(245, 158, 11, 0.3); }
+    @media (max-width: 480px) {
+      .pomo-quote { font-size: 12px; margin-top: 24px; }
+    }
+
+    .pomo-exit {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      background: transparent;
+      border: 1px solid rgba(245, 245, 240, 0.3);
+      color: var(--white);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      font-family: inherit;
+      transition: border-color 0.15s, color 0.15s;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .pomo-exit:hover { border-color: rgba(245, 245, 240, 0.6); }
+    .pomo-exit-bar {
+      position: absolute;
+      top: 80px;        /* sits below the 56px button + a small gap */
+      right: 24px;
+      width: 56px;
+      height: 1px;
+      background: rgba(245, 245, 240, 0.15);
+      overflow: hidden;
+    }
+    .pomo-exit-bar::after {
+      content: '';
+      display: block;
+      height: 100%;
+      width: var(--hold, 0%);
+      background: var(--amber);
+      transition: width 0.05s linear;
+    }
+    .pomo-exit-label {
+      position: absolute;
+      top: 86px;
+      right: 90px;
+      font-size: 8px;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      opacity: 0;
+      color: var(--amber);
+      transition: opacity 0.2s;
+      white-space: nowrap;
+    }
+    .pomo-exit-label.in { opacity: 0.85; }
+
+    .pomo-pulse {
+      animation: pomoPulse 4s ease-in-out infinite;
+    }
+    @keyframes pomoPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.65; }
+    }
+
+    /* ── Drifting whispers — random philosophy fragments rise + fade ── */
+    .whisper {
+      position: fixed;
+      pointer-events: none;
+      z-index: 8;
+      font-family: 'JetBrains Mono', 'IBM Plex Sans Thai', 'Noto Sans SC', monospace;
+      font-size: 10px;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: rgba(245, 245, 240, 0.45);
+      white-space: nowrap;
+      opacity: 0;
+      transform: translateY(0);
+      transition: opacity 3s ease, transform 14s linear;
+      will-change: transform, opacity;
+    }
+    .whisper.in    { opacity: 0.55; }
+    .whisper.drift { transform: translateY(-22vh); }
+    .whisper.out   { opacity: 0; }
+
+    /* ── Floating MENU button — labeled, obvious, one-click escape ── */
+    .menu-btn {
+      position: fixed;
+      right: calc(18px + var(--sar));
+      bottom: calc(18px + var(--sab));
+      min-width: 88px;
+      height: 52px;
+      padding: 0 18px;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      color: var(--fg);
+      cursor: pointer;
+      z-index: 30;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.34em;
+      text-transform: uppercase;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 1.5s ease 1.5s, border-color 0.15s, color 0.15s, background 0.6s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .menu-btn.in { opacity: 0.95; pointer-events: auto; }
+    .menu-btn:hover { border-color: var(--amber); color: var(--amber); }
+    .menu-btn::before {
+      content: '☰';
+      font-size: 16px;
+      letter-spacing: 0;
+    }
+
+    /* ── Drawer (slides up from bottom, fits portrait) ── */
+    .drawer {
+      position: fixed;
+      inset: 0;
+      z-index: 150;
+      display: none;
+    }
+    .drawer.in { display: block; }
+    .drawer-bg {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.86);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+      animation: fadeBg 0.3s ease;
+    }
+    .drawer-panel {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      max-height: 92dvh;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      background: var(--black);
+      border-top: 1px solid rgba(245, 245, 240, 0.4);
+      padding: 18px 0 calc(24px + var(--sab));
+      animation: drawerUp 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    @keyframes drawerUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to   { transform: translateY(0); opacity: 1; }
+    }
+    .drawer-handle {
+      width: 36px;
+      height: 3px;
+      background: rgba(245, 245, 240, 0.35);
+      margin: 0 auto 14px;
+    }
+    .drawer-close {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 44px;
+      height: 44px;
+      background: transparent;
+      color: var(--white);
+      border: 1px solid rgba(245, 245, 240, 0.55);
+      cursor: pointer;
+      font-size: 18px;
+      font-family: 'JetBrains Mono', monospace;
+      display: grid;
+      place-items: center;
+      transition: border-color 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .drawer-close:hover { border-color: var(--amber); color: var(--amber); }
+
+    .drawer-label {
+      font-size: 9px;
+      letter-spacing: 0.45em;
+      text-transform: uppercase;
+      color: var(--amber);
+      padding: 18px 24px 8px;
+    }
+    .drawer-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+      min-height: 52px;
+      padding: 12px 24px;
+      background: transparent;
+      border: 0;
+      border-top: 1px solid rgba(245, 245, 240, 0.08);
+      color: var(--white);
+      cursor: pointer;
+      font-family: 'JetBrains Mono', 'IBM Plex Sans Thai', 'Noto Sans SC', monospace;
+      font-size: 13px;
+      font-weight: 300;
+      letter-spacing: 0.06em;
+      text-align: left;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.12s, color 0.12s;
+    }
+    .drawer-item:hover, .drawer-item:active {
+      background: rgba(245, 158, 11, 0.06);
+      color: var(--amber);
+    }
+    .drawer-item .code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.32em;
+      color: var(--amber);
+      width: 88px;
+      text-transform: uppercase;
+      flex: none;
+    }
+    .drawer-item .title {
+      flex: 1;
+      color: rgba(245, 245, 240, 0.85);
+    }
+    .drawer-item .lock {
+      font-size: 11px;
+      color: var(--amber);
+      margin-left: auto;
+    }
+
+    /* ── Konami-code haiku reveal ── */
+    .konami {
+      position: fixed; inset: 0;
+      z-index: 250;
+      pointer-events: none;
+      display: grid; place-items: center;
+      background: rgba(0, 0, 0, 0);
+      transition: background 0.7s ease;
+    }
+    .konami.in { background: rgba(0, 0, 0, 0.92); }
+    .haiku {
+      font-family: 'IBM Plex Sans Thai', 'Noto Sans SC', 'JetBrains Mono', monospace;
+      font-weight: 300;
+      font-size: clamp(24px, 4.4vw, 52px);
+      line-height: 1.6;
+      letter-spacing: 0.04em;
+      text-align: center;
+      color: var(--white);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 1.2s ease 0.3s, transform 1.2s ease 0.3s;
+      max-width: 90vw;
+    }
+    .konami.in .haiku { opacity: 1; transform: translateY(0); }
+    .haiku-source {
+      display: block;
+      margin-top: 28px;
+      font-size: 11px;
+      letter-spacing: 0.45em;
+      text-transform: uppercase;
+      color: var(--dim);
+    }
+
+    /* ── PLAN view (2D dashboard) ─────────────────────────────
+       Default mobile entry point. Geometric, mono-accent, hairline
+       borders, three text sizes only. Tap targets ≥ 44 px. The
+       3D room is opt-in via the ENTER ROOM button at the bottom.
+       Same modals, same handlers, same data. */
+    /* In plan view: hide the room WITHOUT display:none — WebGL contexts
+       on a display:none canvas can hang the renderer in some browsers.
+       visibility:hidden keeps the layout (and the GL context happy) while
+       making the canvas un-paintable and un-clickable. The plan div sits
+       on top via z-index. */
+    body[data-view="plan"] #canvas-root,
+    body[data-view="plan"] .overlay,
+    body[data-view="plan"] .menu-btn,
+    body[data-view="plan"] .tip {
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }
+    body[data-view="plan"] .menu-btn,
+    body[data-view="plan"] .tip { display: none !important; }   /* these are tiny, safe to hide */
+    body[data-view="room"] #plan { display: none; }
+
+    #plan {
+      position: fixed; inset: 0; z-index: 5;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'JetBrains Mono', monospace;
+      padding: calc(20px + var(--sat)) calc(20px + var(--sar)) calc(28px + var(--sab)) calc(20px + var(--sal));
+    }
+    body[data-lang="th"] #plan { font-family: 'IBM Plex Sans Thai', 'JetBrains Mono', monospace; }
+    body[data-lang="zh"] #plan { font-family: 'Noto Sans SC', 'JetBrains Mono', monospace; }
+
+    .plan-head {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 16px; margin-bottom: 28px;
+    }
+    .plan-head .brand-blk {
+      display: flex; flex-direction: column;
+      background: transparent; border: 0; padding: 0;
+      color: inherit; cursor: pointer; text-align: left;
+      font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+      transition: opacity 0.15s;
+    }
+    .plan-head .brand-blk:active { opacity: 0.7; }
+    .plan-head .brand-mark {
+      font-family: 'Josefin Sans', sans-serif; font-weight: 700;
+      font-size: 22px; letter-spacing: 0.05em;
+      color: var(--fg);
+    }
+    .plan-head .brand-cap {
+      font-size: 10px; letter-spacing: 0.20em; text-transform: lowercase;
+      color: var(--fg); opacity: 0.85; margin-top: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      line-height: 1.4;
+    }
+    body[data-lang="th"] .plan-head .brand-cap { font-family: 'IBM Plex Sans Thai', monospace; }
+    body[data-lang="zh"] .plan-head .brand-cap { font-family: 'Noto Sans SC', monospace; }
+    .plan-head .brand-sub {
+      font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
+      color: var(--dim); margin-top: 4px;
+    }
+    .plan-lang { display: flex; gap: 0; align-items: center; }
+    .plan-lang button {
+      background: transparent; border: 1px solid transparent;
+      color: var(--white); cursor: pointer;
+      padding: 6px 8px; font-size: 11px; letter-spacing: 0.08em;
+      font-family: inherit; opacity: 0.55;
+      min-height: 32px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .plan-lang button.on { color: var(--amber); border-color: var(--amber); opacity: 1; }
+    .plan-lang .sep { color: var(--dim); font-size: 10px; padding: 0 2px; }
+
+    .plan-clock {
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 16px 0 0;
+      margin-bottom: 22px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+    .plan-clock .time {
+      font-size: 36px; font-weight: 300;
+      letter-spacing: 0.04em;
+      line-height: 1;
+      color: var(--fg);
+    }
+    .plan-clock .meta {
+      margin-top: 8px;
+      font-size: 9px; letter-spacing: 0.32em;
+      text-transform: uppercase; color: var(--dim);
+    }
+    /* Casio-graphic wireframe world map under the clock.
+       Braun "GMT WELTZEIT" travel-clock face, after Dieter Rams.
+       Pure timezone grid: 24 hairline meridians + equator + tropics
+       + city dots placed by lat/lon. No continent decoration. */
+    .plan-worldmap {
+      display: block;
+      width: 100%;
+      height: clamp(260px, 60vw, 380px);
+      margin-top: 12px;
+    }
+    /* The 24 timezone meridians — solid hairlines, the grid is the map */
+    .plan-worldmap .meridian {
+      stroke: var(--line);
+      stroke-width: 0.3;
+      opacity: 0.32;
+    }
+    .plan-worldmap .meridian.prime {
+      stroke: var(--fg);
+      opacity: 0.55;
+      stroke-width: 0.4;
+    }
+    /* Equator solid; tropics dashed and softer */
+    .plan-worldmap .equator {
+      stroke: var(--fg);
+      stroke-width: 0.4;
+      opacity: 0.55;
+    }
+    .plan-worldmap .reference {
+      stroke: var(--line);
+      stroke-width: 0.25;
+      stroke-dasharray: 2 3;
+      opacity: 0.35;
+    }
+    /* Hour offset labels along the top */
+    .plan-worldmap .tz-label {
+      fill: var(--dim);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 6.5px;
+      font-weight: 400;
+      letter-spacing: 0.16em;
+    }
+    .plan-worldmap .tz-label.gmt {
+      fill: var(--fg);
+      font-size: 7px;
+    }
+    /* Cities */
+    .plan-worldmap .city {
+      fill: var(--fg);
+      opacity: 0.85;
+    }
+    .plan-worldmap .city.home {
+      fill: var(--amber);
+      opacity: 1;
+    }
+    .plan-worldmap .city-label {
+      fill: var(--fg);
+      opacity: 0.8;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 6px;
+      font-weight: 300;
+      letter-spacing: 0.05em;
+    }
+    .plan-worldmap .city-label.home {
+      fill: var(--amber);
+      opacity: 1;
+      font-size: 7.5px;
+      letter-spacing: 0.10em;
+      font-weight: 400;
+    }
+    .plan-worldmap .city-label.city-time {
+      opacity: 0.6;
+      font-variant-numeric: tabular-nums;
+    }
+    .plan-worldmap .city-label.home.city-time {
+      opacity: 0.9;
+    }
+
+    /* HUD — five tappable functions at the top of plan view.
+       Always visible, always one tap away. */
+    .plan-hud {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: var(--line);
+      border: 1px solid var(--line);
+      margin-bottom: 22px;
+    }
+    .hud-btn {
+      background: var(--bg);
+      border: 0;
+      color: var(--fg);
+      cursor: pointer;
+      min-height: 84px;
+      padding: 14px 6px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 6px;
+      font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+      transition: color 0.12s, background 0.12s;
+    }
+    .hud-btn:hover { color: var(--amber); }
+    .hud-btn:active { background: rgba(245, 158, 11, 0.08); }
+    .hud-btn .g {
+      font-size: 22px; line-height: 1;
+      color: var(--amber);
+    }
+    .hud-btn .t {
+      font-size: 10px; letter-spacing: 0.32em;
+      font-weight: 400;
+    }
+    .hud-btn.focus .g { color: var(--amber); }
+
+    /* Gallery card — full-width, reads like a framed object */
+    .plan-gallery {
+      display: flex; align-items: center; gap: 16px;
+      width: 100%;
+      min-height: 72px;
+      background: var(--bg);
+      border: 1px solid var(--amber);   /* amber frame — it's the art button */
+      color: var(--amber);
+      cursor: pointer;
+      padding: 14px 18px;
+      font-family: inherit;
+      margin-bottom: 22px;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.12s, color 0.12s;
+    }
+    .plan-gallery:hover  { background: rgba(245, 158, 11, 0.07); }
+    .plan-gallery:active { background: rgba(245, 158, 11, 0.14); }
+    .gallery-glyph {
+      font-size: 28px;
+      flex: none;
+      line-height: 1;
+    }
+    .gallery-body {
+      flex: 1;
+      display: flex; flex-direction: column; gap: 4px;
+      text-align: left;
+    }
+    .gallery-title {
+      font-size: 11px; letter-spacing: 0.34em;
+      font-weight: 400;
+    }
+    .gallery-sub {
+      font-size: 9px; letter-spacing: 0.18em;
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+    .gallery-arrow {
+      font-size: 18px;
+      flex: none;
+      opacity: 0.7;
+    }
+
+    /* NOTE pad — capture textarea, save button, recent list. */
+    .modal-card.note {
+      max-width: 560px;
+      padding: 56px 28px 28px;
+    }
+    .note-input {
+      width: 100%;
+      min-height: 200px;
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--fg);
+      padding: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 300;
+      font-size: 14px;
+      line-height: 1.5;
+      resize: vertical;
+      margin: 18px 0 12px;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    body[data-lang="th"] .note-input { font-family: 'IBM Plex Sans Thai', monospace; }
+    body[data-lang="zh"] .note-input { font-family: 'Noto Sans SC', monospace; }
+    .note-input:focus {
+      outline: none;
+      border-color: var(--amber);
+    }
+    .note-actions {
+      display: flex; gap: 1px;
+      background: var(--line);
+      border: 1px solid var(--line);
+      margin-bottom: 12px;
+    }
+    .note-actions button {
+      flex: 1;
+      background: var(--bg);
+      border: 0;
+      color: var(--fg);
+      cursor: pointer;
+      min-height: 48px;
+      font-family: inherit;
+      font-size: 11px; letter-spacing: 0.32em;
+      text-transform: uppercase;
+      -webkit-tap-highlight-color: transparent;
+      transition: color 0.12s, background 0.12s;
+    }
+    .note-save { color: var(--amber); }
+    .note-actions button:hover { background: rgba(245, 158, 11, 0.08); }
+    .note-meta {
+      font-size: 9px; letter-spacing: 0.32em;
+      text-transform: uppercase; color: var(--dim);
+      text-align: center;
+      margin-bottom: 22px;
+    }
+    .note-list-label {
+      font-size: 10px; letter-spacing: 0.32em;
+      text-transform: uppercase; color: var(--dim);
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 12px;
+    }
+    .note-list {
+      max-height: 40vh; overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+    .note-row {
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(245, 245, 240, 0.08);
+      font-size: 13px; line-height: 1.5;
+      cursor: pointer;
+    }
+    body[data-theme="light"] .note-row { border-bottom-color: rgba(26, 26, 26, 0.10); }
+    .note-row:hover { color: var(--amber); }
+    .note-row .ts {
+      display: block;
+      font-size: 9px; letter-spacing: 0.32em;
+      text-transform: uppercase; color: var(--dim);
+      margin-bottom: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+    .note-row .body {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .note-row.empty { color: var(--dim); cursor: default; padding: 14px 0; }
+
+    .plan-stat {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; margin-bottom: 14px;
+      font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    }
+    .plan-stat .label { color: var(--dim); }
+    .plan-stat .value { color: var(--fg); font-variant-numeric: tabular-nums; }
+
+    /* Steps row — daily step count, manual for now */
+    .plan-steps {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 14px;
+      font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    }
+    .plan-steps .label { color: var(--dim); }
+    .steps-val {
+      background: transparent; border: 0; border-bottom: 1px solid var(--line);
+      color: var(--fg); cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 22px; font-weight: 300;
+      letter-spacing: 0.04em; font-variant-numeric: tabular-nums;
+      padding: 0 4px 2px;
+      min-width: 80px; text-align: right;
+      -webkit-tap-highlight-color: transparent;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .steps-val:active { color: var(--amber); border-color: var(--amber); }
+    .steps-sub { color: var(--dim); font-size: 9px; letter-spacing: 0.28em; }
+
+    /* AI Council health row — sibling of plan-stat. Pulled live from
+       /council on the Cloudflare Worker (which proxies council-watch's
+       fail-count file from GitHub). */
+    .plan-council {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 14px;
+      font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+      font-variant-numeric: tabular-nums;
+    }
+    .plan-council .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: rgba(245, 245, 240, 0.18);
+      flex: none;
+    }
+    .plan-council[data-status="healthy"]   .dot { background: var(--amber); animation: livePulse 2s ease-in-out infinite; }
+    .plan-council[data-status="degraded"]  .dot { background: var(--amber); }
+    .plan-council[data-status="down"]      .dot { background: #c44; }
+    .plan-council .label  { color: var(--dim); }
+    .plan-council .status { color: var(--fg); }
+    .plan-council[data-status="degraded"]  .status { color: var(--amber); }
+    .plan-council[data-status="down"]      .status { color: #c44; }
+    .plan-council .meta   { color: var(--dim); margin-left: auto; }
+
+    /* ── DAILY BRIEF — top-of-fold info you check every day.
+       Three-cell hairline grid: USD/THB · BTC · weather. Big mono
+       numerals (the room's display tier), tabular-nums, amber arrows
+       for change direction. Sits between fleet status and the project
+       grid because that's the order you scan in the morning. */
+    .plan-brief {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: var(--line);
+      border: 1px solid var(--line);
+      margin-bottom: 22px;
+    }
+    .brief-cell {
+      background: var(--bg);
+      padding: 14px 14px 12px;
+      display: flex; flex-direction: column;
+      gap: 6px;
+    }
+    .brief-cell .lbl {
+      font-size: 10px; letter-spacing: 0.32em;
+      text-transform: uppercase; color: var(--dim);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .brief-cell .val {
+      font-size: 22px; font-weight: 300;
+      letter-spacing: 0.02em;
+      color: var(--fg);
+      font-variant-numeric: tabular-nums;
+      font-family: 'JetBrains Mono', monospace;
+      line-height: 1.05;
+    }
+    .brief-cell .sub {
+      font-size: 10px; letter-spacing: 0.16em;
+      color: var(--dim);
+      font-variant-numeric: tabular-nums;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .brief-cell .sub .up   { color: var(--amber); }
+    .brief-cell .sub .down { color: #c44; }
+    /* Weather cell spans the full row underneath */
+    .plan-brief .brief-wx { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 12px; }
+    .plan-brief .brief-wx .val { font-size: 26px; }
+    /* AQI spans full row too — it's Bangkok-context, like weather */
+    .plan-brief .brief-aqi { grid-column: 1 / -1; }
+    .plan-brief .brief-aqi .val { font-size: 26px; transition: color 0.3s ease; }
+    @media (min-width: 480px) {
+      .plan-brief { grid-template-columns: 1fr 1fr 1fr 1fr; }
+      .plan-brief .brief-wx { grid-column: 1 / -1; }
+    }
+
+    /* ── Telemetry ribbon — cyberpunk monitoring vibe in the NON aesthetic.
+       Hairline borders only, mono caps, amber pulse, tabular-nums. No blue,
+       no glassmorphism, no shadows. The pulse animates 2s opacity only. */
+    .plan-ribbon {
+      display: flex; align-items: stretch; gap: 0;
+      margin-bottom: 22px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--dim);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .plan-ribbon::-webkit-scrollbar { display: none; }
+    .plan-ribbon .stat {
+      padding: 8px 12px;
+      border-right: 1px solid var(--line);
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .plan-ribbon .stat:last-child { border-right: 0; }
+    .plan-ribbon .stat .v { color: var(--fg); }
+    .plan-ribbon .live { color: var(--amber); }
+    .plan-ribbon .live::before {
+      content: '';
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;             /* true circle exception */
+      background: var(--amber);
+      animation: livePulse 2s ease-in-out infinite;
+    }
+    @keyframes livePulse {
+      0%, 100% { opacity: 1; }
+      50%      { opacity: 0.25; }
+    }
+    .plan-ribbon .spacer { flex: 1; min-width: 8px; }
+    /* Subtle flash on the fleet status when a refresh lands */
+    .plan-stat .value.flash { animation: statFlash 0.6s ease-out; }
+    @keyframes statFlash {
+      0%   { color: var(--amber); }
+      100% { color: var(--fg); }
+    }
+
+    .plan-section { margin-bottom: 26px; }
+    .plan-section-label {
+      font-size: 10px; letter-spacing: 0.32em;
+      text-transform: uppercase; color: var(--dim);
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 12px;
+    }
+
+    /* Project grid — 3 cols on phone (21 = 3×7, no orphan rows), 7 cols
+       on tablet+ (21 = 7×3). Each cell: code + status dot. Hairlines via
+       per-cell borders so partial rows don't expose container bg. */
+    .plan-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-top:  1px solid var(--line);
+      border-left: 1px solid var(--line);
+    }
+    .plan-cell {
+      background: var(--bg);
+      border: 0;
+      border-right:  1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      color: var(--fg);
+      cursor: pointer;
+      min-height: 64px;
+      padding: 10px 12px;
+      display: flex; flex-direction: column;
+      align-items: flex-start; justify-content: space-between;
+      font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+      transition: color 0.12s, background 0.12s;
+    }
+    .plan-cell:active { background: rgba(245, 158, 11, 0.08); }
+    .plan-cell:hover { color: var(--amber); }
+    .plan-cell .code {
+      font-size: 11px; letter-spacing: 0.18em;
+      color: inherit; line-height: 1.15;
+      word-break: break-word;
+    }
+    .plan-cell .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;             /* true circle — Codex Incident exception */
+      background: rgba(245, 245, 240, 0.18); /* unknown */
+      align-self: flex-start;
+    }
+    .plan-cell[data-status="ok"]   .dot { background: var(--amber); }
+    .plan-cell[data-status="fail"] .dot { background: #c44; }
+    @media (min-width: 720px) {
+      .plan-grid { grid-template-columns: repeat(7, 1fr); }
+    }
+
+    /* List rows — furniture, private, cities. Same border-collapse pattern. */
+    .plan-list {
+      display: flex; flex-direction: column;
+      border-top: 1px solid var(--line);
+      border-left: 1px solid var(--line);
+      border-right: 1px solid var(--line);
+    }
+    .plan-row {
+      display: flex; align-items: center; gap: 14px;
+      background: var(--bg); border: 0;
+      border-bottom: 1px solid var(--line);
+      color: var(--fg); cursor: pointer;
+      min-height: 52px; padding: 10px 14px;
+      font-family: inherit;
+      text-align: left;
+      -webkit-tap-highlight-color: transparent;
+      transition: color 0.12s, background 0.12s;
+    }
+    .plan-row:hover { color: var(--amber); }
+    .plan-row:active { background: rgba(245, 158, 11, 0.08); }
+    .plan-row .glyph {
+      flex: none; width: 28px; font-size: 14px;
+      color: var(--amber);
+    }
+    .plan-row .title { flex: 1; font-size: 13px; letter-spacing: 0.02em; }
+    .plan-row .meta { font-size: 10px; letter-spacing: 0.16em; color: var(--dim); text-transform: uppercase; font-variant-numeric: tabular-nums; }
+    .plan-row .lock  { font-size: 10px; color: var(--dim); }
+
+    /* Philosophy strip — quiet pitch above the footer.
+       Same hairline rule pattern as section labels. */
+    .plan-philo {
+      margin: 30px 0 26px;
+      padding: 22px 0 20px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .plan-philo .label {
+      font-size: 10px; letter-spacing: 0.32em;
+      text-transform: uppercase; color: var(--dim);
+      margin-bottom: 14px;
+    }
+    .plan-philo p {
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--fg);
+      letter-spacing: 0.01em;
+    }
+    .plan-philo p + p { margin-top: 12px; }
+    .plan-philo .accent { color: var(--amber); }
+    body[data-lang="th"] .plan-philo p { font-family: 'IBM Plex Sans Thai', sans-serif; line-height: 1.7; }
+    body[data-lang="zh"] .plan-philo p { font-family: 'Noto Sans SC', sans-serif; line-height: 1.7; }
+
+    .plan-foot {
+      margin-top: 14px;
+      padding-top: 22px;
+      border-top: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .plan-foot button {
+      background: var(--bg);
+      border: 0;
+      color: var(--fg);
+      cursor: pointer;
+      min-height: 56px;
+      padding: 0 10px;
+      font-family: inherit;
+      font-size: 11px; letter-spacing: 0.28em;
+      text-transform: uppercase;
+      -webkit-tap-highlight-color: transparent;
+      transition: color 0.12s, background 0.12s;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .plan-foot button:hover { color: var(--amber); }
+    .plan-foot button:active { background: rgba(245, 158, 11, 0.06); }
+    .plan-foot .focus,
+    .plan-foot .room { color: var(--amber); }      /* the two CTAs */
+    @media (min-width: 480px) {
+      .plan-foot { grid-template-columns: 1fr 1fr 1fr 1fr; }
+    }
+
+    /* Floating ROOM/PLAN toggle — visible in room view, sits next to MENU */
+    .view-toggle {
+      position: fixed;
+      right: calc(18px + var(--sar));
+      bottom: calc(82px + var(--sab));   /* sits above MENU */
+      min-width: 88px; height: 44px;
+      padding: 0 14px;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      color: var(--fg);
+      cursor: pointer; z-index: 30;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; letter-spacing: 0.32em;
+      text-transform: uppercase;
+      opacity: 0; pointer-events: none;
+      transition: opacity 1.5s ease 1.7s, color 0.15s, border-color 0.15s, background 0.6s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .view-toggle.in { opacity: 0.85; pointer-events: auto; }
+    .view-toggle:hover { color: var(--amber); border-color: var(--amber); }
+    body[data-view="plan"] .view-toggle { display: none; }   /* in plan, the footer button takes over */
+    @media (max-width: 600px) {
+      .view-toggle {
+        right: calc(14px + var(--sar));
+        bottom: calc(80px + var(--sab));
+        min-width: 64px; height: 40px;
+        padding: 0 10px;
+        font-size: 9px;
+      }
+    }
+
+    /* ── Room HUD: monitoring-console overlay ──────────────────────
+       Vibe pulled from nonarkara.github.io/dr-non-operating-systems —
+       monospace, bracket separators, pulsing live dot, --:--:-- clock.
+       Only visible while body[data-view="room"]. */
+    .room-hud {
+      position: fixed; inset: 0;
+      pointer-events: none;
+      z-index: 25;
+      opacity: 0;
+      transition: opacity 1.2s ease 1.5s;
+    }
+    body[data-view="room"] .room-hud { opacity: 1; }
+
+    .room-hud-cluster.top-left {
+      position: absolute;
+      top: calc(18px + var(--sat));
+      left: calc(20px + var(--sal));
+      display: inline-flex; align-items: center;
+      gap: 0.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: var(--fg);
+      mix-blend-mode: difference;
+    }
+
+    .hud-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--amber);
+      box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+      animation: hud-dot-pulse 1.6s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+    @keyframes hud-dot-pulse {
+      0%, 100% { opacity: 1;   box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.55); }
+      50%      { opacity: 0.55; box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
+    }
+
+    .hud-eyebrow { color: inherit; opacity: 0.65; }
+    .hud-sep     { color: inherit; opacity: 0.35; }
+    .hud-status  { color: var(--amber); }
+    .hud-clock   { font-feature-settings: "tnum" 1; opacity: 0.85; }
+
+    /* FOCUS chip — top-right, more obvious entry to the Pomodoro than
+       the 3D icon in the room (matches .view-toggle styling cousin). */
+    .hud-chip {
+      position: fixed;
+      top: calc(14px + var(--sat));
+      right: calc(18px + var(--sar));
+      pointer-events: auto;
+      display: inline-flex; align-items: center;
+      gap: 0.55rem;
+      min-height: 38px;
+      padding: 0 14px;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      color: var(--fg);
+      cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 1.5s ease 1.7s, color 0.15s, border-color 0.15s, background 0.6s ease;
+      -webkit-tap-highlight-color: transparent;
+      z-index: 30;
+    }
+    body[data-view="room"] .hud-chip { opacity: 0.92; pointer-events: auto; }
+    .hud-chip:hover { color: var(--amber); border-color: var(--amber); }
+    .hud-chip:active { background: rgba(245, 158, 11, 0.06); }
+    .hud-chip-glyph { font-size: 11px; color: var(--amber); }
+
+    @media (max-width: 600px) {
+      .hud-chip {
+        top: calc(14px + var(--sat));
+        right: calc(14px + var(--sar));
+        min-height: 36px;
+        padding: 0 12px;
+        font-size: 9px;
+      }
+      .room-hud-cluster.top-left {
+        font-size: 9px;
+        gap: 0.35rem;
+      }
+    }
+
+    /* Tilt-to-look hint — fades in 1s after entering room, fades out 4s later */
+    .tilt-hint {
+      position: fixed;
+      bottom: calc(140px + var(--sab));
+      left: 50%; transform: translateX(-50%);
+      display: inline-flex; gap: 0.6rem; align-items: center;
+      padding: 0.55rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      color: var(--fg);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      pointer-events: none;
+      z-index: 27;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      white-space: nowrap;
+    }
+    .tilt-hint.show { opacity: 0.92; }
+    .tilt-hint-glyph {
+      font-size: 13px;
+      color: var(--amber);
+      animation: tilt-wobble 1.6s ease-in-out infinite;
+      display: inline-block;
+      transform-origin: center;
+    }
+    @keyframes tilt-wobble {
+      0%, 100% { transform: rotate(-18deg); }
+      50%      { transform: rotate(18deg); }
+    }
+    @media (max-width: 600px) {
+      .tilt-hint { font-size: 9px; padding: 0.5rem 0.85rem; }
+    }
+
+    /* ── Intent line: top-center, click-to-edit, persists per day ── */
+    .intent-line {
+      position: fixed;
+      top: calc(20px + var(--sat));
+      left: 50%; transform: translateX(-50%);
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      background: transparent; border: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--fg);
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 1.2s ease 1.7s, color 0.15s;
+      z-index: 26;
+      -webkit-tap-highlight-color: transparent;
+      mix-blend-mode: difference;
+      max-width: min(60vw, 460px);
+      padding: 4px 6px;
+    }
+    body[data-view="room"] .intent-line { opacity: 0.85; pointer-events: auto; }
+    body[data-view="plan"] .intent-line { pointer-events: none; }
+    .intent-line:hover { color: var(--amber); }
+    .intent-eyebrow { opacity: 0.6; }
+    .intent-sep     { opacity: 0.35; }
+    .intent-text {
+      font-weight: 500;
+      border-bottom: 1px dashed currentColor;
+      padding-bottom: 1px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      max-width: 320px;
+    }
+    .intent-text.placeholder { opacity: 0.55; font-weight: 400; }
+    @media (max-width: 600px) {
+      .intent-line {
+        font-size: 9px;
+        top: calc(56px + var(--sat));   /* clear the HUD top-left cluster on phones */
+      }
+      .intent-text { max-width: 200px; }
+    }
+
+    /* Focus-minutes-today inline badge — sits in the HUD next to the clock */
+    .hud-today {
+      font-family: 'JetBrains Mono', monospace;
+      font-feature-settings: "tnum" 1;
+      color: var(--amber);
+      opacity: 0.85;
+      letter-spacing: 0.18em;
+    }
+    .hud-today.empty { display: none; }
+
+    /* ── Keyboard shortcut hints — bottom-center, desktop only ── */
+    .shortcut-hints {
+      position: fixed;
+      bottom: calc(28px + var(--sab));
+      left: 50%; transform: translateX(-50%);
+      display: inline-flex; gap: 0.55rem; align-items: baseline;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: var(--fg);
+      opacity: 0;
+      transition: opacity 1.5s ease 2.2s;
+      z-index: 24;
+      pointer-events: none;
+      mix-blend-mode: difference;
+    }
+    body[data-view="room"] .shortcut-hints { opacity: 0.55; }
+    .shortcut-hints kbd {
+      font-family: inherit;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      padding: 1px 5px;
+      border-radius: 0;
+      color: inherit;
+      font-size: inherit;
+      letter-spacing: 0.08em;
+      margin-right: 0.3rem;
+    }
+    .hint-pair { white-space: nowrap; }
+    .hint-sep  { opacity: 0.3; }
+    @media (max-width: 600px) {
+      .shortcut-hints { display: none; }
+    }
+
+    @media (max-width: 600px) {
+      .brand   { font-size: 16px; top: calc(18px + var(--sat)); left: calc(20px + var(--sal)); }
+      .caption { font-size: 8px; top: calc(42px + var(--sat)); left: calc(20px + var(--sal)); }
+      /* Change copy + move so it doesn't crowd the menu button */
+      .hint    { font-size: 7px; bottom: calc(84px + var(--sab)); left: calc(20px + var(--sal)); letter-spacing: 0.16em; max-width: 60vw; }
+      .meta    { right: auto; left: calc(20px + var(--sal)); bottom: calc(20px + var(--sab)); gap: 14px; font-size: 8px; }
+      .lang    { top: calc(18px + var(--sat)); right: calc(20px + var(--sar)); gap: 0; }
+      .lang button { padding: 4px 6px; font-size: 10px; min-width: 36px; min-height: 32px; }
+
+      /* Modal becomes a full-bleed sheet — no padding around it, edge-to-edge,
+         feels like a native iOS view. */
+      .modal { padding: 0; }
+      .modal-card {
+        max-width: 100vw;
+        width: 100vw;
+        height: 100dvh;
+        padding: calc(56px + var(--sat)) 22px calc(28px + var(--sab));
+        border: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        animation: sheetUp 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      @keyframes sheetUp {
+        from { opacity: 0; transform: translateY(24px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      .modal-qr { width: 220px; height: 220px; }
+      .modal-title { font-size: 22px; }
+      .city-time { font-size: 40px; }
+
+      .menu-btn {
+        right: calc(14px + var(--sar));
+        bottom: calc(14px + var(--sab));
+        width: 56px;
+        height: 56px;
+        min-width: 56px;
+        padding: 0;
+        font-size: 0;             /* hide the "MENU" label, keep the ☰ glyph */
+        gap: 0;
+      }
+      .menu-btn::before { font-size: 22px; }
+
+      /* Music modal on phone — track list expands to fill the empty space
+         under the controls so it feels like an album page, not a card. */
+      .modal-card.music { max-width: 100vw; padding-left: 18px; padding-right: 18px; }
+      .modal-card.music .music-tracks { max-height: none; flex: 1 1 auto; }
+    }
+
+    /* True portrait on any size (phones, tablets) — bigger tap targets */
+    @media (orientation: portrait) {
+      .modal-visit { padding: 16px 30px; min-height: 48px; font-size: 12px; }
+      .modal-close { width: 48px; height: 48px; }
+    }
+
+
+/* ══════════════════════════════════════════════════════════════
+   NON.OS v2 — NEW FEATURES
+   Command palette · Ambient particles · Camera dolly · WebGL fallback
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Command Palette ───────────────────────────────────────── */
+.cmd-palette {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: calc(12vh + var(--sat));
+  pointer-events: none;
+}
+.cmd-palette.in {
+  display: flex;
+  pointer-events: auto;
+}
+.cmd-palette-bg {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  animation: fadeBg 0.2s ease;
+}
+.cmd-palette-card {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  margin: 0 20px;
+  background: var(--black);
+  border: 1px solid var(--line);
+  animation: rise 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  max-height: 70vh;
+}
+.cmd-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.cmd-input-wrap .prompt {
+  font-size: 16px;
+  color: var(--amber);
+  flex: none;
+}
+.cmd-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--fg);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  outline: none;
+  caret-color: var(--amber);
+}
+.cmd-input::placeholder {
+  color: var(--dim);
+}
+.cmd-shortcut-hint {
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--dim);
+  flex: none;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+}
+.cmd-results {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.cmd-group-label {
+  font-size: 9px;
+  letter-spacing: 0.45em;
+  text-transform: uppercase;
+  color: var(--amber);
+  padding: 12px 20px 6px;
+  position: sticky;
+  top: 0;
+  background: var(--black);
+  z-index: 1;
+}
+.cmd-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 20px;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid rgba(245, 245, 240, 0.06);
+  color: var(--fg);
+  cursor: pointer;
+  font-family: 'JetBrains Mono', 'IBM Plex Sans Thai', 'Noto Sans SC', monospace;
+  font-size: 13px;
+  font-weight: 300;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.1s, color 0.1s;
+}
+.cmd-item:hover,
+.cmd-item.selected {
+  background: rgba(245, 158, 11, 0.08);
+  color: var(--amber);
+}
+.cmd-item .g {
+  flex: none;
+  width: 24px;
+  font-size: 14px;
+  text-align: center;
+  color: var(--dim);
+}
+.cmd-item:hover .g,
+.cmd-item.selected .g {
+  color: var(--amber);
+}
+.cmd-item .title {
+  flex: 1;
+}
+.cmd-item .meta {
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--dim);
+  flex: none;
+}
+.cmd-empty {
+  padding: 32px 20px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--dim);
+  letter-spacing: 0.1em;
+}
+
+/* ── Ambient particle canvas overlay ──────────────────────── */
+#particle-canvas {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9;
+  opacity: 0.45;
+  transition: opacity 1.5s ease;
+}
+#particle-canvas.hidden {
+  opacity: 0;
+}
+
+/* ── Camera dolly transition ──────────────────────────────── */
+.camera-dollying .overlay {
+  pointer-events: none;
+}
+.camera-dollying #canvas-root {
+  cursor: wait;
+}
+
+/* ── WebGL fallback message ───────────────────────────────── */
+.webgl-fallback {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--black);
+  color: var(--fg);
+  font-family: 'JetBrains Mono', monospace;
+  text-align: center;
+  padding: 40px;
+}
+.webgl-fallback.in {
+  display: flex;
+}
+.webgl-fallback .mark {
+  font-family: 'Josefin Sans', sans-serif;
+  font-weight: 700;
+  font-size: 48px;
+  letter-spacing: 0.08em;
+  margin-bottom: 24px;
+}
+.webgl-fallback .msg {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--dim);
+  max-width: 400px;
+  margin-bottom: 32px;
+}
+.webgl-fallback .action {
+  padding: 14px 30px;
+  background: var(--white);
+  color: var(--black);
+  border: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.webgl-fallback .action:hover {
+  opacity: 0.85;
+}
+
+/* ── Keyboard shortcut hints (plan view) ──────────────────── */
+.kb-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  background: rgba(245, 245, 240, 0.08);
+  border: 1px solid rgba(245, 245, 240, 0.15);
+  border-radius: 3px;
+  font-size: 9px;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.05em;
+  color: var(--dim);
+  margin-left: auto;
+}
