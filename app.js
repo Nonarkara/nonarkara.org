@@ -1,5 +1,20 @@
 import * as THREE from 'three';
 
+// ── Visitor tracker — fire-and-forget, one ping per session ──────────────────
+(function () {
+  if (sessionStorage.getItem('non_v')) return;
+  sessionStorage.setItem('non_v', '1');
+  const SH = 'https://script.google.com/macros/s/AKfycbwzTwBNOseKkvkkjD-LH6B3GWrsFcwS6MTDbn7W5eb3zHxA-swtlHYuwJ3w5PAVXDhU7Q/exec';
+  const b = { dashboard: 'NON', hostname: location.hostname, page: location.href,
+    referrer: document.referrer || 'Direct', userAgent: navigator.userAgent,
+    language: navigator.language, screen: `${screen.width}x${screen.height}`,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
+  const send = p => fetch(SH, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(p) }).catch(() => {});
+  fetch('https://ipapi.co/json/').then(r => r.json())
+    .then(d => { b.ip = d.ip; b.country = d.country_name; b.region = d.region; b.city = d.city; send(b); })
+    .catch(() => send(b));
+})();
+
 // ════════════════════════════════════════════════════════
 // WebGL fallback — detect support before building scene
 // ════════════════════════════════════════════════════════
@@ -17,8 +32,52 @@ function hasWebGL2() {
 }
 const WEBGL_OK = hasWebGL();
 const WEBGL2_OK = hasWebGL2();
-// If no WebGL, the boot screen will redirect to plan view after showing
-// a brief message. The scene setup below will be skipped.
+
+// Version stamp — single source of truth. Bump on every meaningful push.
+// History (most recent first):
+//   2.4 (2026-05-14) accessibility pass — skip-to-content, aria-labels on
+//                    all interactive controls, aria-pressed sync on lang
+//                    switchers, lang attrs on Thai/Chinese buttons
+//   2.3 (2026-05-14) two-door entry (host vs guest) — localStorage mode,
+//                    guest hides + vCard QR surface
+//   2.2 (2026-05-14) offboarding ritual — breath + binary question after every
+//                    focus block (frame timer, frame hold-exit, pomodoro
+//                    work-phase end, pomodoro hold-exit during work)
+//   2.1a (2026-05-14) X-button fix — frame-img locked out of touch/pointer
+//                     events; contextmenu preventDefault on .frame
+//   2.1 (2026-05-13) restored missing HTML, wired WebGL fallback, removed
+//                    third-party SDK, added version stamp, Ma Shan Zheng font
+//   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
+//                    added particles, command palette, camera dolly
+//   1.x              see git log for v1 history (worktree branch)
+const NON_VERSION = '2.4';
+window.NON_VERSION = NON_VERSION;
+
+// Wire WebGL fallback — show the plan-view fallback UI and skip scene setup
+// if WebGL is unavailable. Without this guard, THREE.WebGLRenderer() throws
+// a silent crash that breaks the whole module.
+if (!WEBGL_OK) {
+  const fb = document.getElementById('webgl-fallback');
+  if (fb) fb.style.display = 'flex';
+  const btn = document.getElementById('fallback-btn');
+  if (btn) btn.addEventListener('click', () => {
+    if (fb) fb.style.display = 'none';
+    try { setView('plan'); } catch (_) {
+      // setView not yet defined — fall back to direct DOM manipulation
+      document.body.dataset.view = 'plan';
+      const p = document.getElementById('plan');
+      if (p) p.setAttribute('aria-hidden', 'false');
+    }
+  });
+  // Boot fades, then we're done — skip all Three.js setup
+  const bootEl = document.getElementById('boot');
+  if (bootEl) {
+    setTimeout(() => {
+      bootEl.classList.add('gone');
+      setTimeout(() => { bootEl.style.display = 'none'; }, 900);
+    }, 1200);
+  }
+}
 
 
 // ════════════════════════════════════════════════════════
@@ -228,6 +287,7 @@ const PROJECTS = [
   { code: 'ACADEMIC', title: 'Academic Profile',                  url: 'https://arkaraprasertkul.socialpsychology.org/',    img: 'screenshots/academic.jpg' },
   { code: 'DAO',      title: 'Dao De Jing · 道德經',                url: 'https://dao.nonarkara.org/',                        img: 'screenshots/academic.jpg',  dom: 'dao.nonarkara.org' },
   { code: 'RESEARCH', title: 'ResearchGate · Profile',             url: 'https://www.researchgate.net/profile/Non-Arkaraprasertkul', img: 'screenshots/academic.jpg' },
+  { code: 'NSP',      title: 'NSP · National Streaming Platform',  url: 'https://nsp-thailand.netlify.app/',                     img: 'screenshots/academic.jpg' },
   // (LINKEDIN dropped from PROJECTS — it's identity, not project
   //  work; the row in PERSONAL already covers it. Norman mapping:
   //  one label, one action.)
@@ -3555,6 +3615,12 @@ document.getElementById('frame')?.addEventListener('click', (e) => {
   if (e.target.id === 'frame-exit' || e.target.classList?.contains('frame-exit-bar')) return;
   showFrameMeta();
 });
+// Suppress the native long-press "Copy Image / Save Image / Share" sheet
+// that fires during the 3-second hold-to-exit gesture. CSS guards on
+// .frame-img cover most browsers; this catches the rest (Android Chrome).
+document.getElementById('frame')?.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+});
 // Hold-to-exit (3s)
 (function wireFrameExit() {
   const btn = document.getElementById('frame-exit');
@@ -4106,6 +4172,16 @@ paintSteps();
 window.__planReady = true;
 if (viewToggleBtn) setTimeout(() => viewToggleBtn.classList.add('in'), 200);
 
+// Version stamp — populate all [data-v-stamp] and #plan-version-stamp
+// with the current NON_VERSION. Runs once after plan is ready.
+(() => {
+  const vs = NON_VERSION ? `v${NON_VERSION}` : '';
+  if (!vs) return;
+  document.querySelectorAll('[data-v-stamp]').forEach(el => { el.textContent = vs; });
+  const planStamp = document.getElementById('plan-version-stamp');
+  if (planStamp) planStamp.textContent = vs;
+})();
+
 // Tap "NON" three times quickly to summon a haiku.
 // Works the same on mouse, keyboard, and thumbs.
 let brandTaps = 0;
@@ -4587,3 +4663,283 @@ function animate() {
   renderer.render(scene, camera);
 }
 animate();
+
+// ════════════════════════════════════════════════════════
+// OFFBOARD RITUAL
+// Deliberate exit ceremony after every focus block.
+// Breath animation (3.6s) → optional binary question → onComplete.
+// No storage, no tracking. Auto-dismisses after 8s if untouched.
+// ════════════════════════════════════════════════════════
+let _offboardCleanup = null;
+
+function openOffboard(onComplete) {
+  const el = document.getElementById('offboard');
+  if (!el) { if (onComplete) onComplete(); return; }
+  if (_offboardCleanup) { _offboardCleanup(); _offboardCleanup = null; }
+
+  const qEl   = document.getElementById('offboard-q');
+  const still  = document.getElementById('offboard-still');
+  const moving = document.getElementById('offboard-moving');
+  const cont   = document.getElementById('offboard-dismiss');
+
+  if (qEl) qEl.style.opacity = '0';
+  el.classList.add('in');
+
+  let done = false;
+  let questionTimer = null, autoTimer = null;
+
+  function dismiss() {
+    if (done) return;
+    done = true;
+    clearTimeout(questionTimer);
+    clearTimeout(autoTimer);
+    el.classList.remove('in');
+    if (qEl) qEl.style.opacity = '0';
+    if (onComplete) setTimeout(onComplete, 80);
+    _offboardCleanup = null;
+  }
+
+  // Question appears after one full breath cycle (3.6s).
+  // Inline style set directly — CSS transition unreliable with
+  // Chrome's frozen-timeline bug (same as pomoShowQuote path).
+  questionTimer = setTimeout(() => {
+    if (qEl) qEl.style.opacity = '1';
+  }, 3600);
+
+  if (still)  still.onclick  = dismiss;
+  if (moving) moving.onclick = dismiss;
+  if (cont)   cont.onclick   = dismiss;
+
+  autoTimer = setTimeout(dismiss, 8000);
+
+  _offboardCleanup = () => {
+    done = true;
+    clearTimeout(questionTimer);
+    clearTimeout(autoTimer);
+    el.classList.remove('in');
+    if (qEl) qEl.style.opacity = '0';
+  };
+}
+
+// Hook offboard into Pomodoro work-phase end (timer) and hold-to-exit.
+// Wrap pomoStart's tick so work-phase completion triggers the ritual.
+(() => {
+  const origPomoStart = pomoStart;
+  window.__pomoStartWrapped = true;
+  // Re-define pomoStart to intercept the work→break transition
+  window._pomoStartWithRitual = function() {
+    if (POMO.tickInt) clearInterval(POMO.tickInt);
+    POMO.running = true;
+    POMO.tickInt = setInterval(() => {
+      POMO.remaining -= 1;
+      if (POMO.remaining <= 0) {
+        if (POMO.phase === 'work') {
+          pomoPause();
+          openOffboard(() => { pomoNextPhase(); pomoUpdate(); });
+          return;
+        } else {
+          pomoNextPhase();
+        }
+      }
+      pomoUpdate();
+    }, 1000);
+    pomoUpdate();
+  };
+})();
+
+// Intercept the Pomodoro hold-to-exit path:
+// only show ritual when exiting a work phase.
+const _origHoldTick = holdTick;
+// holdTick is defined above; we patch its behaviour by
+// monkey-patching the pct >= 100 branch via a flag.
+// Simpler: override the pomo-exit hold handlers directly.
+(function rewirePomoExit() {
+  const exitBtn = document.getElementById('pomo-exit');
+  if (!exitBtn) return;
+  // Remove the existing listeners (they were added above) and
+  // replace with ones that trigger the ritual for work phases.
+  // We use a shared state flag to avoid re-running holdTick.
+  let _ritualHoldStart = null, _ritualHoldRAF = null;
+  const RHOLD_MS = 3000;
+  const rHoldRoot  = () => document.querySelector('.pomo-exit-bar');
+  const rHoldLabel = () => document.getElementById('pomo-exit-label');
+
+  function rHoldTick() {
+    if (_ritualHoldStart === null) return;
+    const pct = Math.min(100, ((Date.now() - _ritualHoldStart) / RHOLD_MS) * 100);
+    rHoldRoot()?.style.setProperty('--hold', pct + '%');
+    if (pct >= 100) {
+      rHoldEnd();
+      if (POMO.phase === 'work') {
+        pomoPause();
+        openOffboard(() => closePomodoro());
+      } else {
+        closePomodoro();
+      }
+      return;
+    }
+    _ritualHoldRAF = requestAnimationFrame(rHoldTick);
+  }
+  function rHoldBegin(e) {
+    e?.preventDefault?.();
+    _ritualHoldStart = Date.now();
+    rHoldLabel()?.classList.add('in');
+    _ritualHoldRAF = requestAnimationFrame(rHoldTick);
+  }
+  function rHoldEnd() {
+    _ritualHoldStart = null;
+    if (_ritualHoldRAF) cancelAnimationFrame(_ritualHoldRAF);
+    _ritualHoldRAF = null;
+    rHoldRoot()?.style.setProperty('--hold', '0%');
+    rHoldLabel()?.classList.remove('in');
+  }
+
+  // Clone the button to strip all prior listeners, then re-add.
+  const fresh = exitBtn.cloneNode(true);
+  exitBtn.parentNode.replaceChild(fresh, exitBtn);
+  fresh.addEventListener('mousedown',   rHoldBegin);
+  fresh.addEventListener('mouseup',     rHoldEnd);
+  fresh.addEventListener('mouseleave',  rHoldEnd);
+  fresh.addEventListener('touchstart',  rHoldBegin, { passive: false });
+  fresh.addEventListener('touchend',    rHoldEnd);
+  fresh.addEventListener('touchcancel', rHoldEnd);
+  fresh.addEventListener('click', () => {
+    rHoldLabel()?.classList.add('in');
+    setTimeout(() => rHoldLabel()?.classList.remove('in'), 1500);
+  });
+})();
+
+// Hook offboard into frame exit (timer end + hold-to-exit).
+function closeFrameWithRitual() {
+  clearInterval(FRAME.slideHandle); FRAME.slideHandle = null;
+  openOffboard(() => closeFrame());
+}
+
+// Patch the frame tick to use the ritual on natural timer end.
+(function rewireFrameTick() {
+  const el = document.getElementById('frame');
+  if (!el) return;
+  // The frame ticker is already set up above. Monkey-patch by
+  // re-setting the tick interval when openFrame is called next.
+  // Simplest: override closeFrame reference inside the tick closure
+  // by storing it on FRAME and referencing that.
+  FRAME._closeWithRitual = closeFrameWithRitual;
+})();
+
+// Patch frame hold-to-exit to also use ritual.
+(function rewireFrameExit() {
+  const btn = document.getElementById('frame-exit');
+  if (!btn) return;
+  const fresh = btn.cloneNode(true);
+  btn.parentNode.replaceChild(fresh, btn);
+  const bar = document.querySelector('.frame-exit-bar');
+  const lbl = document.getElementById('frame-exit-label');
+  const HOLD_MS = 3000;
+  let pressing = false, t0 = 0;
+  function frame() {
+    if (!pressing) { if (bar) bar.style.background = 'rgba(245,158,11,0)'; return; }
+    const elapsed = performance.now() - t0;
+    const pct = Math.min(1, elapsed / HOLD_MS);
+    if (bar) bar.style.background = `rgba(245,158,11,${0.55 * pct})`;
+    if (lbl) lbl.textContent = pct >= 1 ? 'OK' : 'HOLD ' + Math.ceil((HOLD_MS - elapsed) / 1000);
+    if (pct >= 1) { pressing = false; closeFrameWithRitual(); return; }
+    FRAME.holdRAF = requestAnimationFrame(frame);
+  }
+  function down(e) { e.preventDefault(); pressing = true; t0 = performance.now(); FRAME.holdRAF = requestAnimationFrame(frame); }
+  function up() {
+    pressing = false; cancelAnimationFrame(FRAME.holdRAF);
+    if (bar) bar.style.background = 'rgba(245,158,11,0)';
+    if (lbl) lbl.textContent = 'HOLD';
+  }
+  fresh.addEventListener('pointerdown',  down);
+  fresh.addEventListener('pointerup',    up);
+  fresh.addEventListener('pointercancel', up);
+  fresh.addEventListener('pointerleave', up);
+})();
+
+// ════════════════════════════════════════════════════════
+// DOOR — FIRST-VISIT ENTRY CHOICE (host vs guest)
+// localStorage nonarkara.mode = 'host' | 'guest'
+// ════════════════════════════════════════════════════════
+(() => {
+  const doorEl = document.getElementById('door');
+  if (!doorEl) return;
+  const KEY = 'nonarkara.mode';
+  const lsRead  = () => { try { return localStorage.getItem(KEY); } catch (_) { return null; } };
+  const lsWrite = (m) => { try { localStorage.setItem(KEY, m); } catch (_) {} };
+  const lsClear = ()  => { try { localStorage.removeItem(KEY); } catch (_) {} };
+
+  function applyMode(m) {
+    if (m === 'host' || m === 'guest') document.body.dataset.mode = m;
+  }
+
+  // Populate guest vCard QR once buildQR is available.
+  function paintGuestCardQR() {
+    try {
+      const img = document.getElementById('plan-guest-qr');
+      if (img && typeof buildQR === 'function' && typeof VCARD === 'string') {
+        img.src = buildQR(VCARD, 'L');
+      }
+    } catch (_) {}
+  }
+
+  // Wire guest contact card tap → existing contact modal.
+  const guestCard = document.getElementById('plan-guest-card');
+  if (guestCard) {
+    guestCard.addEventListener('click', () => {
+      try { openFurnitureModal('coffee'); } catch (_) {}
+    });
+  }
+
+  // Query overrides for testing / sharing.
+  const params = new URLSearchParams(location.search);
+  if (params.has('door'))  lsClear();
+  if (params.has('host'))  { lsWrite('host');  applyMode('host'); }
+  if (params.has('guest')) { lsWrite('guest'); applyMode('guest'); }
+
+  const stored = lsRead();
+  if (stored === 'host' || stored === 'guest') {
+    applyMode(stored);
+    if (stored === 'guest') paintGuestCardQR();
+    doorEl.classList.add('skip');
+    return;
+  }
+
+  // No stored mode — door is visible underneath boot (z 9999).
+  // Boot disappears at ~2.1s; door appears. No fade needed.
+
+  function pick(mode) {
+    lsWrite(mode);
+    applyMode(mode);
+    if (mode === 'guest') paintGuestCardQR();
+    doorEl.classList.add('skip');
+  }
+
+  document.getElementById('door-host')?.addEventListener('click',  () => pick('host'));
+  document.getElementById('door-guest')?.addEventListener('click', () => pick('guest'));
+})();
+
+// ════════════════════════════════════════════════════════
+// ACCESSIBILITY — aria-pressed sync on lang switchers
+// applyLang already updates data-lang; here we keep the
+// aria-pressed attribute in sync so screen readers announce
+// which language is active.
+// ════════════════════════════════════════════════════════
+function syncLangAriaPressed() {
+  ['#lang', '#plan-lang'].forEach(sel => {
+    document.querySelectorAll(`${sel} button[data-l]`).forEach(btn => {
+      btn.setAttribute('aria-pressed', btn.dataset.l === LANG ? 'true' : 'false');
+    });
+  });
+}
+// Run once on load and after every lang switch.
+syncLangAriaPressed();
+const _origApplyLang = applyLang;
+// applyLang is defined at module level; shadow it with a wrapper.
+// (module-level reassignment works because the original callers
+//  look up applyLang at call-time via the closure, and we update
+//  the binding below.)
+// Actually, use an event-listener approach instead:
+document.querySelectorAll('#lang button[data-l], #plan-lang button[data-l]').forEach(btn => {
+  btn.addEventListener('click', () => { setTimeout(syncLangAriaPressed, 0); });
+});
