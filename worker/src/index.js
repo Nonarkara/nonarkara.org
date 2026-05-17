@@ -123,6 +123,54 @@ export default {
     // Yahoo Finance quote proxy — Yahoo blocks browser CORS, so we
     // pass-through here. Path: /quote/^SETI returns the latest SET
     // index (or any Yahoo symbol — minimal validation).
+    // ── /daily-brief — ONE call returns all market data ─────────────────────
+    // Replaces ~10 separate /quote/ calls per page load.
+    // Cached in KV for 5 min so every visitor within that window is free.
+    if (url.pathname === "/daily-brief") {
+      const BRIEF_KEY = "brief:v1";
+      const BRIEF_TTL = 300; // 5 minutes
+      // Try KV cache first
+      const cached = await env.STATUS.get(BRIEF_KEY, "json");
+      if (cached && (Date.now() - cached._ts) < BRIEF_TTL * 1000) {
+        return new Response(JSON.stringify(cached), {
+          headers: { ...corsHeaders, "Content-Type": "application/json",
+                     "Cache-Control": `max-age=${BRIEF_TTL}` },
+        });
+      }
+      // Fetch all symbols in parallel
+      const SYMBOLS = [
+        ["USDTHB=X", "usdthb"], ["SGDTHB=X", "sgdthb"],
+        ["BTC-USD",  "btc"],    ["%5ESET.BK", "set"],
+        ["%5EDJI",  "dji"],     ["%5EIXIC", "nasdaq"],
+        ["NVDA",    "nvda"],    ["TSLA", "tsla"],
+        ["GOOGL",   "googl"],   ["GC%3DF", "gold"],
+        ["BZ%3DF",  "brent"],   ["PTT.BK", "ptt"],
+      ];
+      const fetchQuote = async ([sym, key]) => {
+        try {
+          const r = await fetch(
+            `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=1d`,
+            { headers: { "User-Agent": "Mozilla/5.0" } }
+          );
+          const d = await r.json();
+          const meta = d?.chart?.result?.[0]?.meta || {};
+          const price = meta.regularMarketPrice ?? null;
+          const prev  = meta.chartPreviousClose ?? null;
+          const change = price && prev ? ((price - prev) / prev) * 100 : null;
+          return [key, { price, prev, change }];
+        } catch (_) { return [key, null]; }
+      };
+      const results = await Promise.all(SYMBOLS.map(fetchQuote));
+      const brief = Object.fromEntries(results);
+      brief._ts = Date.now();
+      // Cache in KV
+      await env.STATUS.put(BRIEF_KEY, JSON.stringify(brief), { expirationTtl: BRIEF_TTL });
+      return new Response(JSON.stringify(brief), {
+        headers: { ...corsHeaders, "Content-Type": "application/json",
+                   "Cache-Control": `max-age=${BRIEF_TTL}` },
+      });
+    }
+
     if (url.pathname.startsWith("/quote/")) {
       const sym = decodeURIComponent(url.pathname.slice(7));
       if (!/^[A-Z0-9.^=-]{1,12}$/i.test(sym)) {

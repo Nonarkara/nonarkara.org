@@ -1244,46 +1244,42 @@ async function fetchCouncil() {
   } catch (_) {}
 }
 
-// Fetch Dow Jones, NASDAQ, and key stocks via the existing
-// /quote/ endpoint on api.nonarkara.org (Yahoo Finance proxy).
-async function fetchStocks() {
-  const symbols = [
-    ['%5EDJI',  'dji',    'Dow Jones'],
-    ['%5EIXIC', 'nasdaq', 'NASDAQ'],
-    ['NVDA',    'nvda',   'Nvidia'],
-    ['TSLA',    'tsla',   'Tesla'],
-    ['GOOGL',   'googl',  'Google'],
-    ['GC%3DF',  'gold',   'Gold'],
-    ['BZ%3DF',  'brent',  'Brent'],
-    ['PTT.BK',  'ptt',    'PTT'],
-  ];
-  const results = {};
-  await Promise.all(symbols.map(async ([enc, key]) => {
-    try {
-      const r = await fetch(`https://api.nonarkara.org/quote/${enc}`, { cache: 'no-cache' });
-      const d = await r.json();
-      if (d?.price != null) results[key] = { price: d.price, change: d.change ?? 0 };
-    } catch (_) {}
-  }));
-  if (Object.keys(results).length) {
-    window.__brief.stocks = results;
-    if (window.paintBrief) window.paintBrief();
-  }
-}
-
-async function fetchSET() {
+// ONE Worker call returns all market data (replaces 10 separate /quote/ calls).
+// Worker caches the result in KV for 5 min, so concurrent visitors are free.
+async function fetchDailyBrief() {
   try {
-    const r = await fetch('https://api.nonarkara.org/quote/%5ESET.BK', { cache: 'no-cache' });
+    const r = await fetch('https://api.nonarkara.org/daily-brief', { cache: 'no-cache' });
     const d = await r.json();
-    if (d?.price != null) {
-      window.__brief.set = {
-        price: d.price,
-        change: d.change ?? 0,
-      };
-      if (window.paintBrief) window.paintBrief();
+    const p = (key) => d[key] ? { price: d[key].price, change: d[key].change ?? 0 } : null;
+
+    // FX — supplement open.er-api with Worker values if available
+    if (d.usdthb?.price) {
+      const thb = d.usdthb.price.toFixed(2);
+      const sgdThb = d.sgdthb?.price?.toFixed(2) ?? '—';
+      window.__brief.fx = { thb, sgdThb };
+      // update ticker too
+      setTickerText(tckrFx,
+        `USD/THB ${thb}   ▪   SGD/THB ${sgdThb}   ▪   FX live   ▪   `
+      );
     }
+
+    // SET
+    if (d.set?.price) window.__brief.set = { price: d.set.price, change: d.set.change ?? 0 };
+
+    // Stocks + commodities
+    const stocks = {};
+    ['dji','nasdaq','nvda','tsla','googl','gold','brent','ptt'].forEach(k => {
+      if (d[k]?.price != null) stocks[k] = { price: d[k].price, change: d[k].change ?? 0 };
+    });
+    if (Object.keys(stocks).length) window.__brief.stocks = stocks;
+
+    if (window.paintBrief) window.paintBrief();
   } catch (_) {}
 }
+
+// Keep the old per-symbol functions as fallback but no longer call them on their own
+async function fetchStocks() { return fetchDailyBrief(); }
+async function fetchSET()    { return fetchDailyBrief(); }
 
 async function fetchCrypto() {
   try {
@@ -1401,17 +1397,23 @@ _themeRedrawHooks.push(() => {
 });
 
 // First fetches + periodic refresh schedules
-fetchFX(); fetchCrypto(); fetchWx(); fetchAQI(); fetchNews(); fetchCommits(); fetchStats(); fetchSET(); fetchStocks(); fetchCouncil();
-setInterval(fetchFX,      5  * 60_000);
-setInterval(fetchCrypto,  60_000);
-setInterval(fetchWx,      10 * 60_000);
-setInterval(fetchAQI,     15 * 60_000);   // AQI changes slowly
-setInterval(fetchNews,    15 * 60_000);
-setInterval(fetchCommits, 5  * 60_000);
-setInterval(fetchStats,   60_000);
-setInterval(fetchSET,     5  * 60_000);
-setInterval(fetchStocks,  5  * 60_000);
-setInterval(fetchCouncil, 60_000);    // council-watch ticks every 5m, we sample every 1m
+// Worker calls (api.nonarkara.org):
+//   /daily-brief  — replaces 10 separate /quote/ calls, KV-cached 5 min = 1 invocation
+//   /status       — KV-cached by cron, browser polls every 3 min (was 1 min)
+//   /council      — every 5 min (matches council-watch cron)
+//   /capture      — only on explicit user action (note, steps)
+// Non-Worker calls (open APIs, free, no quota):
+//   open.er-api, open-meteo, ipapi, coingecko, hacker-news, github
+fetchFX(); fetchCrypto(); fetchWx(); fetchAQI(); fetchDailyBrief(); fetchNews(); fetchCommits(); fetchStats(); fetchCouncil();
+setInterval(fetchFX,         10 * 60_000);  // FX: every 10 min (was 5)
+setInterval(fetchCrypto,      5 * 60_000);  // crypto: every 5 min (was 1 min — CoinGecko, not Worker)
+setInterval(fetchWx,         10 * 60_000);  // weather: every 10 min
+setInterval(fetchAQI,        15 * 60_000);  // AQI: every 15 min
+setInterval(fetchDailyBrief,  5 * 60_000);  // all quotes: 1 Worker call every 5 min (was 10 calls/5 min)
+setInterval(fetchNews,       15 * 60_000);  // HN: every 15 min (not Worker)
+setInterval(fetchCommits,    10 * 60_000);  // GitHub: every 10 min (not Worker)
+setInterval(fetchStats,       3 * 60_000);  // status: every 3 min (was 1 min, saves 66% of status calls)
+setInterval(fetchCouncil,     5 * 60_000);  // council: every 5 min (matches cron)
 
 // ════════════════════════════════════════════════════════
 // TVs at far wall (5 × 4 grid = 20)
