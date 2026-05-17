@@ -1,10 +1,12 @@
-<!DOCTYPE html><html lang="en"><head>
+<!DOCTYPE html>
+<html lang="en">
+<head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover"/>
   <title>NON — Dr Non Arkaraprasertkul</title>
-  <meta name="description" content="Architect (MIT), anthropologist (Harvard), smart-city specialist at Thailand&#39;s depa. Live dashboards, real work, a single page that doubles as a business card."/>
+  <meta name="description" content="Architect (MIT), anthropologist (Harvard), smart-city specialist at Thailand's depa. Live dashboards, real work, a single page that doubles as a business card."/>
   <meta property="og:title" content="NON — Dr Non Arkaraprasertkul"/>
-  <meta property="og:description" content="Architect (MIT), anthropologist (Harvard), smart-city specialist at Thailand&#39;s depa. Live dashboards across 21 projects, presented as a tappable plan view."/>
+  <meta property="og:description" content="Architect (MIT), anthropologist (Harvard), smart-city specialist at Thailand's depa. Live dashboards across 21 projects, presented as a tappable plan view."/>
   <meta property="og:type" content="website"/>
   <meta property="og:url" content="https://nonarkara.org"/>
   <meta property="og:image" content="https://nonarkara.org/og.png"/>
@@ -56,12 +58,11 @@
     }
   </script>
 
-  <!-- Fonts -->
+  <!-- Fonts: Latin + Thai + CJK (Ma Shan Zheng for calligraphic Chinese) -->
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin=""/>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;700&amp;family=JetBrains+Mono:wght@300;400&amp;family=Josefin+Sans:wght@300;700&amp;family=Noto+Sans+SC:wght@300;700&amp;display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;700&family=JetBrains+Mono:wght@300;400&family=Josefin+Sans:wght@300;700&family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@300;400;700&display=swap" rel="stylesheet"/>
 
-  <!-- External CSS -->
   <link rel="stylesheet" href="styles.css"/>
 
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
@@ -72,77 +73,366 @@
     }
   }
   </script>
-<script src="https://www.kimi.com/sdk-seed.js" defer=""></script></head>
+  <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "0da324da0e204440a172088c0fafc92c"}'></script>
+</head>
 <body data-lang="en">
+
+  <!-- Skip-to-content for keyboard users — visible only on :focus -->
+  <a class="skip-to-content" href="#plan">skip to content</a>
 
   <!-- Boot screen -->
   <div id="boot" aria-hidden="true">
-    <div class="boot-logo">N<span class="boot-o">O</span>N</div>
-    <div class="boot-sub" id="boot-sub">A WINDOW TO THE MIND</div>
+    <div class="boot-logo">
+      <span class="boot-n">N</span><span class="boot-o">O</span><span class="boot-n2">N</span>
+    </div>
+    <div class="boot-sub">a window to the mind</div>
   </div>
 
-  <!-- 3D Room canvas -->
+  <!-- 3D room canvas -->
   <div id="canvas-root"></div>
 
-  <!-- Overlay UI -->
-  <div class="overlay" id="overlay">
-    <div class="brand" id="brand" role="button" tabindex="0" aria-label="NON">NON</div>
-    <div class="caption" id="caption">a window to the mind</div>
-    <div class="hint" id="hint">tap any screen or object · drag to look around</div>
+  <!-- Overlay UI (room view) -->
+  <div class="overlay">
+    <div class="brand" id="brand">NON</div>
+    <div class="caption" id="caption" data-i18n="palace">memory palace</div>
+    <div class="hint" id="hint" data-i18n="hint">tap any screen or object · drag to look around</div>
+    <div class="lang" id="lang" role="group" aria-label="Language">
+      <button data-l="en" class="on" aria-label="English" aria-pressed="true">EN</button>
+      <span class="sep" aria-hidden="true">·</span>
+      <button data-l="th" aria-label="ภาษาไทย" lang="th" aria-pressed="false">ไทย</button>
+      <span class="sep" aria-hidden="true">·</span>
+      <button data-l="zh" aria-label="中文" lang="zh" aria-pressed="false">中文</button>
+    </div>
     <div class="meta" id="meta">
-      <a href="/cdn-cgi/l/email-protection#26454948524745526648494847544d47544708495441" id="contact-link">contact</a>
+      <a href="mailto:nonsmartcity@gmail.com" id="contact-link" data-i18n="contact">contact</a>
       <span>·</span>
       <a href="https://github.com/Nonarkara" target="_blank" rel="noopener">github</a>
-    </div>
-    <div class="lang" id="lang">
-      <button data-l="en" class="on">EN</button>
-      <span class="sep">·</span>
-      <button data-l="th">ไทย</button>
-      <span class="sep">·</span>
-      <button data-l="zh">中文</button>
     </div>
   </div>
 
   <div class="tip" id="tip"><span id="tip-text"></span><span class="url" id="tip-url"></span></div>
   <div class="veil" id="veil"></div>
 
-  <!-- Modal container -->
-  <div class="modal" id="modal"><div class="modal-bg" id="modal-bg"></div><div class="modal-card" id="modal-card"></div></div>
+  <!-- Modal -->
+  <div class="modal" id="modal" role="dialog" aria-modal="true">
+    <div class="modal-bg" data-close="1"></div>
+    <div class="modal-card" id="modal-card">
+      <button class="modal-close" id="modal-close" aria-label="Close">✕</button>
+      <div class="modal-eyebrow" id="modal-eyebrow"></div>
+      <div class="modal-title" id="modal-title"></div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
 
-  <!-- Plan view -->
-  <div id="plan" aria-hidden="true"></div>
+  <!-- Floating MENU + PLAN toggle -->
+  <button class="menu-btn" id="menu-btn" aria-label="Open menu">MENU</button>
+  <button class="view-toggle" id="view-toggle" aria-label="Switch to plan view">▢ PLAN</button>
 
-  <!-- Drawer -->
-  <div class="drawer" id="drawer"><div class="drawer-bg" id="drawer-bg"></div><div class="drawer-panel" id="drawer-panel"><div class="drawer-handle"></div><div id="drawer-body"></div></div></div>
+  <!-- Room HUD — monitoring-console overlay (room view only) -->
+  <div class="room-hud" id="room-hud" aria-hidden="true">
+    <div class="room-hud-cluster top-left">
+      <span class="hud-dot" aria-hidden="true"></span>
+      <span class="hud-eyebrow">NON.OS · ROOM</span>
+      <span class="hud-sep">·</span>
+      <span class="hud-status">LIVE</span>
+      <span class="hud-sep">·</span>
+      <span class="hud-clock" id="hud-clock">--:--:--</span>
+    </div>
+    <button id="room-hud-focus" class="hud-chip" aria-label="Open Pomodoro focus timer">
+      <span class="hud-chip-glyph">▷</span>
+      <span class="hud-chip-label">FOCUS</span>
+    </button>
+  </div>
 
-  <!-- Menu button -->
-  <button class="menu-btn" id="menu-btn">MENU</button>
+  <!-- Tilt-to-look hint (gyro-capable phones only, auto-fades) -->
+  <div class="tilt-hint" id="tilt-hint" aria-hidden="true">
+    <span class="tilt-hint-glyph" aria-hidden="true">↻</span>
+    <span class="tilt-hint-label">TILT PHONE TO LOOK AROUND</span>
+  </div>
 
-  <!-- View toggle -->
-  <button class="view-toggle" id="view-toggle">PLAN</button>
+  <!-- Intent line: TODAY · what are you working on -->
+  <button class="intent-line" id="intent-line" aria-label="Set today's intent">
+    <span class="intent-eyebrow">TODAY</span>
+    <span class="intent-sep">·</span>
+    <span class="intent-text" id="intent-text">SET YOUR INTENT</span>
+  </button>
 
-  <!-- Pomodoro -->
-  <div class="pomodoro" id="pomodoro"></div>
+  <!-- Keyboard shortcut hints (desktop only) -->
+  <div class="shortcut-hints" id="shortcut-hints" aria-hidden="true">
+    <span class="hint-pair"><kbd>F</kbd> focus</span>
+    <span class="hint-sep">·</span>
+    <span class="hint-pair"><kbd>M</kbd> music</span>
+    <span class="hint-sep">·</span>
+    <span class="hint-pair"><kbd>P</kbd> plan</span>
+    <span class="hint-sep">·</span>
+    <span class="hint-pair"><kbd>esc</kbd> close</span>
+  </div>
 
   <!-- Portrait gallery -->
-  <div class="pga" id="pga"></div>
+  <div class="pga" id="pga" role="dialog" aria-label="Portrait gallery">
+    <img class="pga-img" id="pga-img" alt="" draggable="false"/>
+    <div class="pga-nav-row">
+      <button class="pga-nav" id="pga-prev" aria-label="Previous portrait">◀</button>
+      <div class="pga-info">
+        <span class="pga-name" id="pga-name">—</span>
+        <span class="pga-count" id="pga-count">1 / 7</span>
+      </div>
+      <button class="pga-nav" id="pga-next" aria-label="Next portrait">▶</button>
+    </div>
+    <button class="pga-share" id="pga-share" aria-label="Share portrait">
+      <span class="pga-share-glyph">↗</span>
+      <span class="pga-share-label">SAVE · SHARE</span>
+    </button>
+    <div class="pga-apps">LINE · WhatsApp · Telegram · Outlook · AirDrop · Instagram</div>
+    <button class="pga-close" id="pga-close" aria-label="Close">✕</button>
+  </div>
 
-  <!-- FRAME museum -->
-  <div class="frame" id="frame"></div>
+  <!-- FRAME — museum-art focus session (25 min, 47 paintings, 20s each) -->
+  <div class="frame" id="frame" role="dialog" aria-label="Art frame focus session">
+    <img class="frame-img" id="frame-img" alt="" draggable="false"
+         style="pointer-events:none;-webkit-touch-callout:none;user-select:none;"/>
+    <div class="frame-meta">
+      <div class="frame-time" id="frame-time">25:00</div>
+      <div class="frame-caption" id="frame-caption">
+        <span class="title">— —</span>
+        <span class="artist">—</span>
+        <span class="note">—</span>
+        <span class="museum">—</span>
+      </div>
+    </div>
+    <button class="frame-exit" id="frame-exit" aria-label="Hold to exit">✕</button>
+    <div class="frame-exit-bar"></div>
+    <div class="frame-exit-label" id="frame-exit-label">HOLD</div>
+    <div class="frame-hint">hold ✕ for 3 seconds to exit · tap to show caption</div>
+  </div>
 
-  <!-- Konami haiku -->
-  <div class="konami" id="konami"></div>
+  <!-- NOTE pad — Second Brain quick capture -->
+  <div class="modal" id="note-modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-bg" data-close-note="1"></div>
+    <div class="modal-card note">
+      <button class="modal-close" id="note-close" aria-label="Close">✕</button>
+      <div class="modal-eyebrow">SECOND BRAIN · CAPTURE</div>
+      <div class="modal-title">note · for later</div>
+      <textarea class="note-input" id="note-input" placeholder="A thought, a quote, a question, a reminder. Anything you want to remember."></textarea>
+      <div class="note-actions">
+        <button id="note-save" class="note-save" aria-label="Save note to this device">▾  SAVE</button>
+        <button id="note-clear" class="note-clear" aria-label="Clear note text">CLEAR</button>
+      </div>
+      <div class="note-meta" id="note-meta">stored on this device</div>
+      <div class="note-list-label">RECENT</div>
+      <div class="note-list" id="note-list"></div>
+    </div>
+  </div>
 
-  <!-- WebGL fallback message -->
+  <!-- PLAN view — 2D dashboard, default on phone -->
+  <div id="plan" aria-hidden="true">
+    <header class="plan-head">
+      <button class="brand-blk" id="plan-brand-blk" aria-label="About Dr Non Arkaraprasertkul">
+        <div class="brand-mark">NON<span class="v-stamp" id="plan-version-stamp"></span></div>
+        <div class="brand-cap" data-i18n="role">architect · anthropologist · smart cities</div>
+        <div class="brand-sub" data-i18n="palace_sub">tap for contact · a window to the mind</div>
+      </button>
+      <div class="plan-lang" id="plan-lang" role="group" aria-label="Language">
+        <button data-l="en" aria-label="English" aria-pressed="true">EN</button>
+        <span class="sep" aria-hidden="true">·</span>
+        <button data-l="th" aria-label="ภาษาไทย" lang="th" aria-pressed="false">ไทย</button>
+        <span class="sep" aria-hidden="true">·</span>
+        <button data-l="zh" aria-label="中文" lang="zh" aria-pressed="false">中文</button>
+      </div>
+    </header>
+
+    <section class="plan-hud">
+      <button id="hud-focus" class="hud-btn focus" aria-label="Start Pomodoro focus session">
+        <span class="g">▷</span><span class="t">FOCUS</span>
+      </button>
+      <button id="hud-music" class="hud-btn" aria-label="Open music">
+        <span class="g">◯</span><span class="t">MUSIC</span>
+      </button>
+      <button id="hud-note" class="hud-btn" aria-label="Open Second Brain note pad">
+        <span class="g">✎</span><span class="t">NOTE</span>
+      </button>
+      <button id="hud-theme" class="hud-btn" aria-label="Toggle light / dark">
+        <span class="g">☼</span><span class="t">THEME</span>
+      </button>
+    </section>
+
+    <!-- Guest-only contact QR card — visible only when body[data-mode="guest"] -->
+    <button class="plan-card-guest" id="plan-guest-card" type="button"
+            aria-label="Save Dr Non's contact card">
+      <span class="qr"><img id="plan-guest-qr" alt="Dr Non vCard QR code"></span>
+      <span class="body">
+        <span class="eyebrow">take this with you</span>
+        <span class="title">Dr Non · contact card</span>
+        <span class="sub">scan or tap · saves to your phone as a vCard</span>
+      </span>
+      <span class="arrow" aria-hidden="true">→</span>
+    </button>
+
+    <button class="plan-gallery" id="hud-frame"
+            aria-label="Start museum gallery focus session — 47 famous paintings, 25 min, one every 20 seconds">
+      <span class="gallery-glyph">▣</span>
+      <span class="gallery-body">
+        <span class="gallery-title">GALLERY · FOCUS</span>
+        <span class="gallery-sub">47 famous paintings · The Met + AIC · changes every 20 s · 25 min</span>
+      </span>
+      <span class="gallery-arrow">→</span>
+    </button>
+
+    <section class="plan-clock">
+      <div class="time" id="plan-time">--:--:--</div>
+      <div class="meta" id="plan-date">— · BANGKOK · GMT+7</div>
+      <svg class="plan-worldmap" id="plan-worldmap"
+           viewBox="-185 -90 370 180" preserveAspectRatio="xMidYMid meet"
+           aria-label="World timezone map with city positions"></svg>
+    </section>
+
+    <section class="plan-stat">
+      <span class="label" data-i18n="plan_status">FLEET STATUS</span>
+      <span class="value" id="plan-stat-summary">— / —</span>
+    </section>
+
+    <section class="plan-steps" id="plan-steps" aria-label="Log today's steps">
+      <span class="label">STEPS TODAY</span>
+      <button class="steps-val" id="steps-val" aria-label="Enter step count">—</button>
+      <span class="steps-sub" id="steps-sub">tap to log</span>
+    </section>
+
+    <section class="plan-council" id="plan-council">
+      <span class="dot" id="council-dot"></span>
+      <span class="label">AI COUNCIL</span>
+      <span class="status" id="council-status">—</span>
+      <span class="meta" id="council-meta">checking</span>
+    </section>
+
+    <section class="plan-ribbon" id="plan-ribbon">
+      <div class="stat live">live</div>
+      <div class="stat"><span>last</span> <span class="v" id="ribbon-last">—</span></div>
+      <div class="stat"><span>median</span> <span class="v" id="ribbon-ms">— ms</span></div>
+      <div class="stat"><span>up</span> <span class="v" id="ribbon-uptime">— %</span></div>
+      <div class="spacer"></div>
+      <div class="stat"><span class="v" id="ribbon-build">2026.05.12</span></div>
+    </section>
+
+    <section class="plan-brief" id="plan-brief">
+      <div class="brief-cell" id="brief-fx"><span class="lbl">USD / THB</span><span class="val" id="brief-fx-val">—</span><span class="sub" id="brief-fx-sub">sgd —</span></div>
+      <div class="brief-cell" id="brief-sgd"><span class="lbl">SGD / THB</span><span class="val" id="brief-sgd-val">—</span><span class="sub" id="brief-sgd-sub">eur — · gbp —</span></div>
+      <div class="brief-cell" id="brief-btc"><span class="lbl">BTC / USD</span><span class="val" id="brief-btc-val">—</span><span class="sub" id="brief-btc-sub">— %</span></div>
+      <div class="brief-cell" id="brief-set"><span class="lbl">SET · TH</span><span class="val" id="brief-set-val">—</span><span class="sub" id="brief-set-sub">— %</span></div>
+      <div class="brief-cell"><span class="lbl">DOW JONES</span><span class="val" id="brief-dji-val">—</span><span class="sub" id="brief-dji-sub">— %</span></div>
+      <div class="brief-cell"><span class="lbl">NASDAQ</span><span class="val" id="brief-nasdaq-val">—</span><span class="sub" id="brief-nasdaq-sub">— %</span></div>
+      <div class="brief-cell"><span class="lbl">NVIDIA · NVDA</span><span class="val" id="brief-nvda-val">—</span><span class="sub" id="brief-nvda-sub">— %</span></div>
+      <div class="brief-cell"><span class="lbl">TESLA · TSLA</span><span class="val" id="brief-tsla-val">—</span><span class="sub" id="brief-tsla-sub">— %</span></div>
+      <div class="brief-cell"><span class="lbl">GOOGLE · GOOGL</span><span class="val" id="brief-googl-val">—</span><span class="sub" id="brief-googl-sub">— %</span></div>
+      <div class="brief-cell"><span class="lbl">GOLD · XAU/USD</span><span class="val" id="brief-gold-val">—</span><span class="sub" id="brief-gold-sub">— %</span></div>
+      <div class="brief-cell"><span class="lbl">BRENT CRUDE</span><span class="val" id="brief-brent-val">—</span><span class="sub" id="brief-brent-sub">— %</span></div>
+      <div class="brief-cell"><span class="lbl">PTT · TH OIL</span><span class="val" id="brief-ptt-val">—</span><span class="sub" id="brief-ptt-sub">— %</span></div>
+      <div class="brief-cell brief-wx"><span class="lbl">BANGKOK · WEATHER</span><span class="val" id="brief-wx-temp">— °C</span><span class="sub" id="brief-wx-sub">— · humidity — % · wind — km/h</span></div>
+      <div class="brief-cell brief-aqi" id="brief-aqi-cell"><span class="lbl">BKK · AQI</span><span class="val" id="brief-aqi-val">—</span><span class="sub" id="brief-aqi-sub">pm2.5 — µg/m³</span></div>
+    </section>
+
+    <section class="plan-section">
+      <div class="plan-section-label" data-i18n="plan_projects">PROJECTS</div>
+      <div class="plan-grid" id="plan-projects"></div>
+    </section>
+
+    <section class="plan-section">
+      <div class="plan-section-label" data-i18n="plan_personal">PERSONAL</div>
+      <div class="plan-list" id="plan-personal"></div>
+    </section>
+
+    <section class="plan-philo">
+      <div class="label" data-i18n="philo_label">about this space</div>
+      <p data-i18n="philo_p1">This is a research preview of nonarkara.org — Dr. Non Arkaraprasertkul's personal operating system, built for deep work and quiet reflection. Architect (MIT), anthropologist (Harvard), Senior Expert in Smart City Promotion at Thailand's depa.</p>
+      <p data-i18n="philo_p2">Built in public, run in private. Code is <span class="accent">open for personal use</span>; derivative dashboards for commercial deployment require permission. © 2026 Non Arkaraprasertkul.</p>
+      <p data-i18n="philo_p3">Find him on LinkedIn or tap the contact card in the personal section above.</p>
+    </section>
+
+    <footer class="plan-foot">
+      <button id="plan-room" class="room" aria-label="Enter 3D room" data-i18n="plan_room">▦  ENTER ROOM</button>
+    </footer>
+  </div>
+
+  <!-- Drawer — slides up from bottom, populated by JS -->
+  <div class="drawer" id="drawer" aria-hidden="true">
+    <div class="drawer-bg" data-close="1"></div>
+    <div class="drawer-panel" id="drawer-panel">
+      <div class="drawer-handle"></div>
+      <button class="drawer-close" id="drawer-close" aria-label="Close menu">✕</button>
+      <div id="drawer-body"></div>
+    </div>
+  </div>
+
+  <!-- Konami haiku overlay -->
+  <div class="konami" id="konami" aria-hidden="true">
+    <div class="haiku" id="haiku"></div>
+  </div>
+
+  <!-- Pomodoro full-screen timer -->
+  <div class="pomodoro" id="pomodoro" role="dialog" aria-label="Pomodoro timer">
+    <button class="pomo-exit" id="pomo-exit" aria-label="Hold to exit">✕</button>
+    <div class="pomo-exit-bar"></div>
+    <div class="pomo-exit-label" id="pomo-exit-label">HOLD</div>
+    <div class="pomo-phase" id="pomo-phase">FOCUS</div>
+    <div class="pomo-time pomo-pulse" id="pomo-time">25:00</div>
+    <div class="pomo-cycle" id="pomo-cycle">round 1 of 4</div>
+    <div class="pomo-quote" id="pomo-quote" aria-live="polite"></div>
+    <div class="pomo-controls">
+      <button id="pomo-toggle" class="primary" aria-label="Start or pause focus timer">START</button>
+      <button id="pomo-skip" aria-label="Skip to next phase">SKIP</button>
+      <button id="pomo-reset" aria-label="Reset current phase timer">RESET</button>
+    </div>
+    <div class="pomo-hint">hold ✕ for 3 seconds to exit · timer keeps running</div>
+  </div>
+
+  <!-- WebGL fallback — shown when browser has no WebGL support -->
   <div class="webgl-fallback" id="webgl-fallback">
     <div class="mark">N<span class="boot-o">O</span>N</div>
-    <div class="msg">Your browser doesn&#39;t support WebGL, which powers the 3D room.<br/><br/>No problem — the plan view has everything.</div>
-    <button class="action" id="fallback-btn">CONTINUE TO PLAN VIEW</button>
+    <div class="msg">Your browser doesn't support WebGL, which powers the 3D room.<br/><br/>No problem — the plan view has everything.</div>
+    <button class="action" id="fallback-btn" aria-label="Continue to plan view">CONTINUE TO PLAN VIEW</button>
+  </div>
+
+  <!-- Offboard ritual — surfaces after every focus block ends.
+       Breath animation (3.6s) then one optional binary question.
+       No storage, no tracking. Witness function only.
+       onComplete callback advances phase or closes — never auto-launches next. -->
+  <div id="offboard" role="dialog" aria-label="Resurfacing">
+    <div class="offboard-breath" aria-hidden="true">
+      <div class="offboard-ring"></div>
+    </div>
+    <div class="offboard-q" id="offboard-q">
+      <div class="offboard-q-text">did the room feel<br>still or moving</div>
+      <div class="offboard-q-btns">
+        <button class="offboard-btn" id="offboard-still" type="button" aria-label="Still">still</button>
+        <button class="offboard-btn" id="offboard-moving" type="button" aria-label="Moving">moving</button>
+      </div>
+      <button class="offboard-dismiss" id="offboard-dismiss" type="button" aria-label="Continue without answering">— continue —</button>
+    </div>
+  </div>
+
+  <!-- Door — first-visit entry choice between host and guest mode.
+       localStorage nonarkara.mode = 'host' | 'guest' remembers the pick.
+       ?door query clears and re-asks. ?host / ?guest force a mode. -->
+  <div id="door" aria-label="Choose how you arrived">
+    <div class="door-mark">N<span class="door-o">O</span>N</div>
+    <div class="door-tag">how did you arrive</div>
+    <div class="door-list">
+      <button class="door-btn" id="door-host" type="button">
+        <span class="eyebrow">non's room</span>
+        <span class="title">enter the room</span>
+        <span class="sub">full memory palace · focus, deep session, the works</span>
+      </button>
+      <div class="door-divider">— or —</div>
+      <button class="door-btn" id="door-guest" type="button">
+        <span class="eyebrow">you arrived by link</span>
+        <span class="title">guest preview</span>
+        <span class="sub">look around · take the contact card with you</span>
+      </button>
+    </div>
+    <div class="door-foot">no login · no tracking · this choice stays on this device</div>
   </div>
 
   <!-- Main app module -->
-  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script type="module" src="app.js"></script>
+  <script type="module" src="app.js"></script>
 
-
-
-</body></html>
+</body>
+</html>
