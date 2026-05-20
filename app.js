@@ -1273,6 +1273,24 @@ async function fetchDailyBrief() {
     });
     if (Object.keys(stocks).length) window.__brief.stocks = stocks;
 
+    // GISTDA PM2.5 — overrides Open-Meteo AQI if available (Thai gov source, more accurate)
+    if (d.pm25_bkk != null || d.pm25_phuket != null) {
+      const pm25 = d.pm25_bkk;
+      const pm25Level = pm25 == null ? '—'
+        : pm25 <= 12   ? 'good'
+        : pm25 <= 35.4 ? 'moderate'
+        : pm25 <= 55.4 ? 'sensitive'
+        : pm25 <= 150.4 ? 'unhealthy'
+        : 'hazardous';
+      // Supplement existing aqi object with GISTDA pm25 (preserves AQI number from Open-Meteo)
+      window.__brief.aqi = Object.assign(window.__brief.aqi || {}, {
+        pm25,
+        pm25_phuket: d.pm25_phuket,
+        level: pm25Level,
+        source: 'gistda',
+      });
+    }
+
     if (window.paintBrief) window.paintBrief();
   } catch (_) {}
 }
@@ -3358,8 +3376,14 @@ function paintBrief() {
       const v = document.getElementById('brief-aqi-val');
       const s = document.getElementById('brief-aqi-sub');
       const cell = document.getElementById('brief-aqi-cell');
-      if (v) v.textContent = a.aqi ?? '—';
-      if (s) s.textContent = a.pm25 != null ? `${a.level} · pm2.5 ${a.pm25} µg/m³` : a.level;
+      if (v) v.textContent = a.aqi ?? (a.pm25 != null ? a.pm25.toFixed(1) : '—');
+      if (s) {
+        const bkkStr = a.pm25 != null ? `bkk ${a.pm25.toFixed(1)} µg/m³` : '';
+        const phuketStr = a.pm25_phuket != null ? ` · phuket ${a.pm25_phuket.toFixed(1)}` : '';
+        s.textContent = a.pm25 != null
+          ? `${a.level} · ${bkkStr}${phuketStr}`
+          : a.level;
+      }
       // Colour-code the AQI value by level — uses CSS custom property
       // so it respects light/dark theme automatically.
       if (v && cell) {

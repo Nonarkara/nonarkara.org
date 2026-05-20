@@ -160,8 +160,25 @@ export default {
           return [key, { price, prev, change }];
         } catch (_) { return [key, null]; }
       };
-      const results = await Promise.all(SYMBOLS.map(fetchQuote));
+      // GISTDA PM2.5 — parallel with market data, no auth needed
+      const fetchPm25 = async (lat, lng) => {
+        try {
+          const r = await fetch(
+            `https://pm25.gistda.or.th/rest/getPm25byLocation?lat=${lat}&lng=${lng}`,
+            { signal: AbortSignal.timeout(5000) }
+          );
+          const d = await r.json();
+          return d?.data?.pm25 ?? null;
+        } catch (_) { return null; }
+      };
+      const [results, bkkPm25, phuketPm25] = await Promise.all([
+        Promise.all(SYMBOLS.map(fetchQuote)),
+        fetchPm25(13.7563, 100.5018),   // Bangkok
+        fetchPm25(7.8804, 98.3923),     // Phuket town
+      ]);
       const brief = Object.fromEntries(results);
+      brief.pm25_bkk    = bkkPm25;
+      brief.pm25_phuket = phuketPm25;
       brief._ts = Date.now();
       // Cache in KV
       await env.STATUS.put(BRIEF_KEY, JSON.stringify(brief), { expirationTtl: BRIEF_TTL });
