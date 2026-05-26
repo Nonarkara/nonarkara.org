@@ -7,13 +7,13 @@
  *   - Cache version bumped
  */
 
-const CACHE_VERSION = 'non-2026-05-26-v2.5';
+const CACHE_VERSION = 'non-2026-05-26-v2.6';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const SHELL = [
   '/',
   '/index.html',
-  '/music.html',
+  '/mixtape.html',
   '/styles.css',                    // v2: extracted from inline
   '/app.js',                        // v2: extracted from inline
   '/manifest.webmanifest',

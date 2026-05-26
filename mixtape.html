@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover"/>
-  <title>NON — Music</title>
-  <meta name="description" content="A turntable. Ten tracks. No sign-in."/>
-  <meta property="og:title" content="NON — Music"/>
-  <meta property="og:description" content="A turntable. Ten tracks."/>
+  <title>A Mixtape from Non</title>
+  <meta name="description" content="A mixtape — composed by Non. Ten tracks. No sign-in."/>
+  <meta property="og:title" content="A Mixtape from Non"/>
+  <meta property="og:description" content="A mixtape — composed by Non."/>
   <meta property="og:type" content="website"/>
-  <meta property="og:url" content="https://nonarkara.org/music"/>
+  <meta property="og:url" content="https://nonarkara.org/mixtape"/>
   <meta property="og:image" content="https://nonarkara.org/og.png"/>
   <meta name="theme-color" content="#0d0d0d"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -52,6 +52,19 @@
       color: #5a5247;
     }
     .header-logo { color: #e8e0d0; font-size: 13px; letter-spacing: 0.25em; }
+
+    /* ── Dedication ─────────────────────────────────────────────── */
+    .dedication {
+      width: 100%;
+      text-align: center;
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      color: #5a5247;
+      text-transform: none;
+      padding: 12px 0 0;
+      font-style: normal;
+    }
+    .dedication em { font-style: normal; color: #8a7e6e; }
 
     /* ── Turntable ───────────────────────────────────────────────── */
     .platter-wrap {
@@ -104,15 +117,19 @@
       pointer-events: none;
     }
     .disc-label-name {
-      font-size: 10px;
+      font-size: 7px;
       letter-spacing: 0.22em;
       color: #f59e0b;
       text-transform: uppercase;
+      line-height: 1.4;
+      text-align: center;
     }
+    .disc-label-name .lbl-by { display: block; color: #8a6f2a; font-size: 6px; letter-spacing: 0.18em; }
     .disc-label-track {
       font-size: 8px;
       letter-spacing: 0.15em;
       color: #5a5247;
+      margin-top: 2px;
     }
 
     /* Spindle hole */
@@ -150,6 +167,7 @@
       transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
     }
     .arm.playing { transform: rotate(-14deg); }
+    body.intro .arm:not(.playing) { transform: rotate(-50deg); }
     .arm::after {
       content: '';
       position: absolute;
@@ -254,6 +272,48 @@
     }
     .tracklist-toggle:active { color: #e8e0d0; }
 
+    /* ── Share row ─────────────────────────────────────────────── */
+    .share-row {
+      width: 100%;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      gap: 8px;
+      padding: 4px 0 2px;
+    }
+    .share-btn {
+      flex: 0 0 auto;
+      min-height: 44px;
+      padding: 0 16px;
+      background: none;
+      border: 1px solid #3a3530;
+      color: #f59e0b;
+      font-family: inherit;
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s, color 0.15s;
+    }
+    .share-btn:active { background: #1a1510; }
+    .url-chip {
+      flex: 1 1 auto;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 12px;
+      border: 1px solid #2a2520;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      color: #8a7e6e;
+      font-family: inherit;
+      text-transform: lowercase;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .url-chip.copied { color: #f59e0b; border-color: #3a2a10; }
+
     .tracklist-overlay {
       position: fixed;
       inset: 0;
@@ -339,22 +399,25 @@
     .platter-glow.on { opacity: 1; }
   </style>
 </head>
-<body>
+<body class="intro">
 
 <div class="stage">
 
   <!-- Header -->
   <div class="header">
-    <span class="header-logo">NON</span>
+    <span class="header-logo">A MIXTAPE</span>
     <span id="hdr-side">SIDE A</span>
   </div>
+
+  <!-- Dedication -->
+  <div class="dedication">For whoever's listening. <em>— N</em></div>
 
   <!-- Turntable -->
   <div class="platter-wrap">
     <div class="platter">
       <div class="disc" id="disc">
         <div class="disc-label">
-          <span class="disc-label-name" id="lbl-name">NON</span>
+          <span class="disc-label-name" id="lbl-name"><span class="lbl-by">COMPOSED BY</span>NON</span>
           <span class="disc-label-track" id="lbl-track">—</span>
         </div>
         <div class="spindle"></div>
@@ -412,6 +475,12 @@
   <!-- Tracklist toggle -->
   <button class="tracklist-toggle" id="btn-list">All Tracks</button>
 
+  <!-- Share -->
+  <div class="share-row">
+    <button class="share-btn" id="btn-share">Share</button>
+    <div class="url-chip" id="url-chip">nonarkara.org/mixtape</div>
+  </div>
+
 </div>
 
 <!-- Tracklist overlay -->
@@ -430,6 +499,7 @@
   'use strict';
 
   // ── Tracklist ──────────────────────────────────────────────────
+  // TODO Non: replace with real song titles
   const TRACKS = [
     { id: 1,  title: 'OPENING',         file: 'music/track-01.mp3' },
     { id: 2,  title: 'DRIFT',           file: 'music/track-02.mp3' },
@@ -499,7 +569,7 @@
 
     trackTitle.textContent = t.title;
     trackNum.textContent   = 'TRACK ' + pad2(t.id);
-    lblName.textContent    = 'NON';
+    // lbl-name is set in HTML ("COMPOSED BY · NON") — don't overwrite
     lblTrack.textContent   = pad2(t.id);
     hdrSide.textContent    = idx < 5 ? 'SIDE A' : 'SIDE B';
 
@@ -617,6 +687,46 @@
       } catch (_) {}
     }
   })();
+
+  // ── Share ──────────────────────────────────────────────────────
+  const btnShare = document.getElementById('btn-share');
+  const urlChip  = document.getElementById('url-chip');
+  const SHARE_URL = 'https://nonarkara.org/mixtape';
+
+  btnShare.addEventListener('click', async () => {
+    const data = {
+      title: 'A Mixtape from Non',
+      text:  'A mixtape — composed by Non.',
+      url:   SHARE_URL,
+    };
+    if (navigator.share) {
+      try { await navigator.share(data); } catch (_) { /* user cancelled */ }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(SHARE_URL);
+      const orig = urlChip.textContent;
+      urlChip.textContent = 'COPIED';
+      urlChip.classList.add('copied');
+      setTimeout(() => {
+        urlChip.textContent = orig;
+        urlChip.classList.remove('copied');
+      }, 1500);
+    } catch (_) {}
+  });
+
+  // Tap the chip itself also copies (mobile users may expect it)
+  urlChip.addEventListener('click', () => btnShare.click());
+
+  // ── Intro — arm wakes up on first load of the session ──────────
+  if (!sessionStorage.getItem('mixtape-seen')) {
+    setTimeout(() => {
+      document.body.classList.remove('intro');
+      sessionStorage.setItem('mixtape-seen', '1');
+    }, 1200);
+  } else {
+    document.body.classList.remove('intro');
+  }
 
   // ── Init ───────────────────────────────────────────────────────
   loadTrack(0, false);
