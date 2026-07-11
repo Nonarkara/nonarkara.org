@@ -10,37 +10,40 @@
   <meta property="og:type" content="website"/>
   <meta property="og:url" content="https://nonarkara.org/mixtape"/>
   <meta property="og:image" content="https://nonarkara.org/og.png"/>
-  <meta name="theme-color" content="#0d0d0d"/>
+  <meta name="theme-color" content="#0a0e14"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
   <meta name="apple-mobile-web-app-title" content="NON"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet"/>
 
   <style>
-    /* ── Reset ─────────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
       height: 100%; height: 100dvh;
-      background: #0d0d0d;
-      color: #e8e0d0;
-      font-family: 'Courier New', Courier, monospace;
+      background: #0a0e14;
+      color: #e6edf3;
+      font-family: 'JetBrains Mono', 'IBM Plex Sans Thai', monospace;
+      font-weight: 300;
       overflow: hidden;
       -webkit-tap-highlight-color: transparent;
       user-select: none;
     }
 
-    /* ── Layout ─────────────────────────────────────────────────── */
     .stage {
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: space-between;
       height: 100dvh;
-      padding: env(safe-area-inset-top, 16px) 24px env(safe-area-inset-bottom, 24px);
+      padding: env(safe-area-inset-top, 16px) 24px env(safe-area-inset-bottom, 16px);
       padding-top: max(env(safe-area-inset-top), 20px);
-      gap: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
     }
 
-    /* ── Header ─────────────────────────────────────────────────── */
+    /* ── Header ──────────────────────────────────────────────── */
     .header {
       display: flex;
       width: 100%;
@@ -49,170 +52,113 @@
       letter-spacing: 0.18em;
       font-size: 11px;
       text-transform: uppercase;
-      color: #5a5247;
+      color: rgba(230,237,243,0.25);
+      flex-shrink: 0;
     }
-    .header-logo { color: #e8e0d0; font-size: 13px; letter-spacing: 0.25em; }
+    .header-logo { color: rgba(230,237,243,0.6); letter-spacing: 0.25em; }
 
-    /* ── Dedication ─────────────────────────────────────────────── */
+    /* ── Dedication ──────────────────────────────────────────── */
     .dedication {
       width: 100%;
       text-align: center;
       font-size: 11px;
-      letter-spacing: 0.15em;
-      color: #5a5247;
-      text-transform: none;
-      padding: 12px 0 0;
-      font-style: normal;
+      letter-spacing: 0.12em;
+      color: rgba(230,237,243,0.2);
+      padding: 10px 0 0;
+      flex-shrink: 0;
     }
-    .dedication em { font-style: normal; color: #8a7e6e; }
+    .dedication em { font-style: normal; color: rgba(230,237,243,0.35); }
 
-    /* ── Turntable ───────────────────────────────────────────────── */
-    .platter-wrap {
+    /* ── Turntable ───────────────────────────────────────────── */
+    .turntable-wrap {
       position: relative;
-      flex: 1;
       display: flex;
       align-items: center;
       justify-content: center;
       width: 100%;
+      padding: 20px 0 12px;
+      flex-shrink: 0;
     }
 
-    .platter {
-      position: relative;
-      /* size: min of 72vw and 56vh to keep it visible in landscape too */
-      width: min(72vw, 56vh, 320px);
-      height: min(72vw, 56vh, 320px);
+    .turntable-svg {
+      width: min(72vw, 50vh, 300px);
+      height: min(72vw, 50vh, 300px);
+      cursor: pointer;
+      touch-action: manipulation;
     }
 
-    /* Vinyl disc */
-    .disc {
-      width: 100%;
-      height: 100%;
-      border-radius: 50%;
-      background:
-        /* Label */
-        radial-gradient(circle at center, #1a1510 0%, #1a1510 17%, transparent 17%),
-        /* Grooves — alternating micro rings */
-        repeating-conic-gradient(#1c1c1c 0deg, #1c1c1c 0.4deg, #141414 0.4deg, #141414 1.8deg),
-        /* Base vinyl */
-        radial-gradient(circle at center, #0d0d0d 0%, #151515 100%);
+    .turntable-svg text {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 300;
+    }
+
+    .grooves circle {
+      fill: none;
+      stroke: #e6edf3;
+      stroke-opacity: 0.05;
+      stroke-width: 0.4;
+      shape-rendering: geometricPrecision;
+    }
+
+    .disc-group {
+      transform-origin: 160px 160px;
       animation: spin 2.5s linear infinite;
       animation-play-state: paused;
-      will-change: transform;
     }
-    .disc.playing { animation-play-state: running; }
+    .disc-group.playing { animation-play-state: running; }
 
-    /* Center label */
-    .disc-label {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 30%; height: 30%;
-      border-radius: 50%;
-      background: #1a1510;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 3px;
-      pointer-events: none;
+    .arm-group {
+      transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
     }
-    .disc-label-name {
-      font-size: 7px;
-      letter-spacing: 0.22em;
-      color: #f59e0b;
-      text-transform: uppercase;
-      line-height: 1.4;
-      text-align: center;
-    }
-    .disc-label-name .lbl-by { display: block; color: #8a6f2a; font-size: 6px; letter-spacing: 0.18em; }
-    .disc-label-track {
-      font-size: 8px;
-      letter-spacing: 0.15em;
-      color: #5a5247;
-      margin-top: 2px;
+    .arm-group.lifting {
+      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    /* Spindle hole */
-    .spindle {
-      position: absolute;
-      top: 50%; left: 50%;
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: #0d0d0d;
-      transform: translate(-50%, -50%);
-      pointer-events: none;
+    .arm-glow {
+      opacity: 0;
+      transition: opacity 0.8s ease;
     }
-
-    /* Tonearm */
-    .arm-pivot {
-      position: absolute;
-      top: 6%; right: 4%;
-      width: 14px; height: 14px;
-      border-radius: 50%;
-      background: #2a2a2a;
-      border: 1px solid #3a3a3a;
-      z-index: 10;
-    }
-    .arm {
-      position: absolute;
-      top: calc(6% + 7px);
-      right: calc(4% + 7px);
-      width: 2px;
-      height: 46%;
-      background: linear-gradient(to bottom, #4a4a4a, #2a2a2a);
-      transform-origin: top center;
-      transform: rotate(-28deg);
-      border-radius: 1px;
-      z-index: 9;
-      transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .arm.playing { transform: rotate(-14deg); }
-    body.intro .arm:not(.playing) { transform: rotate(-50deg); }
-    .arm::after {
-      content: '';
-      position: absolute;
-      bottom: -6px; left: 50%;
-      width: 10px; height: 6px;
-      background: #f59e0b;
-      border-radius: 0 0 3px 3px;
-      transform: translateX(-50%);
-    }
+    .arm-glow.on { opacity: 1; }
 
     @keyframes spin {
       from { transform: rotate(0deg); }
       to   { transform: rotate(360deg); }
     }
 
-    /* ── Track info ──────────────────────────────────────────────── */
+    /* ── Track info ──────────────────────────────────────────── */
     .track-info {
       width: 100%;
       text-align: center;
-      padding: 8px 0 4px;
+      padding: 4px 0;
+      flex-shrink: 0;
     }
     .track-title {
       font-size: 13px;
-      letter-spacing: 0.2em;
+      font-weight: 400;
+      letter-spacing: 0.15em;
       text-transform: uppercase;
-      color: #e8e0d0;
-      margin-bottom: 3px;
+      color: #e6edf3;
+      margin-bottom: 2px;
       transition: opacity 0.3s;
+      line-height: 1.6;
     }
     .track-num {
       font-size: 11px;
       letter-spacing: 0.15em;
-      color: #5a5247;
+      color: rgba(230,237,243,0.2);
     }
 
-    /* ── Progress ────────────────────────────────────────────────── */
+    /* ── Progress ────────────────────────────────────────────── */
     .progress-wrap {
       width: 100%;
-      padding: 8px 0;
+      padding: 6px 0;
       cursor: pointer;
+      flex-shrink: 0;
     }
     .progress-bar {
       width: 100%;
       height: 1px;
-      background: #2a2520;
+      background: rgba(230,237,243,0.06);
       position: relative;
     }
     .progress-fill {
@@ -226,77 +172,114 @@
       justify-content: space-between;
       font-size: 10px;
       letter-spacing: 0.1em;
-      color: #3a3530;
-      margin-top: 5px;
+      color: rgba(230,237,243,0.15);
+      margin-top: 4px;
     }
 
-    /* ── Controls ────────────────────────────────────────────────── */
+    /* ── Controls ────────────────────────────────────────────── */
     .controls {
       width: 100%;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 32px;
-      padding: 8px 0;
+      padding: 6px 0;
+      flex-shrink: 0;
     }
     .ctrl-btn {
       width: 44px; height: 44px;
       display: flex; align-items: center; justify-content: center;
       background: none; border: none; cursor: pointer;
-      color: #e8e0d0;
-      transition: color 0.15s, opacity 0.15s;
+      color: #e6edf3;
+      transition: opacity 0.15s;
       -webkit-tap-highlight-color: transparent;
     }
-    .ctrl-btn:active { opacity: 0.5; }
+    .ctrl-btn:active { opacity: 0.4; }
     .ctrl-btn svg { display: block; }
 
     .play-btn {
-      width: 56px; height: 56px;
-      border: 1px solid #3a3530;
+      width: 52px; height: 52px;
+      border: 1px solid rgba(230,237,243,0.1);
       border-radius: 50%;
       color: #f59e0b;
     }
-    .play-btn:active { background: #1a1510; }
+    .play-btn:active { background: rgba(245,158,11,0.05); }
 
-    /* ── Tracklist ───────────────────────────────────────────────── */
-    .tracklist-toggle {
-      background: none; border: none; cursor: pointer;
-      font-family: inherit;
+    /* ── Tracklist (inline) ──────────────────────────────────── */
+    .tracklist {
+      width: 100%;
+      padding: 8px 0;
+      flex-shrink: 0;
+    }
+    .tracklist-label {
       font-size: 10px;
       letter-spacing: 0.2em;
       text-transform: uppercase;
-      color: #3a3530;
-      padding: 8px 0;
-      -webkit-tap-highlight-color: transparent;
-      transition: color 0.2s;
+      color: rgba(230,237,243,0.12);
+      padding-bottom: 8px;
     }
-    .tracklist-toggle:active { color: #e8e0d0; }
+    .track-item {
+      display: flex;
+      align-items: center;
+      padding: 0;
+      min-height: 44px;
+      border-bottom: 1px solid rgba(230,237,243,0.04);
+      cursor: pointer;
+      gap: 12px;
+      transition: opacity 0.15s;
+    }
+    .track-item:active { opacity: 0.4; }
+    .track-item.active .ti-num { color: #f59e0b; }
+    .track-item.active .ti-name { color: #f59e0b; }
 
-    /* ── Share row ─────────────────────────────────────────────── */
+    .ti-num {
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      color: rgba(230,237,243,0.15);
+      width: 22px;
+      flex-shrink: 0;
+      text-align: right;
+    }
+    .ti-name {
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      color: rgba(230,237,243,0.5);
+      flex: 1;
+      line-height: 1.6;
+    }
+    .ti-dur {
+      font-size: 10px;
+      color: rgba(230,237,243,0.12);
+      letter-spacing: 0.08em;
+    }
+
+    /* ── Share ────────────────────────────────────────────────── */
     .share-row {
       width: 100%;
       display: flex;
       align-items: stretch;
       justify-content: center;
       gap: 8px;
-      padding: 4px 0 2px;
+      padding: 8px 0 4px;
+      flex-shrink: 0;
     }
     .share-btn {
       flex: 0 0 auto;
       min-height: 44px;
       padding: 0 16px;
       background: none;
-      border: 1px solid #3a3530;
+      border: 1px solid rgba(230,237,243,0.08);
       color: #f59e0b;
       font-family: inherit;
       font-size: 10px;
+      font-weight: 300;
       letter-spacing: 0.22em;
       text-transform: uppercase;
       cursor: pointer;
       -webkit-tap-highlight-color: transparent;
-      transition: background 0.15s, color 0.15s;
+      transition: background 0.15s;
     }
-    .share-btn:active { background: #1a1510; }
+    .share-btn:active { background: rgba(245,158,11,0.05); }
     .url-chip {
       flex: 1 1 auto;
       min-height: 44px;
@@ -304,137 +287,118 @@
       align-items: center;
       justify-content: center;
       padding: 0 12px;
-      border: 1px solid #2a2520;
+      border: 1px solid rgba(230,237,243,0.04);
       font-size: 10px;
-      letter-spacing: 0.12em;
-      color: #8a7e6e;
+      letter-spacing: 0.1em;
+      color: rgba(230,237,243,0.2);
       font-family: inherit;
+      font-weight: 300;
       text-transform: lowercase;
+      cursor: pointer;
       transition: color 0.2s, border-color 0.2s;
     }
-    .url-chip.copied { color: #f59e0b; border-color: #3a2a10; }
+    .url-chip.copied { color: #f59e0b; border-color: rgba(245,158,11,0.15); }
 
-    .tracklist-overlay {
-      position: fixed;
-      inset: 0;
-      background: #0d0d0d;
-      z-index: 50;
-      display: flex;
-      flex-direction: column;
-      transform: translateY(100%);
-      transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-      padding: env(safe-area-inset-top, 20px) 24px env(safe-area-inset-bottom, 24px);
-    }
-    .tracklist-overlay.open { transform: translateY(0); }
-
-    .tracklist-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 16px 0 24px;
-      font-size: 11px;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      color: #5a5247;
-    }
-    .tracklist-close {
-      background: none; border: none; cursor: pointer;
-      color: #e8e0d0; font-family: inherit; font-size: 18px;
-      line-height: 1; width: 44px; height: 44px;
-      display: flex; align-items: center; justify-content: center;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .tracklist-items {
-      flex: 1;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-    .track-item {
-      display: flex;
-      align-items: center;
-      padding: 14px 0;
-      border-bottom: 1px solid #1a1a1a;
-      cursor: pointer;
-      gap: 16px;
-      min-height: 44px;
-      transition: opacity 0.15s;
-    }
-    .track-item:active { opacity: 0.5; }
-    .track-item.active .ti-num { color: #f59e0b; }
-    .track-item.active .ti-name { color: #f59e0b; }
-
-    .ti-num {
+    /* ── Colophon ─────────────────────────────────────────────── */
+    .colophon {
+      width: 100%;
+      text-align: center;
       font-size: 10px;
-      letter-spacing: 0.15em;
-      color: #3a3530;
-      width: 24px;
+      letter-spacing: 0.1em;
+      color: rgba(230,237,243,0.08);
+      padding: 12px 0 8px;
       flex-shrink: 0;
     }
-    .ti-name {
-      font-size: 12px;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: #e8e0d0;
-      flex: 1;
-    }
-    .ti-dur {
-      font-size: 10px;
-      color: #3a3530;
-      letter-spacing: 0.1em;
+
+    /* ── Intro state ─────────────────────────────────────────── */
+    body.intro .arm-group {
+      transition: transform 1.2s cubic-bezier(0.22, 1, 0.36, 1);
     }
 
-    /* ── Ambient glow under disc ─────────────────────────────────── */
-    .platter-glow {
-      position: absolute;
-      bottom: -8px;
-      left: 50%; transform: translateX(-50%);
-      width: 60%; height: 20px;
-      background: radial-gradient(ellipse at center, rgba(245,158,11,0.08) 0%, transparent 70%);
-      filter: blur(6px);
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.8s;
+    /* ── Desktop ─────────────────────────────────────────────── */
+    @media (min-width: 768px) {
+      .turntable-svg {
+        width: min(50vw, 50vh, 380px);
+        height: min(50vw, 50vh, 380px);
+      }
+      .stage {
+        max-width: 520px;
+        margin: 0 auto;
+      }
     }
-    .platter-glow.on { opacity: 1; }
   </style>
 </head>
 <body class="intro">
 
 <div class="stage">
 
-  <!-- Header -->
   <div class="header">
     <span class="header-logo">A MIXTAPE</span>
     <span id="hdr-side">SIDE A</span>
   </div>
 
-  <!-- Dedication -->
   <div class="dedication">For whoever's listening. <em>— N</em></div>
 
-  <!-- Turntable -->
-  <div class="platter-wrap">
-    <div class="platter">
-      <div class="disc" id="disc">
-        <div class="disc-label">
-          <span class="disc-label-name" id="lbl-name"><span class="lbl-by">COMPOSED BY</span>NON</span>
-          <span class="disc-label-track" id="lbl-track">—</span>
-        </div>
-        <div class="spindle"></div>
-      </div>
-      <div class="arm-pivot"></div>
-      <div class="arm" id="arm"></div>
-    </div>
-    <div class="platter-glow" id="glow"></div>
+  <div class="turntable-wrap">
+    <svg class="turntable-svg" id="turntable" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="glow-filter">
+          <feGaussianBlur stdDeviation="4" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+
+      <!-- Platter base -->
+      <circle cx="160" cy="160" r="142" stroke="#e6edf3" stroke-opacity="0.08" stroke-width="0.5" fill="none"/>
+      <circle cx="160" cy="160" r="140" stroke="#e6edf3" stroke-opacity="0.12" stroke-width="0.5" fill="none"/>
+
+      <!-- Disc group (rotates) -->
+      <g class="disc-group" id="disc-group">
+        <!-- Grooves (generated by JS) -->
+        <g class="grooves" id="grooves"></g>
+
+        <!-- Label area -->
+        <circle cx="160" cy="160" r="42" stroke="#e6edf3" stroke-opacity="0.1" stroke-width="0.5" fill="none"/>
+        <circle cx="160" cy="160" r="40" stroke="#e6edf3" stroke-opacity="0.06" stroke-width="0.3" fill="none"/>
+
+        <!-- Label text -->
+        <text x="160" y="153" text-anchor="middle" font-size="9" letter-spacing="0.25em" fill="#e6edf3" fill-opacity="0.4">NON</text>
+        <text x="160" y="167" text-anchor="middle" font-size="7" letter-spacing="0.15em" fill="#e6edf3" fill-opacity="0.15" id="lbl-track">01</text>
+
+        <!-- Spindle -->
+        <circle cx="160" cy="160" r="3" stroke="#e6edf3" stroke-opacity="0.15" stroke-width="0.5" fill="#0a0e14"/>
+      </g>
+
+      <!-- Annotations (static, don't rotate) -->
+      <text x="160" y="28" text-anchor="middle" font-size="7" letter-spacing="0.2em" fill="#e6edf3" fill-opacity="0.08" id="anno-side">SIDE A</text>
+      <text x="160" y="306" text-anchor="middle" font-size="7" letter-spacing="0.15em" fill="#e6edf3" fill-opacity="0.06">33 RPM</text>
+
+      <!-- Tonearm -->
+      <g class="arm-group" id="arm-group">
+        <!-- Glow under stylus -->
+        <circle class="arm-glow" id="arm-glow" cx="272" cy="210" r="8" fill="#f59e0b" fill-opacity="0.1" filter="url(#glow-filter)"/>
+
+        <!-- Pivot base -->
+        <rect x="266" y="42" width="14" height="14" stroke="#e6edf3" stroke-opacity="0.15" stroke-width="0.5" fill="none"/>
+
+        <!-- Arm shaft -->
+        <line x1="273" y1="49" x2="273" y2="198" stroke="#e6edf3" stroke-opacity="0.25" stroke-width="1"/>
+
+        <!-- Headshell -->
+        <line x1="268" y1="198" x2="278" y2="198" stroke="#e6edf3" stroke-opacity="0.2" stroke-width="0.5"/>
+        <rect x="269" y="198" width="8" height="10" stroke="#e6edf3" stroke-opacity="0.2" stroke-width="0.5" fill="none"/>
+
+        <!-- Stylus tip — the ONE amber element -->
+        <rect x="271" y="208" width="4" height="4" fill="#f59e0b"/>
+      </g>
+    </svg>
   </div>
 
-  <!-- Track info -->
   <div class="track-info">
     <div class="track-title" id="track-title">—</div>
-    <div class="track-num" id="track-num">TRACK —</div>
+    <div class="track-num" id="track-num">TRACK 01</div>
   </div>
 
-  <!-- Progress -->
   <div class="progress-wrap" id="progress-wrap">
     <div class="progress-bar">
       <div class="progress-fill" id="progress-fill"></div>
@@ -445,51 +409,44 @@
     </div>
   </div>
 
-  <!-- Controls -->
   <div class="controls">
     <button class="ctrl-btn" id="btn-prev" aria-label="Previous">
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
         <rect x="3" y="3" width="2" height="14" fill="currentColor"/>
         <polygon points="17,3 7,10 17,17" fill="currentColor"/>
       </svg>
     </button>
 
     <button class="ctrl-btn play-btn" id="btn-play" aria-label="Play / Pause">
-      <svg id="icon-play" width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <polygon points="5,2 18,10 5,18" fill="currentColor"/>
+      <svg id="icon-play" width="18" height="18" viewBox="0 0 20 20" fill="none">
+        <polygon points="6,2 18,10 6,18" fill="currentColor"/>
       </svg>
-      <svg id="icon-pause" width="20" height="20" viewBox="0 0 20 20" fill="none" style="display:none">
+      <svg id="icon-pause" width="18" height="18" viewBox="0 0 20 20" fill="none" style="display:none">
         <rect x="4" y="2" width="4" height="16" fill="currentColor"/>
         <rect x="12" y="2" width="4" height="16" fill="currentColor"/>
       </svg>
     </button>
 
     <button class="ctrl-btn" id="btn-next" aria-label="Next">
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
         <rect x="15" y="3" width="2" height="14" fill="currentColor"/>
         <polygon points="3,3 13,10 3,17" fill="currentColor"/>
       </svg>
     </button>
   </div>
 
-  <!-- Tracklist toggle -->
-  <button class="tracklist-toggle" id="btn-list">All Tracks</button>
+  <div class="tracklist" id="tracklist">
+    <div class="tracklist-label">Tracklist</div>
+    <div id="tracklist-items"></div>
+  </div>
 
-  <!-- Share -->
   <div class="share-row">
     <button class="share-btn" id="btn-share">Share</button>
     <div class="url-chip" id="url-chip">nonarkara.org/mixtape</div>
   </div>
 
-</div>
+  <div class="colophon">nonarkara.org/mixtape · 2026</div>
 
-<!-- Tracklist overlay -->
-<div class="tracklist-overlay" id="tracklist">
-  <div class="tracklist-header">
-    <span>Tracklist</span>
-    <button class="tracklist-close" id="btn-close">×</button>
-  </div>
-  <div class="tracklist-items" id="tracklist-items"></div>
 </div>
 
 <audio id="player" preload="auto"></audio>
@@ -498,54 +455,72 @@
 (function () {
   'use strict';
 
-  // ── Tracklist ──────────────────────────────────────────────────
-  // TODO Non: replace with real song titles
-  const TRACKS = [
-    { id: 1,  title: 'OPENING',         file: 'music/track-01.mp3' },
-    { id: 2,  title: 'DRIFT',           file: 'music/track-02.mp3' },
-    { id: 3,  title: 'STILL WATER',     file: 'music/track-03.mp3' },
-    { id: 4,  title: 'NIGHT DRIVE',     file: 'music/track-04.mp3' },
-    { id: 5,  title: 'SIGNAL',          file: 'music/track-05.mp3' },
-    { id: 6,  title: 'SLOW HOUR',       file: 'music/track-06.mp3' },
-    { id: 7,  title: 'CURRENT',         file: 'music/track-07.mp3' },
-    { id: 8,  title: 'REMAIN',          file: 'music/track-08.mp3' },
-    { id: 9,  title: 'LAST LIGHT',      file: 'music/track-09.mp3' },
-    { id: 10, title: 'CLOSE',           file: 'music/track-10.mp3' },
+  var TRACKS = [
+    { id: 1,  title: 'Texts Across The Line',  file: 'music/track-01.mp3' },
+    { id: 2,  title: 'กระจายความรัก',          file: 'music/track-02.mp3' },
+    { id: 3,  title: 'ของเล่นของคุณผู้หญิง',      file: 'music/track-03.mp3' },
+    { id: 4,  title: 'ของเล่นชั้นล่าง',          file: 'music/track-04.mp3' },
+    { id: 5,  title: 'ของเล่นไฮโซ',            file: 'music/track-05.mp3' },
+    { id: 6,  title: 'คืนเดียวที่สิงคโปร์',       file: 'music/track-06.mp3' },
+    { id: 7,  title: 'ทำไมเราไม่รักให้สุด',       file: 'music/track-07.mp3' },
+    { id: 8,  title: 'หมาคาบไปแดก (alt)',      file: 'music/track-08.mp3' },
+    { id: 9,  title: 'หมาคาบไปแดก',            file: 'music/track-09.mp3' },
+    { id: 10, title: 'เราไม่รู้เหี้ยอะไรเลย',     file: 'music/track-10.mp3' },
   ];
 
-  // ── State ──────────────────────────────────────────────────────
-  let currentIdx = 0;
-  let isPlaying  = false;
+  var ARM_REST = -38;
+  var ARM_PLAY = -10;
+  var ARM_LIFT = -22;
+  var PIVOT_X  = 273;
+  var PIVOT_Y  = 49;
 
-  // ── Elements ───────────────────────────────────────────────────
-  const player        = document.getElementById('player');
-  const disc          = document.getElementById('disc');
-  const arm           = document.getElementById('arm');
-  const glow          = document.getElementById('glow');
-  const btnPlay       = document.getElementById('btn-play');
-  const btnPrev       = document.getElementById('btn-prev');
-  const btnNext       = document.getElementById('btn-next');
-  const iconPlay      = document.getElementById('icon-play');
-  const iconPause     = document.getElementById('icon-pause');
-  const trackTitle    = document.getElementById('track-title');
-  const trackNum      = document.getElementById('track-num');
-  const lblName       = document.getElementById('lbl-name');
-  const lblTrack      = document.getElementById('lbl-track');
-  const progressFill  = document.getElementById('progress-fill');
-  const progressWrap  = document.getElementById('progress-wrap');
-  const timeCur       = document.getElementById('time-cur');
-  const timeDur       = document.getElementById('time-dur');
-  const tracklist     = document.getElementById('tracklist');
-  const tracklistItems= document.getElementById('tracklist-items');
-  const btnList       = document.getElementById('btn-list');
-  const btnClose      = document.getElementById('btn-close');
-  const hdrSide       = document.getElementById('hdr-side');
+  var currentIdx = 0;
+  var isPlaying  = false;
 
-  // ── Helpers ────────────────────────────────────────────────────
+  var player       = document.getElementById('player');
+  var discGroup    = document.getElementById('disc-group');
+  var armGroup     = document.getElementById('arm-group');
+  var armGlow      = document.getElementById('arm-glow');
+  var btnPlay      = document.getElementById('btn-play');
+  var btnPrev      = document.getElementById('btn-prev');
+  var btnNext      = document.getElementById('btn-next');
+  var iconPlay     = document.getElementById('icon-play');
+  var iconPause    = document.getElementById('icon-pause');
+  var trackTitle   = document.getElementById('track-title');
+  var trackNum     = document.getElementById('track-num');
+  var lblTrack     = document.getElementById('lbl-track');
+  var progressFill = document.getElementById('progress-fill');
+  var progressWrap = document.getElementById('progress-wrap');
+  var timeCur      = document.getElementById('time-cur');
+  var timeDur      = document.getElementById('time-dur');
+  var turntable    = document.getElementById('turntable');
+  var tracklistEl  = document.getElementById('tracklist-items');
+  var hdrSide      = document.getElementById('hdr-side');
+  var annoSide     = document.getElementById('anno-side');
+
+  // ── Generate grooves ──────────────────────────────────────
+  (function () {
+    var g = document.getElementById('grooves');
+    var ns = 'http://www.w3.org/2000/svg';
+    for (var r = 48; r <= 135; r += 4.5) {
+      var c = document.createElementNS(ns, 'circle');
+      c.setAttribute('cx', '160');
+      c.setAttribute('cy', '160');
+      c.setAttribute('r', String(r));
+      g.appendChild(c);
+    }
+  })();
+
+  // ── Arm rotation ──────────────────────────────────────────
+  function setArmAngle(deg) {
+    armGroup.setAttribute('transform', 'rotate(' + deg + ' ' + PIVOT_X + ' ' + PIVOT_Y + ')');
+  }
+  setArmAngle(ARM_REST);
+
   function fmt(s) {
     if (!s || !isFinite(s)) return '—:——';
-    const m = Math.floor(s / 60);
-    const sec = Math.floor(s % 60);
+    var m = Math.floor(s / 60);
+    var sec = Math.floor(s % 60);
     return m + ':' + String(sec).padStart(2, '0');
   }
 
@@ -553,15 +528,23 @@
 
   function setPlayState(playing) {
     isPlaying = playing;
-    disc.classList.toggle('playing', playing);
-    arm.classList.toggle('playing', playing);
-    glow.classList.toggle('on', playing);
+    discGroup.classList.toggle('playing', playing);
+    armGlow.classList.toggle('on', playing);
     iconPlay.style.display  = playing ? 'none'  : 'block';
     iconPause.style.display = playing ? 'block' : 'none';
+    if (playing) {
+      setArmAngle(ARM_PLAY);
+    }
+  }
+
+  function updateSide() {
+    var side = currentIdx < 5 ? 'SIDE A' : 'SIDE B';
+    hdrSide.textContent = side;
+    annoSide.textContent = side;
   }
 
   function loadTrack(idx, autoplay) {
-    const t = TRACKS[idx];
+    var t = TRACKS[idx];
     currentIdx = idx;
 
     player.src = t.file;
@@ -569,118 +552,122 @@
 
     trackTitle.textContent = t.title;
     trackNum.textContent   = 'TRACK ' + pad2(t.id);
-    // lbl-name is set in HTML ("COMPOSED BY · NON") — don't overwrite
     lblTrack.textContent   = pad2(t.id);
-    hdrSide.textContent    = idx < 5 ? 'SIDE A' : 'SIDE B';
+    updateSide();
 
     progressFill.style.width = '0%';
     timeCur.textContent = '0:00';
     timeDur.textContent = '—:——';
 
-    // update tracklist
-    document.querySelectorAll('.track-item').forEach((el, i) => {
+    document.querySelectorAll('.track-item').forEach(function (el, i) {
       el.classList.toggle('active', i === idx);
     });
 
     if (autoplay) {
-      player.play().then(() => setPlayState(true)).catch(() => setPlayState(false));
+      player.play().then(function () { setPlayState(true); }).catch(function () { setPlayState(false); });
     } else {
       setPlayState(false);
+      setArmAngle(ARM_REST);
     }
   }
 
-  // ── Controls ───────────────────────────────────────────────────
-  btnPlay.addEventListener('click', () => {
+  function loadTrackWithLift(idx, autoplay) {
+    armGroup.classList.add('lifting');
+    setArmAngle(ARM_LIFT);
+
+    setTimeout(function () {
+      armGroup.classList.remove('lifting');
+      loadTrack(idx, autoplay);
+    }, 420);
+  }
+
+  // ── Controls ──────────────────────────────────────────────
+  btnPlay.addEventListener('click', function (e) {
+    e.stopPropagation();
+    togglePlay();
+  });
+
+  function togglePlay() {
     if (!player.src) return;
     if (isPlaying) {
       player.pause();
       setPlayState(false);
     } else {
-      player.play().then(() => setPlayState(true)).catch(() => {});
+      player.play().then(function () { setPlayState(true); }).catch(function () {});
     }
+  }
+
+  turntable.addEventListener('click', function () {
+    togglePlay();
   });
 
-  btnPrev.addEventListener('click', () => {
+  btnPrev.addEventListener('click', function () {
     if (player.currentTime > 3) {
       player.currentTime = 0;
     } else {
-      const idx = (currentIdx - 1 + TRACKS.length) % TRACKS.length;
-      loadTrack(idx, isPlaying);
+      var idx = (currentIdx - 1 + TRACKS.length) % TRACKS.length;
+      loadTrackWithLift(idx, isPlaying);
     }
   });
 
-  btnNext.addEventListener('click', () => {
-    const idx = (currentIdx + 1) % TRACKS.length;
-    loadTrack(idx, isPlaying);
+  btnNext.addEventListener('click', function () {
+    var idx = (currentIdx + 1) % TRACKS.length;
+    loadTrackWithLift(idx, isPlaying);
   });
 
-  // Progress tap
-  progressWrap.addEventListener('click', (e) => {
+  progressWrap.addEventListener('click', function (e) {
     if (!player.duration) return;
-    const rect = progressWrap.getBoundingClientRect();
-    const ratio = (e.clientX - rect.left) / rect.width;
+    var rect = progressWrap.getBoundingClientRect();
+    var ratio = (e.clientX - rect.left) / rect.width;
     player.currentTime = ratio * player.duration;
   });
 
-  // ── Audio events ───────────────────────────────────────────────
-  player.addEventListener('timeupdate', () => {
+  // ── Audio events ──────────────────────────────────────────
+  player.addEventListener('timeupdate', function () {
     if (!player.duration) return;
-    const pct = (player.currentTime / player.duration) * 100;
+    var pct = (player.currentTime / player.duration) * 100;
     progressFill.style.width = pct + '%';
     timeCur.textContent = fmt(player.currentTime);
   });
 
-  player.addEventListener('loadedmetadata', () => {
+  player.addEventListener('loadedmetadata', function () {
     timeDur.textContent = fmt(player.duration);
   });
 
-  player.addEventListener('ended', () => {
-    const idx = (currentIdx + 1) % TRACKS.length;
-    loadTrack(idx, true);
+  player.addEventListener('ended', function () {
+    var idx = (currentIdx + 1) % TRACKS.length;
+    loadTrackWithLift(idx, true);
   });
 
-  player.addEventListener('pause', () => { if (!player.ended) setPlayState(false); });
-  player.addEventListener('play',  () => setPlayState(true));
+  player.addEventListener('pause', function () { if (!player.ended) setPlayState(false); });
+  player.addEventListener('play',  function () { setPlayState(true); });
 
-  // ── Tracklist overlay ──────────────────────────────────────────
-  TRACKS.forEach((t, i) => {
-    const el = document.createElement('div');
+  // ── Build tracklist ───────────────────────────────────────
+  TRACKS.forEach(function (t, i) {
+    var el = document.createElement('div');
     el.className = 'track-item' + (i === 0 ? ' active' : '');
     el.innerHTML =
       '<span class="ti-num">' + pad2(t.id) + '</span>' +
       '<span class="ti-name">' + t.title + '</span>' +
       '<span class="ti-dur" id="dur-' + i + '">—:——</span>';
-    el.addEventListener('click', () => {
-      loadTrack(i, isPlaying);
-      tracklist.classList.remove('open');
+    el.addEventListener('click', function () {
+      loadTrackWithLift(i, true);
     });
-    tracklistItems.appendChild(el);
+    tracklistEl.appendChild(el);
   });
 
-  btnList.addEventListener('click', () => tracklist.classList.add('open'));
-  btnClose.addEventListener('click', () => tracklist.classList.remove('open'));
-
-  // Swipe down to close overlay
-  let touchStartY = 0;
-  tracklist.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; }, { passive: true });
-  tracklist.addEventListener('touchend', (e) => {
-    if (e.changedTouches[0].clientY - touchStartY > 60) {
-      tracklist.classList.remove('open');
-    }
-  }, { passive: true });
-
-  // Try to load durations lazily
-  (async function loadDurations() {
-    for (let i = 0; i < TRACKS.length; i++) {
+  // Lazy-load durations
+  (async function () {
+    for (var i = 0; i < TRACKS.length; i++) {
       try {
-        const a = new Audio();
-        await new Promise((resolve) => {
+        var a = new Audio();
+        await new Promise(function (resolve) {
           a.addEventListener('loadedmetadata', resolve, { once: true });
           a.addEventListener('error', resolve, { once: true });
           a.src = TRACKS[i].file;
           a.load();
         });
-        const el = document.getElementById('dur-' + i);
+        var el = document.getElementById('dur-' + i);
         if (el && a.duration && isFinite(a.duration)) {
           el.textContent = fmt(a.duration);
         }
@@ -688,47 +675,58 @@
     }
   })();
 
-  // ── Share ──────────────────────────────────────────────────────
-  const btnShare = document.getElementById('btn-share');
-  const urlChip  = document.getElementById('url-chip');
-  const SHARE_URL = 'https://nonarkara.org/mixtape';
+  // ── Share ─────────────────────────────────────────────────
+  var btnShare = document.getElementById('btn-share');
+  var urlChip  = document.getElementById('url-chip');
+  var SHARE_URL = 'https://nonarkara.org/mixtape';
 
-  btnShare.addEventListener('click', async () => {
-    const data = {
+  btnShare.addEventListener('click', async function () {
+    var data = {
       title: 'A Mixtape from Non',
       text:  'A mixtape — composed by Non.',
       url:   SHARE_URL,
     };
     if (navigator.share) {
-      try { await navigator.share(data); } catch (_) { /* user cancelled */ }
+      try { await navigator.share(data); } catch (_) {}
       return;
     }
-    try {
-      await navigator.clipboard.writeText(SHARE_URL);
-      const orig = urlChip.textContent;
+    copyUrl();
+  });
+
+  urlChip.addEventListener('click', function () {
+    if (navigator.share) {
+      btnShare.click();
+      return;
+    }
+    copyUrl();
+  });
+
+  function copyUrl() {
+    navigator.clipboard.writeText(SHARE_URL).then(function () {
+      var orig = urlChip.textContent;
       urlChip.textContent = 'COPIED';
       urlChip.classList.add('copied');
-      setTimeout(() => {
+      setTimeout(function () {
         urlChip.textContent = orig;
         urlChip.classList.remove('copied');
       }, 1500);
-    } catch (_) {}
-  });
-
-  // Tap the chip itself also copies (mobile users may expect it)
-  urlChip.addEventListener('click', () => btnShare.click());
-
-  // ── Intro — arm wakes up on first load of the session ──────────
-  if (!sessionStorage.getItem('mixtape-seen')) {
-    setTimeout(() => {
-      document.body.classList.remove('intro');
-      sessionStorage.setItem('mixtape-seen', '1');
-    }, 1200);
-  } else {
-    document.body.classList.remove('intro');
+    }).catch(function () {});
   }
 
-  // ── Init ───────────────────────────────────────────────────────
+  // ── Intro ─────────────────────────────────────────────────
+  if (!sessionStorage.getItem('mixtape-seen')) {
+    setArmAngle(-55);
+    setTimeout(function () {
+      document.body.classList.remove('intro');
+      setArmAngle(ARM_REST);
+      sessionStorage.setItem('mixtape-seen', '1');
+    }, 300);
+  } else {
+    document.body.classList.remove('intro');
+    setArmAngle(ARM_REST);
+  }
+
+  // ── Init ──────────────────────────────────────────────────
   loadTrack(0, false);
 
 })();

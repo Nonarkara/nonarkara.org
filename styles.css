@@ -52,7 +52,25 @@
     }
     /* lang-specific font swaps */
     body[data-lang="th"] { font-family: 'IBM Plex Sans Thai', 'JetBrains Mono', monospace; }
-    body[data-lang="zh"] { font-family: 'Noto Sans SC', 'JetBrains Mono', monospace; }
+    /* Chinese: Ma Shan Zheng is a calligraphic brush-script face — weight 400
+       only. It gives Chinese characters the ink-quality of good typography.
+       Noto Sans SC catches any weight or glyph Ma Shan misses. */
+    body[data-lang="zh"] { font-family: 'Ma Shan Zheng', 'Noto Sans SC', 'JetBrains Mono', monospace; }
+
+    /* Version stamp — monospace, low-contrast, restrained but always visible. */
+    .v-stamp, #plan-version-stamp {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 300;
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      color: var(--dim);
+      text-transform: lowercase;
+      white-space: nowrap;
+      user-select: none;
+      -webkit-user-select: none;
+      margin-left: 8px;
+      vertical-align: 0.18em;
+    }
 
     canvas { display: block; touch-action: none; }
     #canvas-root { touch-action: none; }
@@ -715,6 +733,15 @@
       object-fit: contain;
       object-position: center;
       transition: opacity 1.2s ease;
+      /* Lock image out of all touch/pointer interaction so the 3-second
+         hold-to-exit on the X button doesn't leak through to the image
+         and trigger the native iOS/Android "Copy Image" sheet. The image
+         is a pure visual layer; all gestures land on .frame or .frame-exit. */
+      pointer-events: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-user-drag: none;
     }
     .frame-meta {
       position: absolute;
@@ -2310,3 +2337,223 @@
   color: var(--dim);
   margin-left: auto;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   OFFBOARD RITUAL
+   Post-focus resurfacing overlay. Breath animation + optional
+   binary question. z 300 — above frame (250) + pomodoro (200).
+   No transitions (Chrome frozen-timeline bug); question opacity
+   set directly via JS.
+   ═══════════════════════════════════════════════════════════ */
+#offboard {
+  position: fixed; inset: 0; z-index: 300;
+  background: var(--bg);
+  display: none; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 0;
+}
+#offboard.in { display: flex; }
+.offboard-breath {
+  display: flex; align-items: center; justify-content: center;
+  width: 180px; height: 180px; margin-bottom: 44px; flex-shrink: 0;
+}
+/* Circle is an intentional exception to the zero-border-radius rule —
+   a breath is a circle, not a rectangle. */
+.offboard-ring {
+  width: 60px; height: 60px;
+  border: 1px solid rgba(245, 158, 11, 0.65);
+  border-radius: 50%;
+  animation: offboard-breathe 3.6s ease-in-out infinite;
+}
+@keyframes offboard-breathe {
+  0%, 100% { transform: scale(0.55); opacity: 0.28; }
+  50%       { transform: scale(1.55); opacity: 1; }
+}
+.offboard-q {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 22px;
+  opacity: 0; /* JS sets this — skips broken CSS transitions */
+}
+.offboard-q-text {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 0.36em; text-transform: uppercase;
+  color: var(--dim); text-align: center;
+  max-width: 260px; line-height: 1.8;
+}
+.offboard-q-btns { display: flex; align-items: center; gap: 0; }
+.offboard-btn {
+  background: transparent;
+  border: 1px solid rgba(245, 245, 240, 0.22);
+  color: var(--fg);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 0.30em; text-transform: uppercase;
+  padding: 13px 26px; cursor: pointer;
+  min-height: 44px; min-width: 90px;
+  -webkit-tap-highlight-color: transparent;
+}
+.offboard-btn + .offboard-btn { border-left: none; }
+.offboard-btn:hover, .offboard-btn:focus-visible {
+  border-color: rgba(245, 245, 240, 0.55); outline: none;
+}
+body[data-theme="light"] .offboard-btn { border-color: rgba(26,26,26,0.22); }
+body[data-theme="light"] .offboard-btn:hover,
+body[data-theme="light"] .offboard-btn:focus-visible { border-color: rgba(26,26,26,0.55); }
+.offboard-dismiss {
+  margin-top: 28px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
+  color: var(--dim); cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  background: transparent; border: none; padding: 8px 16px; min-height: 44px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DOOR — FIRST-VISIT ENTRY CHOICE
+   Host (Non) vs guest mode. z 9000 — under boot (9999).
+   No opacity transition — Chrome timeline-freeze bug.
+   Boot acts as reveal curtain; door appears as boot clears.
+   ═══════════════════════════════════════════════════════════ */
+#door {
+  position: fixed; inset: 0; z-index: 9000;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding:
+    calc(var(--sat) + 24px)
+    calc(var(--sar) + 20px)
+    calc(var(--sab) + 24px)
+    calc(var(--sal) + 20px);
+  opacity: 1;
+}
+#door.skip { display: none; }
+.door-mark {
+  font-family: 'Josefin Sans', sans-serif;
+  font-weight: 700; font-size: 22px;
+  letter-spacing: 0.06em; color: var(--fg);
+  margin-bottom: 8px;
+}
+.door-o {
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--amber);
+  text-stroke: 1.5px var(--amber);
+}
+.door-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
+  color: var(--dim); margin-bottom: 36px;
+}
+.door-list {
+  display: flex; flex-direction: column;
+  width: min(420px, calc(100% - 24px));
+}
+.door-btn {
+  display: block; width: 100%;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--fg); padding: 22px 22px;
+  text-align: left; cursor: pointer;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.18s ease, border-color 0.18s ease;
+  min-height: 96px;
+}
+.door-btn + .door-btn { margin-top: -1px; }
+.door-btn:hover, .door-btn:focus-visible {
+  background: rgba(245, 245, 240, 0.05);
+  border-color: var(--fg); outline: none; position: relative; z-index: 1;
+}
+body[data-theme="light"] .door-btn:hover,
+body[data-theme="light"] .door-btn:focus-visible { background: rgba(0,0,0,0.04); }
+.door-btn .eyebrow {
+  display: block; font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
+  color: var(--dim); margin-bottom: 10px;
+}
+.door-btn .title {
+  display: block; font-family: 'Josefin Sans', sans-serif;
+  font-weight: 700; font-size: 17px; letter-spacing: 0.04em;
+  margin-bottom: 6px; color: var(--fg);
+}
+.door-btn .sub {
+  display: block; font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; line-height: 1.55; color: var(--dim);
+}
+.door-divider {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
+  color: var(--dim); padding: 14px 0; text-align: center;
+}
+.door-foot {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; letter-spacing: 0.28em; text-transform: uppercase;
+  color: var(--dim); text-align: center;
+  margin-top: 32px; max-width: 320px; line-height: 1.7;
+}
+
+/* Guest mode — hide host-only surfaces */
+body[data-mode="guest"] #hud-focus,
+body[data-mode="guest"] #hud-note,
+body[data-mode="guest"] #intent-line,
+body[data-mode="guest"] #room-hud-focus,
+body[data-mode="guest"] #plan-steps,
+body[data-mode="guest"] #plan-council {
+  display: none !important;
+}
+body[data-mode="guest"] .plan-hud { grid-template-columns: repeat(2, 1fr); }
+
+/* Guest-only contact card — see index.html #plan-guest-card */
+.plan-card-guest { display: none; }
+body[data-mode="guest"] .plan-card-guest {
+  display: flex; align-items: center; gap: 14px;
+  width: 100%; padding: 16px; margin: 0 0 10px;
+  background: transparent; border: 1px solid var(--line);
+  cursor: pointer; text-align: left; font-family: inherit;
+  color: var(--fg); -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.18s ease, background 0.18s ease;
+  min-height: 96px;
+}
+body[data-mode="guest"] .plan-card-guest:hover,
+body[data-mode="guest"] .plan-card-guest:focus-visible {
+  border-color: var(--fg); background: rgba(245,245,240,0.04); outline: none;
+}
+.plan-card-guest .qr {
+  flex: 0 0 auto; width: 64px; height: 64px;
+  background: var(--white); padding: 6px;
+  display: grid; place-items: center;
+}
+.plan-card-guest .qr img { width: 100%; height: 100%; image-rendering: pixelated; display: block; }
+.plan-card-guest .body { flex: 1 1 auto; min-width: 0; }
+.plan-card-guest .eyebrow {
+  display: block; font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
+  color: var(--dim); margin-bottom: 6px;
+}
+.plan-card-guest .title {
+  display: block; font-family: 'Josefin Sans', sans-serif;
+  font-weight: 700; font-size: 15px; letter-spacing: 0.04em; margin-bottom: 4px;
+}
+.plan-card-guest .sub {
+  display: block; font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; line-height: 1.5; color: var(--dim);
+}
+.plan-card-guest .arrow {
+  flex: 0 0 auto; font-family: 'JetBrains Mono', monospace;
+  font-size: 14px; color: var(--dim); padding-left: 6px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ACCESSIBILITY
+   Skip-to-content link — visible on :focus, hidden otherwise.
+   ═══════════════════════════════════════════════════════════ */
+.skip-to-content {
+  position: fixed; top: calc(var(--sat) + 8px); left: 50%;
+  transform: translateX(-50%) translateY(-200%);
+  z-index: 10000;
+  background: var(--bg); color: var(--fg);
+  border: 1px solid var(--fg);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase;
+  padding: 10px 20px; text-decoration: none;
+  transition: transform 0.15s ease;
+}
+.skip-to-content:focus { transform: translateX(-50%) translateY(0); outline: 2px solid var(--amber); outline-offset: 2px; }

@@ -7,7 +7,7 @@
  *   - Cache version bumped
  */
 
-const CACHE_VERSION = 'non-2026-05-26-v2.6';
+const CACHE_VERSION = 'non-2026-05-27-v2.7';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const SHELL = [
