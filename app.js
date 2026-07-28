@@ -264,7 +264,7 @@ const PROJECTS = [
   { code: 'TOMASITY', title: 'Muang Thong Thani · MTT view',      url: 'https://monitor.nonarkara.org',                     img: 'screenshots/monitor.jpg',   dom: 'monitor.nonarkara.org' },
   { code: 'BANGKOK',  title: 'Bangkok IOC · BKK view',             url: 'https://bangkok-ioc.pages.dev/',                    img: 'screenshots/monitor.jpg',   dom: 'bangkok-ioc.pages.dev' },
   { code: 'CDP v2',   title: 'CD Data Platform',                  url: 'https://cdp.nonarkara.org',                         img: 'screenshots/cdp.jpg',       dom: 'cdp.nonarkara.org' },
-  { code: 'CONFLICT', title: 'Global Political Monitor',          url: 'https://conflict.nonarkara.org',                    img: 'screenshots/conflict.jpg',  dom: 'conflict.nonarkara.org' },
+  { code: 'CONFLICT', title: 'Global Political Monitor',          url: 'https://globalmonitor.nonarkara.org',               img: 'screenshots/conflict.jpg',  dom: 'globalmonitor.nonarkara.org' },
   { code: 'MEM',      title: 'Middle Eastern Monitor',            url: 'https://mem.nonarkara.org',                         img: 'screenshots/mem.jpg',       dom: 'mem.nonarkara.org' },
   { code: 'GEO',      title: 'Thailand Geopolitical Watch',       url: 'https://geo.nonarkara.org',                         img: 'screenshots/geo.jpg',       dom: 'geo.nonarkara.org' },
   { code: 'PHUKET',   title: 'Phuket Dashboard',                  url: 'https://phuket.nonarkara.org',                      img: 'screenshots/phuket.jpg',    dom: 'phuket.nonarkara.org' },
@@ -278,6 +278,7 @@ const PROJECTS = [
   { code: 'COUNCIL+', title: 'AI Council · v2 · 9-bot taskforce', url: 'https://github.com/Nonarkara/dr-non-agentic-ai-council', img: 'screenshots/academic.jpg' },
   { code: 'KUCHING',  title: 'Greater Kuching IOC',               url: 'https://kuching.nonarkara.org',                     img: 'screenshots/kuching.jpg',   dom: 'kuching.nonarkara.org' },
   { code: 'SOLOMON',  title: 'Solomon Islands · UN DESA',         url: 'https://solomon.nonarkara.org',                     img: 'screenshots/solomon.jpg',   dom: 'solomon.nonarkara.org' },
+  // Canonical fallback when ascn.depa.or.th / depa.or.th is down.
   { code: 'ASCN',     title: 'ASEAN Smart Cities Network',        url: 'https://ascn.nonarkara.org',                        img: 'screenshots/ascn.jpg',      dom: 'ascn.nonarkara.org' },
   { code: 'SLOWDOWN', title: 'The Things You Can See',            url: 'https://slowdown.nonarkara.org',                    img: 'screenshots/slowdown.jpg', dom: 'slowdown.nonarkara.org' },
   { code: 'NOVELS',   title: 'Substack · Novels',                 url: 'https://substack.com/@nonarkara',                   img: 'screenshots/substack.jpg' },
