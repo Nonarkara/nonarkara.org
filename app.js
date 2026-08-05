@@ -53,6 +53,10 @@ const WEBGL2_OK = hasWebGL2();
 const NON_VERSION = '2.4';
 window.NON_VERSION = NON_VERSION;
 
+// A host is up if it answers at all in the 2xx/3xx range. The old check
+// enumerated 200/301/302 only, so every 307 (tkc, war-room) painted red.
+const OK_CODE = c => c >= 200 && c < 400;
+
 // Wire WebGL fallback — show the plan-view fallback UI and skip scene setup
 // if WebGL is unavailable. Without this guard, THREE.WebGLRenderer() throws
 // a silent crash that breaks the whole module.
@@ -807,7 +811,7 @@ function drawOpsPanel() {
 
   const total = data ? Object.keys(data.sites || {}).length : 0;
   const ok = data
-    ? Object.values(data.sites).filter(v => v.code === 200 || v.code === 301 || v.code === 302).length
+    ? Object.values(data.sites).filter(v => OK_CODE(v.code)).length
     : 0;
   const down = total - ok;
 
@@ -846,7 +850,7 @@ function drawOpsPanel() {
     ctx.fillStyle = `rgba(${fgRgb}, 0.55)`;
     ctx.font = '300 11px "JetBrains Mono", monospace';
     for (const [d, v] of Object.entries(data.sites)) {
-      if (v.code === 200 || v.code === 301 || v.code === 302) continue;
+      if (OK_CODE(v.code)) continue;
       ctx.fillText(`${d}  (${v.code})`.slice(0, 38), 40, y);
       y += 18;
       if (y > 480) break;
@@ -1401,7 +1405,7 @@ async function fetchStats() {
     const r = await fetch('https://api.nonarkara.org/status', { cache: 'no-cache' });
     const d = await r.json();
     const total = Object.keys(d.sites || {}).length;
-    const ok = Object.values(d.sites || {}).filter(v => [200, 301, 302].includes(v.code)).length;
+    const ok = Object.values(d.sites || {}).filter(v => OK_CODE(v.code)).length;
     const ts = new Date(d.ts).toLocaleTimeString('en-GB', { timeZone: 'Asia/Bangkok', hour12: false });
     setTickerText(tckrStats,
       `OPS ${ok}/${total} OK   ▪   tunnel active   ▪   worker live   ▪   last check ${ts} BKK   ▪   `
@@ -2244,18 +2248,13 @@ PROJECTS.forEach((p, i) => {
 // Status dots — fetch /.health/latest.json and color dots
 // ════════════════════════════════════════════════════════
 async function refreshStatus() {
-  // Prefer the Cloudflare Worker (fresher: 5-min cron) — fall back to GH Actions JSON.
-  const sources = [
-    'https://api.nonarkara.org/status',
-    'health/latest.json?t=' + Date.now(),
-  ];
+  // The Worker cron (every 5 min) is the only source now. The GH Actions
+  // health/latest.json fallback died 2026-06-17 and only served stale data.
   let data = null;
-  for (const src of sources) {
-    try {
-      const r = await fetch(src, { cache: 'no-store' });
-      if (r.ok) { data = await r.json(); break; }
-    } catch (_) { /* try next */ }
-  }
+  try {
+    const r = await fetch('https://api.nonarkara.org/status', { cache: 'no-store' });
+    if (r.ok) data = await r.json();
+  } catch (_) { /* offline — keep the last painted state */ }
   if (!data) return;
   window.__lastStatusData = data;
   // Cache the snapshot so the next page-load can paint dots instantly,
@@ -3880,14 +3879,14 @@ function _paintPlanStatusBody(data) {
       return;
     }
     total++;
-    const ok = entry.code === 200 || entry.code === 301 || entry.code === 302;
+    const ok = OK_CODE(entry.code);
     cell.dataset.status = ok ? 'ok' : 'fail';
     if (ok) okCount++;
   });
   // Summary across all monitored sites (not just TVs)
   if (data?.sites) {
     const all = Object.values(data.sites);
-    const ok2 = all.filter(s => s.code === 200 || s.code === 301 || s.code === 302).length;
+    const ok2 = all.filter(s => OK_CODE(s.code)).length;
     if (planStatEl) {
       const newText = `${ok2} / ${all.length}`;
       if (planStatEl.textContent !== newText) {
