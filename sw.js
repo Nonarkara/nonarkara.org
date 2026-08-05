@@ -1,13 +1,12 @@
 /**
- * NON — Memory Palace · Service Worker (v2)
+ * NON OS · Service Worker
  *
- * v2 changes:
- *   - Split monolith: index.html + styles.css + app.js
- *   - Added to precache: /styles.css, /app.js
- *   - Cache version bumped
+ * Bump CACHE_VERSION in the same commit as any change to index.html,
+ * styles.css, app.js or mixtape.html. The fetch handler is cache-first
+ * for same-origin, so a stale version means users keep the old shell.
  */
 
-const CACHE_VERSION = 'non-2026-05-27-v2.7';
+const CACHE_VERSION = 'non-2026-08-05-v3.0';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const SHELL = [

@@ -226,33 +226,77 @@
 
   <!-- PLAN view — 2D dashboard, default on phone -->
   <div id="plan" aria-hidden="true">
-    <header class="plan-head">
+    <!-- SYSTEM BAR — who this is, what state the machine is in, what language.
+         The connection pill is the only always-visible system truth: this OS
+         is meant to keep working when the network doesn't. -->
+    <header class="plan-head os-bar">
       <button class="brand-blk" id="plan-brand-blk" aria-label="About Dr Non Arkaraprasertkul">
-        <div class="brand-mark">NON<span class="v-stamp" id="plan-version-stamp"></span></div>
+        <div class="brand-mark">NON<span class="os-word">OS</span><span class="v-stamp" id="plan-version-stamp"></span></div>
         <div class="brand-cap" data-i18n="role">architect · anthropologist · smart cities</div>
         <div class="brand-sub" data-i18n="palace_sub">tap for contact · a window to the mind</div>
       </button>
-      <div class="plan-lang" id="plan-lang" role="group" aria-label="Language">
-        <button data-l="en" aria-label="English" aria-pressed="true">EN</button>
-        <span class="sep" aria-hidden="true">·</span>
-        <button data-l="th" aria-label="ภาษาไทย" lang="th" aria-pressed="false">ไทย</button>
-        <span class="sep" aria-hidden="true">·</span>
-        <button data-l="zh" aria-label="中文" lang="zh" aria-pressed="false">中文</button>
+      <div class="os-bar-right">
+        <button class="os-conn" id="os-conn" aria-live="polite"
+                aria-label="Connection state — tap for what works offline">
+          <span class="os-conn-dot" aria-hidden="true"></span>
+          <span class="os-conn-t" id="os-conn-t" data-i18n="os_online">ONLINE</span>
+        </button>
+        <div class="plan-lang" id="plan-lang" role="group" aria-label="Language">
+          <button data-l="en" aria-label="English" aria-pressed="true">EN</button>
+          <span class="sep" aria-hidden="true">·</span>
+          <button data-l="th" aria-label="ภาษาไทย" lang="th" aria-pressed="false">ไทย</button>
+          <span class="sep" aria-hidden="true">·</span>
+          <button data-l="zh" aria-label="中文" lang="zh" aria-pressed="false">中文</button>
+        </div>
       </div>
     </header>
 
-    <section class="plan-hud">
-      <button id="hud-focus" class="hud-btn focus" aria-label="Start Pomodoro focus session">
-        <span class="g">▷</span><span class="t">FOCUS</span>
+    <!-- TODAY — one intent, one number. Everything else on this page is
+         information; this row is the only thing asking for a commitment. -->
+    <section class="os-today">
+      <button class="os-intent" data-intent-open aria-label="Set today's intent">
+        <span class="os-lbl" data-i18n="os_today">TODAY</span>
+        <span class="os-intent-t" data-intent-text data-i18n="intent_placeholder">SET YOUR INTENT</span>
       </button>
-      <button id="hud-music" class="hud-btn" aria-label="Open music">
-        <span class="g">◯</span><span class="t">MUSIC</span>
+      <span class="os-focus" id="os-focus-today"></span>
+    </section>
+
+    <!-- HOME GRID — the apps. Every tile carries its own state so the page
+         answers "how did today go" without opening anything. -->
+    <section class="os-grid" aria-label="NON OS applications">
+      <button id="hud-focus" class="os-tile" aria-label="Start Pomodoro focus session">
+        <span class="g">▷</span><span class="t" data-i18n="os_focus">FOCUS</span>
+        <span class="r" id="os-r-focus">25 MIN</span>
       </button>
-      <button id="hud-note" class="hud-btn" aria-label="Open Second Brain note pad">
-        <span class="g">✎</span><span class="t">NOTE</span>
+      <button id="hud-music" class="os-tile" aria-label="Open music">
+        <span class="g">◯</span><span class="t" data-i18n="os_music">MUSIC</span>
+        <span class="r" id="os-r-music">—</span>
       </button>
-      <button id="hud-theme" class="hud-btn" aria-label="Toggle light / dark">
-        <span class="g">☼</span><span class="t">THEME</span>
+      <button id="hud-note" class="os-tile" aria-label="Open Second Brain note pad">
+        <span class="g">✎</span><span class="t" data-i18n="os_note">NOTE</span>
+        <span class="r" id="os-r-note">—</span>
+      </button>
+      <button id="hud-frame" class="os-tile"
+              aria-label="Start museum gallery focus session — 47 paintings, 25 min">
+        <span class="g">▣</span><span class="t" data-i18n="os_gallery">GALLERY</span>
+        <span class="r" id="os-r-frame">47 WORKS</span>
+      </button>
+      <button id="os-steps" class="os-tile" aria-label="Log today's steps">
+        <span class="g">△</span><span class="t" data-i18n="os_steps">STEPS</span>
+        <span class="r" id="steps-val">—</span>
+        <span class="os-hidden" id="steps-sub"></span>
+      </button>
+      <a href="/mixtape.html" class="os-tile" aria-label="Open the mixtape — turntable player">
+        <span class="g">◉</span><span class="t" data-i18n="os_mixtape">MIXTAPE</span>
+        <span class="r">SIDE A/B</span>
+      </a>
+      <button id="os-fleet-jump" class="os-tile" aria-label="Jump to the fleet console">
+        <span class="g">⊞</span><span class="t" data-i18n="os_fleet">FLEET</span>
+        <span class="r" id="os-r-fleet">—</span>
+      </button>
+      <button id="hud-theme" class="os-tile" aria-label="Toggle light / dark">
+        <span class="g">☼</span><span class="t" data-i18n="os_theme">THEME</span>
+        <span class="r" id="os-r-theme">DARK</span>
       </button>
     </section>
 
@@ -268,17 +312,11 @@
       <span class="arrow" aria-hidden="true">→</span>
     </button>
 
-    <button class="plan-gallery" id="hud-frame"
-            aria-label="Start museum gallery focus session — 47 famous paintings, 25 min, one every 20 seconds">
-      <span class="gallery-glyph">▣</span>
-      <span class="gallery-body">
-        <span class="gallery-title">GALLERY · FOCUS</span>
-        <span class="gallery-sub">47 famous paintings · The Met + AIC · changes every 20 s · 25 min</span>
-      </span>
-      <span class="gallery-arrow">→</span>
-    </button>
-
-    <section class="plan-clock">
+    <!-- The clock is the folly: the one element allowed to ignore the
+         content inset and run to the true page edge. Everything else on
+         this page snaps to the grid, which is what makes this read as a
+         decision rather than an accident. -->
+    <section class="plan-clock os-folly">
       <div class="time" id="plan-time">--:--:--</div>
       <div class="meta" id="plan-date">— · BANGKOK · GMT+7</div>
       <svg class="plan-worldmap" id="plan-worldmap"
@@ -289,12 +327,6 @@
     <section class="plan-stat">
       <span class="label" data-i18n="plan_status">FLEET STATUS</span>
       <span class="value" id="plan-stat-summary">— / —</span>
-    </section>
-
-    <section class="plan-steps" id="plan-steps" aria-label="Log today's steps">
-      <span class="label">STEPS TODAY</span>
-      <button class="steps-val" id="steps-val" aria-label="Enter step count">—</button>
-      <span class="steps-sub" id="steps-sub">tap to log</span>
     </section>
 
     <section class="plan-council" id="plan-council">
@@ -313,6 +345,7 @@
       <div class="stat"><span class="v" id="ribbon-build">2026.05.12</span></div>
     </section>
 
+    <div class="plan-section-label os-signals-label" data-i18n="os_signals">SIGNALS · MARKETS + WEATHER</div>
     <section class="plan-brief" id="plan-brief">
       <div class="brief-cell" id="brief-fx"><span class="lbl">USD / THB</span><span class="val" id="brief-fx-val">—</span><span class="sub" id="brief-fx-sub">sgd —</span></div>
       <div class="brief-cell" id="brief-sgd"><span class="lbl">SGD / THB</span><span class="val" id="brief-sgd-val">—</span><span class="sub" id="brief-sgd-sub">eur — · gbp —</span></div>

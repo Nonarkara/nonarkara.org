@@ -110,6 +110,22 @@ const I18N = {
     music_now:       'NOW PLAYING',
     music_count:     '10 tracks · made with suno',
     plan_status:     'fleet status',
+    os_today:        'today',
+    os_focus:        'focus',
+    os_music:        'music',
+    os_note:         'note',
+    os_gallery:      'gallery',
+    os_steps:        'steps',
+    os_mixtape:      'mixtape',
+    os_fleet:        'fleet',
+    os_theme:        'theme',
+    os_signals:      'signals · markets + weather',
+    os_online:       'online',
+    os_offline:      'offline',
+    os_offline_title: 'what still works',
+    os_offline_body: 'Music, focus sessions, the gallery, notes and your step log all live on this device. Notes sync the moment you are back. Markets, weather and the fleet board need the network — everything else does not.',
+    intent_placeholder: 'set your intent',
+    intent_prompt:   'What are you working on today?',
     plan_projects:   'projects',
     plan_personal:   'personal',
     plan_world:      'world · time',
@@ -150,6 +166,22 @@ const I18N = {
     music_now:       'กำลังเล่น',
     music_count:     '10 เพลง · แต่งด้วย suno',
     plan_status:     'สถานะระบบ',
+    os_today:        'วันนี้',
+    os_focus:        'โฟกัส',
+    os_music:        'เพลง',
+    os_note:         'บันทึก',
+    os_gallery:      'หอศิลป์',
+    os_steps:        'ก้าวเดิน',
+    os_mixtape:      'มิกซ์เทป',
+    os_fleet:        'ระบบ',
+    os_theme:        'ธีม',
+    os_signals:      'สัญญาณ · ตลาด + อากาศ',
+    os_online:       'ออนไลน์',
+    os_offline:      'ออฟไลน์',
+    os_offline_title: 'สิ่งที่ยังใช้ได้',
+    os_offline_body: 'เพลง ช่วงโฟกัส หอศิลป์ บันทึก และจำนวนก้าวเดิน อยู่ในเครื่องนี้ทั้งหมด บันทึกจะซิงก์ทันทีที่กลับมาออนไลน์ ส่วนตลาด อากาศ และกระดานระบบ ต้องใช้เครือข่าย — นอกนั้นไม่ต้อง',
+    intent_placeholder: 'ตั้งเจตนาของวันนี้',
+    intent_prompt:   'วันนี้ทำอะไรอยู่',
     plan_projects:   'โครงการ',
     plan_personal:   'ส่วนตัว',
     plan_world:      'เวลาโลก',
@@ -190,6 +222,22 @@ const I18N = {
     music_now:       '正在播放',
     music_count:     '10 首 · suno 作曲',
     plan_status:     '系统状态',
+    os_today:        '今日',
+    os_focus:        '专注',
+    os_music:        '音乐',
+    os_note:         '笔记',
+    os_gallery:      '画廊',
+    os_steps:        '步数',
+    os_mixtape:      '混音带',
+    os_fleet:        '机群',
+    os_theme:        '主题',
+    os_signals:      '信号 · 市场与天气',
+    os_online:       '在线',
+    os_offline:      '离线',
+    os_offline_title: '仍然可用的部分',
+    os_offline_body: '音乐、专注时段、画廊、笔记与步数记录都存在这台设备上。恢复联网后笔记会自动同步。只有市场、天气和机群面板需要网络，其余都不需要。',
+    intent_placeholder: '设定今日意图',
+    intent_prompt:   '今天在做什么',
     plan_projects:   '项目',
     plan_personal:   '个人',
     plan_world:      '世界时间',
@@ -3997,27 +4045,24 @@ function saveIntent(s) {
   lsSet(INTENT_KEY, s);
   lsSet(INTENT_DATE_KEY, _todayKey());
 }
+// Two surfaces show the intent — the room's floating line and the OS
+// TODAY row — so paint every element that claims to be one.
 function renderIntent() {
-  const el = document.getElementById('intent-text');
-  if (!el) return;
   const cur = loadIntent();
-  if (cur) {
-    el.textContent = cur;
-    el.classList.remove('placeholder');
-  } else {
-    el.textContent = 'SET YOUR INTENT';
-    el.classList.add('placeholder');
-  }
+  document.querySelectorAll('#intent-text, [data-intent-text]').forEach(el => {
+    el.textContent = cur || t('intent_placeholder');
+    el.classList.toggle('placeholder', !cur);
+  });
 }
 renderIntent();
-const intentBtn = document.getElementById('intent-line');
-if (intentBtn) intentBtn.addEventListener('click', () => {
-  const cur = loadIntent() || '';
-  const next = window.prompt('What are you working on today?', cur);
+function promptIntent() {
+  const next = window.prompt(t('intent_prompt'), loadIntent() || '');
   if (next === null) return;
   saveIntent(next.trim().slice(0, 80));
   renderIntent();
-});
+}
+document.querySelectorAll('#intent-line, [data-intent-open]')
+  .forEach(b => b.addEventListener('click', promptIntent));
 
 // Focus minutes today — accumulator hooked into Pomodoro phase transitions.
 // Counts ACTUAL elapsed work-phase seconds (not the full 25min preset),
@@ -4124,7 +4169,7 @@ document.addEventListener('keydown', (e) => {
   }
   // Plan view: number keys trigger HUD buttons
   if (document.body.dataset.view === 'plan') {
-    const hudBtns = document.querySelectorAll('.hud-btn');
+    const hudBtns = document.querySelectorAll('.os-tile');
     if (k === '1' && hudBtns[0]) { e.preventDefault(); hudBtns[0].click(); }
     else if (k === '2' && hudBtns[1]) { e.preventDefault(); hudBtns[1].click(); }
     else if (k === '3' && hudBtns[2]) { e.preventDefault(); hudBtns[2].click(); }
@@ -4178,7 +4223,8 @@ function paintSteps() {
   if (v) v.textContent = n != null ? Number(n).toLocaleString() : '—';
   if (s) s.textContent = n != null ? `${todayKey()} · tap to update` : 'tap to log today';
 }
-document.getElementById('steps-val')?.addEventListener('click', () => {
+// The whole tile is the target — the number inside it is just a readout.
+document.getElementById('os-steps')?.addEventListener('click', () => {
   const cur = loadSteps();
   const input = window.prompt('Steps today?', cur != null ? String(cur) : '');
   if (input === null) return;
@@ -4968,3 +5014,93 @@ const _origApplyLang = applyLang;
 document.querySelectorAll('#lang button[data-l], #plan-lang button[data-l]').forEach(btn => {
   btn.addEventListener('click', () => { setTimeout(syncLangAriaPressed, 0); });
 });
+
+// ════════════════════════════════════════════════════════
+// NON OS — home-grid readouts + connection state
+//
+// The plan view is the operating system: a home screen whose tiles
+// carry their own state, so the page answers "how did today go" and
+// "is anything broken" before you open a single thing.
+// ════════════════════════════════════════════════════════
+
+// Tile readouts. Cheap enough to repaint wholesale on any state change.
+function paintTiles() { try { _paintTilesBody(); } catch (_) {} }
+function _paintTilesBody() {
+  const set = (id, txt) => {
+    const el = document.getElementById(id);
+    if (el && el.textContent !== txt) el.textContent = txt;
+  };
+
+  const m = loadFocusMinutes();
+  set('os-r-focus', m > 0
+    ? (m >= 60 ? `${Math.floor(m / 60)}H${_pad2(m % 60)}M TODAY` : `${m} MIN TODAY`)
+    : '25 MIN');
+
+  // The music claim is the point of the whole project: these ten tracks
+  // are on the device, bought and precached. Say so even while playing.
+  const song = SONGS[musicIdx];
+  set('os-r-music', audio.paused
+    ? `${SONGS.length} TRACKS · OWNED`
+    : (song?.alt || song?.title || '—').toUpperCase().slice(0, 22));
+
+  const n = loadNotes().length;
+  set('os-r-note', n ? `${n} SAVED` : 'EMPTY');
+
+  set('os-r-theme', (CURRENT_THEME || 'dark').toUpperCase());
+
+  const d = window.__lastStatusData;
+  if (d?.sites) {
+    const parked = new Set(d.parked || []);
+    const active = Object.entries(d.sites).filter(([k]) => !parked.has(k));
+    set('os-r-fleet', `${active.filter(([, v]) => OK_CODE(v.code)).length}/${active.length} UP`);
+  }
+
+  const f = document.getElementById('os-focus-today');
+  if (f) f.textContent = m > 0
+    ? (m >= 60 ? `+${Math.floor(m / 60)}H${_pad2(m % 60)}M FOCUS` : `+${m}M FOCUS`)
+    : '';
+}
+
+// Connection state. Offline is not an error here — it is the mode this
+// thing was built for, so it gets said out loud rather than hidden.
+let _connOpen = false;
+function paintConn() {
+  const wrap = document.getElementById('os-conn');
+  const label = document.getElementById('os-conn-t');
+  if (!wrap || !label) return;
+  const online = navigator.onLine;
+  wrap.dataset.state = online ? 'online' : 'offline';
+  label.textContent = t(online ? 'os_online' : 'os_offline');
+  document.body.dataset.conn = online ? 'online' : 'offline';
+}
+window.addEventListener('online', paintConn);
+window.addEventListener('offline', paintConn);
+document.getElementById('os-conn')?.addEventListener('click', () => {
+  _connOpen = !_connOpen;
+  if (!_connOpen) { closeModal(); return; }
+  showModal(
+    t(navigator.onLine ? 'os_online' : 'os_offline'),
+    t('os_offline_title'),
+    `<p class="modal-body-p">${t('os_offline_body')}</p>`
+  );
+});
+paintConn();
+
+document.getElementById('os-fleet-jump')?.addEventListener('click', () => {
+  (document.getElementById('plan-fleet') || document.querySelector('.plan-stat'))
+    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+// Repaint after each thing that can change a readout. Wrapping the four
+// existing painters beats threading a paintTiles() call through their
+// call sites — same effect, nothing else has to know the OS layer exists.
+const _afterPaint = (orig) => function () { const r = orig.apply(this, arguments); paintTiles(); return r; };
+renderFocusToday = _afterPaint(renderFocusToday);
+paintSteps       = _afterPaint(paintSteps);
+renderNoteList   = _afterPaint(renderNoteList);
+paintPlanStatus  = _afterPaint(paintPlanStatus);
+applyTheme       = _afterPaint(applyTheme);
+audio.addEventListener('play', paintTiles);
+audio.addEventListener('pause', paintTiles);
+paintTiles();
+setInterval(paintTiles, 30_000);
