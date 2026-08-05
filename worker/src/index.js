@@ -9,8 +9,17 @@
 //   GET  /              — status JSON (CORS open)
 //   GET  /status        — same as /
 //   GET  /now           — server time (ISO + Bangkok local) for sanity-checking
+//   GET  /history       — per-domain ring buffer of the last 24h of probes
+//   GET  /uptime        — 24h / 7d / 30d uptime percentages
+//   GET  /incidents     — the last 50 down→up episodes
+//   GET  /alert-test    — send one Telegram message (needs ?key=ALERT_TEST_SECRET)
+//
+// Alerting: the cron detects up→down and down→up transitions and pings
+// Telegram. Secrets TG_BOT_TOKEN + TG_CHAT_ID (wrangler secret put).
+// A domain must fail FAIL_STRIKES consecutive probes before it alerts, so
+// a single blip never wakes anyone.
 
-const DOMAINS = [
+const ACTIVE = [
   "nonarkara.org",
   "ninja.nonarkara.org",
   "axiom.nonarkara.org",
@@ -18,7 +27,6 @@ const DOMAINS = [
   "sciti.nonarkara.org",
   "tkc.nonarkara.org",
   "tkcx.nonarkara.org",
-  "tkc-digital-twin.fly.dev",
   "monitor.nonarkara.org",
   "bangkok-ioc.pages.dev",
   "conflict.nonarkara.org",
@@ -37,12 +45,36 @@ const DOMAINS = [
   "scl.nonarkara.org",
   "dao.nonarkara.org",
   "solitude.nonarkara.org",
+];
+
+// Parked: DNS still resolves, nothing is meant to be serving. Kept on the
+// board as closed stations so the map stays honest, but they never alert
+// and never drag the uptime numbers down.
+//   oil / bot / brain — point at Render + Vercel targets deleted long ago
+//   tkc-digital-twin  — suspended Fly app (530 since at least 2026-05)
+const PARKED = [
   "oil.nonarkara.org",
   "bot.nonarkara.org",
   "brain.nonarkara.org",
+  "tkc-digital-twin.fly.dev",
 ];
 
-const STATUS_KEY = "snapshot:v1";
+const DOMAINS = [...ACTIVE, ...PARKED];
+
+// One consolidated document: snapshot + history + state + incidents +
+// rollups. Written exactly once per cron run — 288 writes/day, which
+// leaves plenty of room under the KV free-tier daily write limit. A key
+// per metric would have blown through it before lunch.
+const FLEET_KEY = "fleet:v1";
+
+const HISTORY_LEN   = 288;  // 24h at one probe every 5 min
+const INCIDENT_LEN  = 50;
+const ROLLUP_DAYS   = 90;
+const FAIL_STRIKES  = 2;    // consecutive failures before an alert fires
+
+const isUp = c => c >= 200 && c < 400;
+
+export { isUp, ACTIVE, PARKED };  // for test-fold.mjs
 
 async function probe(d) {
   const start = Date.now();
@@ -74,6 +106,109 @@ async function snapshot() {
   return { ts, sites };
 }
 
+// Empty fleet document — the shape everything else assumes.
+const emptyFleet = () => ({
+  ts: null, sites: {}, history: {}, state: {}, incidents: [], rollups: {},
+});
+export { emptyFleet, foldRound, uptimeFor };  // for test-fold.mjs
+
+async function loadFleet(env) {
+  const f = await env.STATUS.get(FLEET_KEY, "json");
+  return f ? { ...emptyFleet(), ...f } : emptyFleet();
+}
+
+// Fold one probe round into the fleet document and return the alerts the
+// round produced. Pure apart from the clock: given the same fleet + sites
+// it always yields the same next fleet.
+function foldRound(fleet, sites, now = new Date()) {
+  const minute = Math.floor(now.getTime() / 60_000);
+  const day = now.toISOString().slice(0, 10);
+  const alerts = [];
+
+  fleet.ts = now.toISOString();
+  fleet.sites = sites;
+  fleet.rollups[day] = fleet.rollups[day] || {};
+
+  for (const [d, v] of Object.entries(sites)) {
+    const up = isUp(v.code);
+
+    const hist = fleet.history[d] || (fleet.history[d] = []);
+    hist.push([minute, v.code, v.ms]);
+    if (hist.length > HISTORY_LEN) hist.splice(0, hist.length - HISTORY_LEN);
+
+    // [checks, ok, total ms] — array, not object, to keep the doc small
+    const r = fleet.rollups[day][d] || (fleet.rollups[day][d] = [0, 0, 0]);
+    r[0]++; if (up) r[1]++; r[2] += v.ms;
+
+    if (PARKED.includes(d)) continue;  // parked hosts never alert
+
+    const s = fleet.state[d] || (fleet.state[d] = { up: true, failStreak: 0, since: fleet.ts, alerted: false });
+    if (up) {
+      if (s.alerted) {
+        alerts.push({ kind: "up", domain: d, code: v.code, since: s.since });
+        const inc = fleet.incidents.find(i => i.domain === d && !i.upAt);
+        if (inc) inc.upAt = fleet.ts;
+      }
+      if (!s.up) s.since = fleet.ts;
+      s.up = true; s.failStreak = 0; s.alerted = false;
+    } else {
+      if (s.up) s.since = fleet.ts;
+      s.up = false; s.failStreak++;
+      if (s.failStreak === FAIL_STRIKES && !s.alerted) {
+        s.alerted = true;
+        alerts.push({ kind: "down", domain: d, code: v.code, since: s.since });
+        fleet.incidents.unshift({ domain: d, downAt: s.since, upAt: null, lastCode: v.code });
+        if (fleet.incidents.length > INCIDENT_LEN) fleet.incidents.length = INCIDENT_LEN;
+      }
+    }
+  }
+
+  // Prune rollups older than ROLLUP_DAYS
+  const cutoff = new Date(now.getTime() - ROLLUP_DAYS * 86_400_000).toISOString().slice(0, 10);
+  for (const k of Object.keys(fleet.rollups)) if (k < cutoff) delete fleet.rollups[k];
+
+  return alerts;
+}
+
+// One message per cron run, however many domains moved. A storm of
+// separate pings is how people learn to mute the channel.
+async function sendAlerts(env, alerts) {
+  if (!alerts.length || !env.TG_BOT_TOKEN || !env.TG_CHAT_ID) return;
+  const mins = since => Math.max(1, Math.round((Date.now() - Date.parse(since)) / 60_000));
+  const lines = alerts.map(a => a.kind === "down"
+    ? `\u{1F534} DOWN · ${a.domain} · code ${a.code} · ${mins(a.since)}m`
+    : `\u{1F7E2} RECOVERED · ${a.domain} · was down ${mins(a.since)}m`);
+  await tg(env, lines.join("\n"));
+}
+
+async function tg(env, text) {
+  return fetch(`https://api.telegram.org/bot${env.TG_BOT_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: env.TG_CHAT_ID, text, disable_notification: false }),
+  });
+}
+
+// Uptime from what we already store: 24h out of the ring buffer, 7d/30d
+// out of the daily rollups. No extra writes.
+function uptimeFor(fleet, domain) {
+  const hist = fleet.history[domain] || [];
+  const pct = (ok, n) => (n ? Math.round((ok / n) * 1000) / 10 : null);
+  const day24 = pct(hist.filter(h => isUp(h[1])).length, hist.length);
+
+  const rollupPct = days => {
+    const cutoff = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+    let checks = 0, ok = 0;
+    for (const [d, byDomain] of Object.entries(fleet.rollups)) {
+      if (d < cutoff) continue;
+      const r = byDomain[domain];
+      if (r) { checks += r[0]; ok += r[1]; }
+    }
+    return pct(ok, checks);
+  };
+  return { d1: day24, d7: rollupPct(7), d30: rollupPct(30) };
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
@@ -84,14 +219,15 @@ const corsHeaders = {
 export default {
   // ── Scheduled handler (cron */5) ────────────────────────────
   async scheduled(_event, env, ctx) {
-    const data = await snapshot();
-    ctx.waitUntil(
-      env.STATUS.put(STATUS_KEY, JSON.stringify(data), {
-        // KV TTL — the next cron will overwrite anyway, but keep around 30 min
-        // in case the cron mis-fires.
-        expirationTtl: 60 * 30,
-      })
-    );
+    const { sites } = await snapshot();
+    const fleet = await loadFleet(env);
+    const alerts = foldRound(fleet, sites);
+    // No expirationTtl: this document carries the history now. Losing it
+    // to a TTL would silently reset every uptime figure on the board.
+    ctx.waitUntil(Promise.all([
+      env.STATUS.put(FLEET_KEY, JSON.stringify(fleet)),
+      sendAlerts(env, alerts),
+    ]));
   },
 
   // ── HTTP handler ───────────────────────────────────────────
@@ -353,21 +489,54 @@ export default {
       }
     }
 
-    if (url.pathname === "/" || url.pathname === "/status" || url.pathname === "/status.json") {
-      let data = await env.STATUS.get(STATUS_KEY, "json");
-      // If KV is empty (first deploy, before cron has run), do an inline probe
-      if (!data) {
-        data = await snapshot();
-        // Don't await — let the response go out, populate KV in the background
-        env.STATUS.put(STATUS_KEY, JSON.stringify(data), { expirationTtl: 60 * 30 }).catch(() => {});
-      }
-      return new Response(JSON.stringify(data, null, 2), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    const json = (obj, extra = {}) => new Response(JSON.stringify(obj, null, 2), {
+      headers: { ...corsHeaders, "Content-Type": "application/json", ...extra },
+    });
+
+    if (url.pathname === "/history") {
+      const f = await loadFleet(env);
+      const d = url.searchParams.get("domain");
+      return json({ ts: f.ts, history: d ? { [d]: f.history[d] || [] } : f.history });
     }
 
-    return new Response("nonarkara-status · /status · /now", {
-      headers: { ...corsHeaders, "Content-Type": "text/plain" },
-    });
+    if (url.pathname === "/uptime") {
+      const f = await loadFleet(env);
+      const uptime = {};
+      for (const d of DOMAINS) uptime[d] = uptimeFor(f, d);
+      return json({ ts: f.ts, parked: PARKED, uptime });
+    }
+
+    if (url.pathname === "/incidents") {
+      const f = await loadFleet(env);
+      return json({ ts: f.ts, incidents: f.incidents });
+    }
+
+    // Guarded end-to-end check that the bot token and chat id actually work.
+    if (url.pathname === "/alert-test") {
+      if (!env.ALERT_TEST_SECRET || url.searchParams.get("key") !== env.ALERT_TEST_SECRET) {
+        return json({ error: "forbidden" }, { status: 403 });
+      }
+      const r = await tg(env, "\u{1F7E1} TEST · nonarkara-status alerting is wired up.");
+      return json({ ok: r.ok, telegram: await r.json() });
+    }
+
+    if (url.pathname === "/" || url.pathname === "/status" || url.pathname === "/status.json") {
+      const f = await loadFleet(env);
+      // Legacy shape stays byte-compatible: { ts, sites }. `parked` is
+      // additive — older cached copies of app.js simply ignore it.
+      if (!f.ts) {
+        const data = await snapshot();
+        const fresh = emptyFleet();
+        foldRound(fresh, data.sites);
+        env.STATUS.put(FLEET_KEY, JSON.stringify(fresh)).catch(() => {});
+        return json({ ...data, parked: PARKED });
+      }
+      return json({ ts: f.ts, sites: f.sites, parked: PARKED });
+    }
+
+    return new Response(
+      "nonarkara-status · /status · /now · /history · /uptime · /incidents",
+      { headers: { ...corsHeaders, "Content-Type": "text/plain" } }
+    );
   },
 };

@@ -24,3 +24,8 @@ enabled = true
 # SB_SERVICE_KEY  = (Supabase service role JWT)
 # OPENAI_KEY      = (OpenAI API key for text-embedding-3-small)
 # BRAIN_SHEET_URL = (Google Apps Script /exec URL after deployment)
+#
+# Fleet alerting secrets — same command, same rule.
+# TG_BOT_TOKEN       = (Telegram bot token; alerts go silent without it)
+# TG_CHAT_ID         = (chat to ping — a DM with the bot, or a channel id)
+# ALERT_TEST_SECRET  = (any string; guards GET /alert-test?key=…)
