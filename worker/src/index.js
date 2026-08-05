@@ -231,7 +231,7 @@ export default {
   },
 
   // ── HTTP handler ───────────────────────────────────────────
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
     const url = new URL(req.url);
 
     if (req.method === "OPTIONS") {
@@ -528,7 +528,10 @@ export default {
         const data = await snapshot();
         const fresh = emptyFleet();
         foldRound(fresh, data.sites);
-        env.STATUS.put(FLEET_KEY, JSON.stringify(fresh)).catch(() => {});
+        // waitUntil, not fire-and-forget: without it the runtime can kill
+        // the write as soon as the response is sent, and the fleet
+        // document never gets created.
+        ctx.waitUntil(env.STATUS.put(FLEET_KEY, JSON.stringify(fresh)));
         return json({ ...data, parked: PARKED });
       }
       return json({ ts: f.ts, sites: f.sites, parked: PARKED });

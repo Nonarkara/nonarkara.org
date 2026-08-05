@@ -1445,39 +1445,6 @@
     }
     .note-row.empty { color: var(--dim); cursor: default; padding: 14px 0; }
 
-    .plan-stat {
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 12px; margin-bottom: 14px;
-      font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
-    }
-    .plan-stat .label { color: var(--dim); }
-    .plan-stat .value { color: var(--fg); font-variant-numeric: tabular-nums; }
-
-
-    /* AI Council health row — sibling of plan-stat. Pulled live from
-       /council on the Cloudflare Worker (which proxies council-watch's
-       fail-count file from GitHub). */
-    .plan-council {
-      display: flex; align-items: center; gap: 10px;
-      margin-bottom: 14px;
-      font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
-      font-variant-numeric: tabular-nums;
-    }
-    .plan-council .dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: rgba(245, 245, 240, 0.18);
-      flex: none;
-    }
-    .plan-council[data-status="healthy"]   .dot { background: var(--amber); animation: livePulse 2s ease-in-out infinite; }
-    .plan-council[data-status="degraded"]  .dot { background: var(--amber); }
-    .plan-council[data-status="down"]      .dot { background: #c44; }
-    .plan-council .label  { color: var(--dim); }
-    .plan-council .status { color: var(--fg); }
-    .plan-council[data-status="degraded"]  .status { color: var(--amber); }
-    .plan-council[data-status="down"]      .status { color: #c44; }
-    .plan-council .meta   { color: var(--dim); margin-left: auto; }
-
     /* ── DAILY BRIEF — top-of-fold info you check every day.
        Three-cell hairline grid: USD/THB · BTC · weather. Big mono
        numerals (the room's display tier), tabular-nums, amber arrows
@@ -1527,51 +1494,6 @@
     @media (min-width: 480px) {
       .plan-brief { grid-template-columns: 1fr 1fr 1fr 1fr; }
       .plan-brief .brief-wx { grid-column: 1 / -1; }
-    }
-
-    /* ── Telemetry ribbon — cyberpunk monitoring vibe in the NON aesthetic.
-       Hairline borders only, mono caps, amber pulse, tabular-nums. No blue,
-       no glassmorphism, no shadows. The pulse animates 2s opacity only. */
-    .plan-ribbon {
-      display: flex; align-items: stretch; gap: 0;
-      margin-bottom: 22px;
-      border-top: 1px solid var(--line);
-      border-bottom: 1px solid var(--line);
-      font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
-      color: var(--dim);
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-    }
-    .plan-ribbon::-webkit-scrollbar { display: none; }
-    .plan-ribbon .stat {
-      padding: 8px 12px;
-      border-right: 1px solid var(--line);
-      white-space: nowrap;
-      font-variant-numeric: tabular-nums;
-      display: flex; align-items: center; gap: 6px;
-    }
-    .plan-ribbon .stat:last-child { border-right: 0; }
-    .plan-ribbon .stat .v { color: var(--fg); }
-    .plan-ribbon .live { color: var(--amber); }
-    .plan-ribbon .live::before {
-      content: '';
-      display: inline-block;
-      width: 6px; height: 6px;
-      border-radius: 50%;             /* true circle exception */
-      background: var(--amber);
-      animation: livePulse 2s ease-in-out infinite;
-    }
-    @keyframes livePulse {
-      0%, 100% { opacity: 1; }
-      50%      { opacity: 0.25; }
-    }
-    .plan-ribbon .spacer { flex: 1; min-width: 8px; }
-    /* Subtle flash on the fleet status when a refresh lands */
-    .plan-stat .value.flash { animation: statFlash 0.6s ease-out; }
-    @keyframes statFlash {
-      0%   { color: var(--amber); }
-      100% { color: var(--fg); }
     }
 
     .plan-section { margin-bottom: 26px; }
@@ -2632,3 +2554,165 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
       .os-today { flex-wrap: nowrap; }
       .os-intent-t { font-size: 12px; }
     }
+
+    /* ════════════════════════════════════════════════════════
+       FLEET CONSOLE — the transit board
+       Hairlines on the stations form the line; it wraps per row the way
+       a real diagram folds. Amber is reserved for a station that needs
+       attention. A parked platform is faint, never red — it is closed
+       on purpose, and pretending otherwise would be a false alarm.
+       ════════════════════════════════════════════════════════ */
+
+    .fleet {
+      border-top: 1px solid var(--line);
+      padding-top: 14px;
+      margin-bottom: 26px;
+    }
+    .fleet-head {
+      display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    .fleet-lbl {
+      font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
+      color: var(--dim);
+    }
+    .fleet-sum {
+      font-size: 13px; letter-spacing: 0.12em;
+      color: var(--fg); font-variant-numeric: tabular-nums;
+    }
+    /* Feedback that a refresh actually landed — without it, a board that
+       never changes is indistinguishable from a board that stopped. */
+    .fleet-sum.flash { animation: statFlash 0.6s ease-out; }
+    @keyframes statFlash {
+      0%   { color: var(--amber); }
+      100% { color: var(--fg); }
+    }
+    .fleet-meta {
+      margin-left: auto; flex-wrap: wrap;
+      font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--dim); font-variant-numeric: tabular-nums;
+      display: flex; align-items: baseline; gap: 6px;
+    }
+    .fleet-meta .sep { opacity: 0.5; }
+
+    .fleet-line { margin-bottom: 18px; }
+    .fleet-line-lbl {
+      font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
+      color: var(--dim); margin-bottom: 10px;
+    }
+    .fleet-stns { display: flex; flex-wrap: wrap; }
+    .fleet-stn {
+      flex: 1 1 84px;
+      display: flex; flex-direction: column; align-items: flex-start;
+      gap: 6px;
+      min-height: 46px;
+      padding: 9px 8px 8px 0;
+      background: transparent;
+      border: 0;
+      border-top: 1px solid var(--line);   /* adjacent tops form the line */
+      color: var(--fg);
+      font-family: 'JetBrains Mono', monospace;
+      cursor: pointer;
+      text-align: left;
+      -webkit-tap-highlight-color: transparent;
+      transition: color 0.12s;
+    }
+    .fleet-stn .fleet-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--fg);
+      margin-top: -13px;                    /* sit the dot on the line */
+      box-shadow: inset 0 0 0 3px var(--bg);
+    }
+    .fleet-stn .fleet-code {
+      font-size: 9px; letter-spacing: 0.14em;
+      color: var(--dim);
+      overflow: hidden; text-overflow: ellipsis;
+      max-width: 100%; white-space: nowrap;
+    }
+    .fleet-stn:hover .fleet-code,
+    .fleet-stn.open .fleet-code { color: var(--fg); }
+
+    .fleet-stn[data-state="down"] .fleet-dot {
+      background: var(--amber);
+      animation: os-breathe 1.8s ease-in-out infinite;
+    }
+    .fleet-stn[data-state="down"] .fleet-code { color: var(--amber); }
+    .fleet-line[data-line="parked"] .fleet-stn { border-top-style: dashed; opacity: 0.45; }
+    .fleet-stn[data-state="parked"] .fleet-dot { background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
+    .fleet-stn.open { color: var(--amber); }
+
+    /* Detail strip — opens under the board for one station at a time */
+    .fleet-detail {
+      border: 1px solid var(--line);
+      padding: 14px;
+      margin-bottom: 18px;
+      font-variant-numeric: tabular-nums;
+    }
+    .fleet-detail-head {
+      display: flex; justify-content: space-between; align-items: baseline;
+      gap: 12px; flex-wrap: wrap; margin-bottom: 12px;
+    }
+    .fleet-detail-head a {
+      color: var(--fg); text-decoration: none;
+      font-size: 12px; letter-spacing: 0.04em;
+      border-bottom: 1px solid var(--line);
+    }
+    .fleet-detail-head a:hover { color: var(--amber); border-color: var(--amber); }
+    .fleet-detail-code {
+      font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim);
+    }
+    .fleet-detail-row {
+      display: flex; gap: 22px; flex-wrap: wrap;
+      font-size: 9px; letter-spacing: 0.24em; text-transform: uppercase;
+      color: var(--dim); margin-bottom: 12px;
+    }
+    .fleet-detail-row b { color: var(--fg); font-weight: 400; margin-left: 4px; }
+    .fleet-spark {
+      display: block; width: 100%; height: 34px;
+      overflow: visible;
+    }
+    .fleet-spark path {
+      fill: none; stroke: var(--amber); stroke-width: 1;
+      vector-effect: non-scaling-stroke;
+    }
+    .fleet-spark-cap,
+    .fleet-detail-note {
+      font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--dim); margin-top: 8px;
+    }
+
+    /* Incident log */
+    .fleet-inc-lbl {
+      font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
+      color: var(--dim); margin-bottom: 8px;
+    }
+    .fleet-inc {
+      display: grid;
+      grid-template-columns: 1fr auto auto auto;
+      gap: 12px; align-items: baseline;
+      padding: 7px 0;
+      border-top: 1px solid var(--line);
+      font-size: 10px; letter-spacing: 0.1em;
+      color: var(--dim); font-variant-numeric: tabular-nums;
+    }
+    .fleet-inc .n { color: var(--fg); letter-spacing: 0.18em; }
+    .fleet-inc[data-open="true"] .n,
+    .fleet-inc[data-open="true"] .t { color: var(--amber); }
+
+    .fleet-foot {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      border-top: 1px solid var(--line);
+      margin-top: 16px; padding-top: 12px;
+      font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--dim);
+    }
+    .fleet-foot .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--dim);
+    }
+    .fleet-foot .status { color: var(--fg); }
+    .fleet-foot .spacer { flex: 1; }
+    .fleet-foot[data-status="healthy"] .dot { background: var(--fg); }
+    .fleet-foot[data-status="degraded"] .dot,
+    .fleet-foot[data-status="down"] .dot { background: var(--amber); }
+    .fleet-foot[data-status="down"] .status { color: var(--amber); }

@@ -120,6 +120,16 @@ const I18N = {
     os_fleet:        'fleet',
     os_theme:        'theme',
     os_signals:      'signals · markets + weather',
+    fleet_checked:   'checked',
+    fleet_pages:     'pages line',
+    fleet_ext:       'external line',
+    fleet_parked:    'parked · dns retained',
+    fleet_incidents: 'recent incidents',
+    fleet_no_incidents: 'no incidents on record',
+    fleet_last_incident: 'last incident',
+    fleet_resolved:  'resolved',
+    fleet_ongoing:   'ongoing',
+    fleet_peak:      'peak',
     os_online:       'online',
     os_offline:      'offline',
     os_offline_title: 'what still works',
@@ -176,6 +186,16 @@ const I18N = {
     os_fleet:        'ระบบ',
     os_theme:        'ธีม',
     os_signals:      'สัญญาณ · ตลาด + อากาศ',
+    fleet_checked:   'ตรวจเมื่อ',
+    fleet_pages:     'สายหลัก',
+    fleet_ext:       'สายภายนอก',
+    fleet_parked:    'สายพัก · คง dns ไว้',
+    fleet_incidents: 'เหตุขัดข้องล่าสุด',
+    fleet_no_incidents: 'ยังไม่มีเหตุขัดข้อง',
+    fleet_last_incident: 'ขัดข้องครั้งล่าสุด',
+    fleet_resolved:  'แก้แล้ว',
+    fleet_ongoing:   'ยังขัดข้อง',
+    fleet_peak:      'สูงสุด',
     os_online:       'ออนไลน์',
     os_offline:      'ออฟไลน์',
     os_offline_title: 'สิ่งที่ยังใช้ได้',
@@ -232,6 +252,16 @@ const I18N = {
     os_fleet:        '机群',
     os_theme:        '主题',
     os_signals:      '信号 · 市场与天气',
+    fleet_checked:   '检查于',
+    fleet_pages:     '主线',
+    fleet_ext:       '外部线',
+    fleet_parked:    '停用线 · 保留域名',
+    fleet_incidents: '近期故障',
+    fleet_no_incidents: '暂无故障记录',
+    fleet_last_incident: '最近一次故障',
+    fleet_resolved:  '已恢复',
+    fleet_ongoing:   '进行中',
+    fleet_peak:      '峰值',
     os_online:       '在线',
     os_offline:      '离线',
     os_offline_title: '仍然可用的部分',
@@ -3235,7 +3265,6 @@ const planPrivEl = document.getElementById('plan-private');
 const planCityEl = document.getElementById('plan-cities');
 const planTimeEl = document.getElementById('plan-time');
 const planDateEl = document.getElementById('plan-date');
-const planStatEl = document.getElementById('plan-stat-summary');
 
 function lsGet(key) { try { return localStorage.getItem(key); } catch (_) { return null; } }
 function lsSet(key, v) { try { localStorage.setItem(key, v); } catch (_) {} }
@@ -3906,7 +3935,6 @@ function _paintPlanStatusBody(data) {
   // Telemetry ribbon stats — derived from the snapshot.
   const ribLast   = document.getElementById('ribbon-last');
   const ribMs     = document.getElementById('ribbon-ms');
-  const ribUptime = document.getElementById('ribbon-uptime');
   if (data?.ts && ribLast) {
     const age = Math.max(0, Math.floor((Date.now() - new Date(data.ts).getTime()) / 1000));
     ribLast.textContent = age < 60 ? age + 's' : Math.floor(age / 60) + 'm';
@@ -3931,26 +3959,9 @@ function _paintPlanStatusBody(data) {
     cell.dataset.status = ok ? 'ok' : 'fail';
     if (ok) okCount++;
   });
-  // Summary across all monitored sites (not just TVs)
-  if (data?.sites) {
-    const all = Object.values(data.sites);
-    const ok2 = all.filter(s => OK_CODE(s.code)).length;
-    if (planStatEl) {
-      const newText = `${ok2} / ${all.length}`;
-      if (planStatEl.textContent !== newText) {
-        planStatEl.textContent = newText;
-        planStatEl.classList.remove('flash');
-        void planStatEl.offsetWidth;        // force reflow so flash re-runs
-        planStatEl.classList.add('flash');
-      }
-    }
-    if (ribUptime) {
-      const pct = all.length ? Math.round((ok2 / all.length) * 100) : 0;
-      ribUptime.textContent = `${pct} %`;
-    }
-  } else if (planStatEl) {
-    planStatEl.textContent = '— / —';
-  }
+  // The summary line and the 30-day uptime belong to the fleet console —
+  // it knows which stations are parked, and counting a closed platform as
+  // a failure would make the board lie.
 }
 
 // Hydrate from the cached snapshot so the dots paint INSTANTLY on
@@ -5104,3 +5115,192 @@ audio.addEventListener('play', paintTiles);
 audio.addEventListener('pause', paintTiles);
 paintTiles();
 setInterval(paintTiles, 30_000);
+
+// ════════════════════════════════════════════════════════
+// FLEET CONSOLE — every system Non runs, as a transit board
+//
+// Vignelli's rule: maximum density and maximum legibility are the same
+// problem solved correctly. Stations sit on a line; a station is either
+// running, down, or a closed platform on the siding. Amber means one
+// thing here — something needs attention.
+// ════════════════════════════════════════════════════════
+
+const FLEET_API = 'https://api.nonarkara.org';
+let FLEET_EXTRA = null;   // { uptime, incidents, history }
+let FLEET_OPEN = null;    // domain whose detail strip is expanded
+
+// Station code from a domain: the part that identifies it to a human.
+//   phuket-dashboard.nonarkara.org/war-room -> WAR-ROOM
+//   bangkok-ioc.pages.dev                   -> BANGKOK-IOC
+//   nonarkara.org                           -> ORG
+function stationCode(d) {
+  const path = d.split('/')[1];
+  if (path) return path.toUpperCase();
+  if (d === 'nonarkara.org') return 'ORG';
+  return d.replace(/\.nonarkara\.org$/, '').replace(/\.(pages|fly)\.dev$/, '').toUpperCase();
+}
+
+// Lines are derived, not listed: a second hardcoded list of domains is a
+// second thing to forget to update.
+function fleetLines(data) {
+  const parked = new Set(data.parked || []);
+  const own = [], ext = [], sid = [];
+  for (const d of Object.keys(data.sites || {})) {
+    if (parked.has(d)) sid.push(d);
+    else if (d === 'nonarkara.org' || d.endsWith('.nonarkara.org')) own.push(d);
+    else ext.push(d);
+  }
+  return [
+    { key: 'pages',  label: t('fleet_pages'),  stations: own },
+    { key: 'ext',    label: t('fleet_ext'),    stations: ext },
+    { key: 'parked', label: t('fleet_parked'), stations: sid },
+  ].filter(l => l.stations.length);
+}
+
+function paintFleet(data) { try { _paintFleetBody(data); } catch (_) {} }
+function _paintFleetBody(data) {
+  const host = document.getElementById('fleet-lines');
+  if (!host || !data?.sites) return;
+  const parked = new Set(data.parked || []);
+
+  host.innerHTML = fleetLines(data).map(line => `
+    <div class="fleet-line" data-line="${line.key}">
+      <div class="fleet-line-lbl">${line.label}</div>
+      <div class="fleet-stns">${line.stations.map(d => {
+        const v = data.sites[d];
+        const state = parked.has(d) ? 'parked' : (OK_CODE(v.code) ? 'up' : 'down');
+        return `<button class="fleet-stn" data-dom="${d}" data-state="${state}"
+                        aria-label="${d} — ${state}">
+                  <span class="fleet-dot" aria-hidden="true"></span>
+                  <span class="fleet-code">${stationCode(d)}</span>
+                </button>`;
+      }).join('')}</div>
+    </div>
+  `).join('');
+
+  host.querySelectorAll('.fleet-stn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      FLEET_OPEN = FLEET_OPEN === btn.dataset.dom ? null : btn.dataset.dom;
+      paintFleetDetail(data);
+    });
+  });
+
+  // Summary counts ACTIVE only — a parked station is not a failure.
+  const active = Object.entries(data.sites).filter(([k]) => !parked.has(k));
+  const up = active.filter(([, v]) => OK_CODE(v.code)).length;
+  const sum = document.getElementById('plan-stat-summary');
+  const next = `${up} / ${active.length} UP`;
+  if (sum && sum.textContent !== next) {
+    sum.textContent = next;
+    sum.classList.remove('flash');
+    void sum.offsetWidth;                 // force reflow so flash re-runs
+    sum.classList.add('flash');
+  }
+
+  paintFleetDetail(data);
+  paintIncidents();
+}
+
+function paintFleetDetail(data) {
+  const el = document.getElementById('fleet-detail');
+  if (!el) return;
+  document.querySelectorAll('.fleet-stn').forEach(b =>
+    b.classList.toggle('open', b.dataset.dom === FLEET_OPEN));
+  if (!FLEET_OPEN) { el.hidden = true; el.innerHTML = ''; return; }
+
+  const d = FLEET_OPEN;
+  const v = data?.sites?.[d];
+  const u = FLEET_EXTRA?.uptime?.[d];
+  const hist = FLEET_EXTRA?.history?.[d] || [];
+  const pct = n => (n == null ? '—' : `${n}%`);
+  const inc = (FLEET_EXTRA?.incidents || []).find(i => i.domain === d);
+
+  el.hidden = false;
+  el.innerHTML = `
+    <div class="fleet-detail-head">
+      <a href="https://${d}" target="_blank" rel="noopener">${d}</a>
+      <span class="fleet-detail-code">${v ? v.code : '—'} · ${v ? v.ms : '—'} ms</span>
+    </div>
+    <div class="fleet-detail-row">
+      <span>24H <b>${pct(u?.d1)}</b></span>
+      <span>7D <b>${pct(u?.d7)}</b></span>
+      <span>30D <b>${pct(u?.d30)}</b></span>
+    </div>
+    ${sparkline(hist)}
+    <div class="fleet-detail-note">${inc
+      ? `${t('fleet_last_incident')} ${new Date(inc.downAt).toISOString().slice(0, 16).replace('T', ' ')} · ${inc.upAt ? t('fleet_resolved') : t('fleet_ongoing')}`
+      : t('fleet_no_incidents')}</div>
+  `;
+}
+
+// 24h of latency as one polyline. Down probes break the line — a gap is
+// more honest than a zero, which would read as "very fast".
+function sparkline(hist) {
+  if (hist.length < 2) return '';
+  const W = 100, H = 18;
+  const max = Math.max(...hist.map(h => h[2]), 1);
+  let dAttr = '', pen = false;
+  hist.forEach(([, code, ms], i) => {
+    if (!OK_CODE(code)) { pen = false; return; }
+    const x = (i / (hist.length - 1)) * W;
+    const y = H - (ms / max) * (H - 2) - 1;
+    dAttr += `${pen ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)} `;
+    pen = true;
+  });
+  return `<svg class="fleet-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
+               aria-label="24 hour latency">
+            <path d="${dAttr}"/>
+          </svg>
+          <div class="fleet-spark-cap">24H · ${t('fleet_peak')} ${max} MS</div>`;
+}
+
+function paintIncidents() {
+  const el = document.getElementById('fleet-incidents');
+  if (!el) return;
+  const list = (FLEET_EXTRA?.incidents || []).slice(0, 6);
+  if (!list.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="fleet-inc-lbl">${t('fleet_incidents')}</div>
+    ${list.map(i => {
+      const mins = i.upAt
+        ? Math.max(1, Math.round((Date.parse(i.upAt) - Date.parse(i.downAt)) / 60000))
+        : null;
+      return `<div class="fleet-inc" data-open="${!i.upAt}">
+        <span class="d">${new Date(i.downAt).toISOString().slice(5, 16).replace('T', ' ')}</span>
+        <span class="n">${stationCode(i.domain)}</span>
+        <span class="c">${i.lastCode || '—'}</span>
+        <span class="t">${mins != null ? mins + 'm' : t('fleet_ongoing')}</span>
+      </div>`;
+    }).join('')}
+  `;
+}
+
+// Uptime and incidents move on the scale of hours, not seconds.
+async function fetchFleetExtra() {
+  try {
+    const [u, i, h] = await Promise.all([
+      fetch(`${FLEET_API}/uptime`).then(r => r.json()),
+      fetch(`${FLEET_API}/incidents`).then(r => r.json()),
+      fetch(`${FLEET_API}/history`).then(r => r.json()),
+    ]);
+    FLEET_EXTRA = { uptime: u.uptime, incidents: i.incidents, history: h.history };
+    const rib = document.getElementById('ribbon-uptime');
+    if (rib && u.uptime) {
+      const vals = Object.entries(u.uptime)
+        .filter(([k]) => !(u.parked || []).includes(k))
+        .map(([, x]) => x.d30).filter(n => n != null);
+      if (vals.length) rib.textContent = `${(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)} %`;
+    }
+    if (window.__lastStatusData) paintFleet(window.__lastStatusData);
+  } catch (_) { /* offline — the board keeps its last painted state */ }
+}
+fetchFleetExtra();
+setInterval(fetchFleetExtra, 5 * 60_000);
+
+// The 60s status poll already paints the plan; hang the board off it.
+paintPlanStatus = ((orig) => function (data) {
+  const r = orig.apply(this, arguments);
+  if (data) paintFleet(data);
+  return r;
+})(paintPlanStatus);
+if (window.__lastStatusData) paintFleet(window.__lastStatusData);

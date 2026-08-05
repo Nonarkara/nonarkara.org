@@ -324,25 +324,33 @@
            aria-label="World timezone map with city positions"></svg>
     </section>
 
-    <section class="plan-stat">
-      <span class="label" data-i18n="plan_status">FLEET STATUS</span>
-      <span class="value" id="plan-stat-summary">— / —</span>
-    </section>
+    <!-- FLEET — every system Non runs, drawn as a transit board. Stations
+         on a line, closed stations on a siding. Tap one for its history. -->
+    <section class="fleet" id="plan-fleet" aria-label="Fleet console">
+      <header class="fleet-head">
+        <span class="fleet-lbl" data-i18n="plan_status">FLEET</span>
+        <span class="fleet-sum" id="plan-stat-summary">— / —</span>
+        <span class="fleet-meta">
+          <span id="ribbon-ms">— ms</span>
+          <span class="sep" aria-hidden="true">·</span>
+          <span id="ribbon-uptime">— %</span>
+          <span class="sep" aria-hidden="true">·</span>
+          <span data-i18n="fleet_checked">checked</span>&nbsp;<span id="ribbon-last">—</span>
+        </span>
+      </header>
 
-    <section class="plan-council" id="plan-council">
-      <span class="dot" id="council-dot"></span>
-      <span class="label">AI COUNCIL</span>
-      <span class="status" id="council-status">—</span>
-      <span class="meta" id="council-meta">checking</span>
-    </section>
+      <div class="fleet-lines" id="fleet-lines"></div>
+      <div class="fleet-detail" id="fleet-detail" hidden></div>
+      <div class="fleet-incidents" id="fleet-incidents"></div>
 
-    <section class="plan-ribbon" id="plan-ribbon">
-      <div class="stat live">live</div>
-      <div class="stat"><span>last</span> <span class="v" id="ribbon-last">—</span></div>
-      <div class="stat"><span>median</span> <span class="v" id="ribbon-ms">— ms</span></div>
-      <div class="stat"><span>up</span> <span class="v" id="ribbon-uptime">— %</span></div>
-      <div class="spacer"></div>
-      <div class="stat"><span class="v" id="ribbon-build">2026.05.12</span></div>
+      <footer class="fleet-foot" id="plan-council">
+        <span class="dot" id="council-dot"></span>
+        <span class="label">AI COUNCIL</span>
+        <span class="status" id="council-status">—</span>
+        <span class="meta" id="council-meta">checking</span>
+        <span class="spacer"></span>
+        <span class="build" id="ribbon-build">2026.08.05</span>
+      </footer>
     </section>
 
     <div class="plan-section-label os-signals-label" data-i18n="os_signals">SIGNALS · MARKETS + WEATHER</div>
