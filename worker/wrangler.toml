@@ -11,6 +11,13 @@ crons = ["*/5 * * * *"]
 binding = "STATUS"
 id = "08c721ac2a1341e4b2266eeb8eae8fc9"
 
+# Morning-brief episodes. Served through this Worker rather than a
+# custom R2 domain — one binding beats a new DNS record and a second
+# thing to remember exists.
+[[r2_buckets]]
+binding = "PODCAST"
+bucket_name = "nonarkara-podcast"
+
 [[routes]]
 pattern = "api.nonarkara.org"
 custom_domain = true

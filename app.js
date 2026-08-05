@@ -35,6 +35,13 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   3.0 (2026-08-05) NON OS — the plan view becomes a home screen with an
+//                    offline pill and stateful app tiles; fleet console as
+//                    a transit board with real uptime history and Telegram
+//                    alerts; the sky (152-star planetarium, compass-driven);
+//                    the ground (satellite imagery of where you stand); the
+//                    morning brief, written and spoken on-machine. Room
+//                    geometry is still v2 — the Pavilion rebuild is next.
 //   2.4 (2026-05-14) accessibility pass — skip-to-content, aria-labels on
 //                    all interactive controls, aria-pressed sync on lang
 //                    switchers, lang attrs on Thai/Chinese buttons
@@ -50,7 +57,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '2.4';
+const NON_VERSION = '3.0';
 window.NON_VERSION = NON_VERSION;
 
 // A host is up if it answers at all in the 2xx/3xx range. The old check
@@ -129,6 +136,10 @@ const I18N = {
     sky_here:        'here',
     sky_mag:         'mag',
     sky_folly:       'the one overhead',
+    os_brief:        'brief',
+    brief_label:     'morning brief',
+    brief_waiting:   'no episode yet',
+    brief_transcript: 'transcript',
     fleet_checked:   'checked',
     fleet_pages:     'pages line',
     fleet_ext:       'external line',
@@ -204,6 +215,10 @@ const I18N = {
     sky_here:        'ตรงนี้',
     sky_mag:         'ความสว่าง',
     sky_folly:       'ดวงที่อยู่เหนือหัว',
+    os_brief:        'สรุปเช้า',
+    brief_label:     'สรุปข่าวเช้า',
+    brief_waiting:   'ยังไม่มีตอน',
+    brief_transcript: 'บทพูด',
     fleet_checked:   'ตรวจเมื่อ',
     fleet_pages:     'สายหลัก',
     fleet_ext:       'สายภายนอก',
@@ -279,6 +294,10 @@ const I18N = {
     sky_here:        '此处',
     sky_mag:         '星等',
     sky_folly:       '正上方的那一颗',
+    os_brief:        '简报',
+    brief_label:     '晨间简报',
+    brief_waiting:   '还没有节目',
+    brief_transcript: '文稿',
     fleet_checked:   '检查于',
     fleet_pages:     '主线',
     fleet_ext:       '外部线',
@@ -5686,3 +5705,183 @@ window.__sky = {
     return dim;
   },
 };
+
+// ════════════════════════════════════════════════════════
+// THE MORNING BRIEF — the screen for it
+//
+// What the internet argued about while you slept, written by a model on
+// your own machine and read back in your own voice. The audio shares the
+// one <audio> element the music player already owns, so the brief and a
+// track can never talk over each other.
+// ════════════════════════════════════════════════════════
+
+const BRIEF_API = 'https://api.nonarkara.org/podcast/episodes.json';
+let BRIEF = { episodes: [], i: 0 };
+let briefRAF = 0;
+
+const fmtClock = (s) => {
+  if (!isFinite(s) || s < 0) s = 0;
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+};
+
+async function loadBrief() {
+  try {
+    const r = await fetch(BRIEF_API, { cache: 'no-cache' });
+    if (!r.ok) return;
+    const d = await r.json();
+    BRIEF.episodes = d.episodes || [];
+    BRIEF.i = 0;
+    paintBriefScreen();
+    paintTiles();
+  } catch (_) { /* offline — the screen keeps whatever it last showed */ }
+}
+
+function currentBrief() { return BRIEF.episodes[BRIEF.i] || null; }
+
+function paintBriefScreen() { try { _paintBriefScreenBody(); } catch (_) {} }
+function _paintBriefScreenBody() {
+  const ep = currentBrief();
+  const title = document.getElementById('brief-title');
+  const meta = document.getElementById('brief-meta');
+  const stories = document.getElementById('brief-stories');
+  const transcript = document.getElementById('brief-transcript');
+  const archive = document.getElementById('brief-archive');
+  if (!title) return;
+
+  if (!ep) {
+    title.textContent = t('brief_waiting');
+    if (meta) meta.textContent = '—';
+    return;
+  }
+
+  title.textContent = ep.title;
+  if (meta) {
+    // The voice is stated because "read in his own voice" is a claim,
+    // and a claim about provenance should carry its own evidence.
+    meta.textContent = `${Math.round(ep.seconds / 60)} MIN · ${ep.words} WORDS · ${(ep.voice || '').toUpperCase()}`;
+  }
+
+  if (stories) {
+    stories.innerHTML = (ep.stories || []).slice(0, 8).map(s => `
+      <a class="brief-story" href="${s.hn}" target="_blank" rel="noopener">
+        <span class="s-title">${s.title.replace(/</g, '&lt;')}</span>
+        <span class="s-meta">${s.score} · ${s.host || 'hn'}</span>
+      </a>`).join('');
+  }
+  if (transcript) transcript.textContent = ep.script || '';
+
+  if (archive) {
+    archive.innerHTML = BRIEF.episodes.slice(0, 7).map((e, i) => `
+      <button class="brief-day${i === BRIEF.i ? ' on' : ''}" data-i="${i}">
+        ${new Date(e.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).toUpperCase()}
+      </button>`).join('');
+    archive.querySelectorAll('.brief-day').forEach(b => b.addEventListener('click', () => {
+      BRIEF.i = parseInt(b.dataset.i, 10);
+      paintBriefScreen();
+      if (document.body.dataset.playing === 'brief') playBrief(true);
+    }));
+  }
+  paintBriefProgress();
+}
+
+// The brief borrows the shared <audio>. Whoever plays last owns it, so
+// the music UI is told to let go rather than left painting a phantom.
+function playBrief(restart) {
+  const ep = currentBrief();
+  if (!ep) return;
+  const src = ep.audio;
+  if (restart || !audio.src.includes(ep.id)) {
+    audio.src = src;
+    audio.currentTime = 0;
+  }
+  document.body.dataset.playing = 'brief';
+  audio.play().catch(() => {});
+  tickBriefProgress();
+}
+
+function paintBriefProgress() {
+  const bar = document.getElementById('brief-bar');
+  const time = document.getElementById('brief-time');
+  const play = document.getElementById('brief-play');
+  const ep = currentBrief();
+  const mine = document.body.dataset.playing === 'brief' && ep;
+  if (play) play.textContent = (mine && !audio.paused) ? '❚❚' : '▶';
+  const dur = mine ? (audio.duration || ep?.seconds || 0) : (ep?.seconds || 0);
+  const cur = mine ? audio.currentTime : 0;
+  if (bar) bar.style.width = dur ? `${(cur / dur) * 100}%` : '0%';
+  if (time) time.textContent = `${fmtClock(cur)} / ${fmtClock(dur)}`;
+  const scrub = document.getElementById('brief-scrub');
+  if (scrub && dur) scrub.setAttribute('aria-valuenow', String(Math.round((cur / dur) * 100)));
+}
+
+function tickBriefProgress() {
+  cancelAnimationFrame(briefRAF);
+  const step = () => {
+    paintBriefProgress();
+    if (document.body.dataset.playing === 'brief' && !audio.paused) {
+      briefRAF = requestAnimationFrame(step);
+    }
+  };
+  step();
+}
+
+document.getElementById('brief-play')?.addEventListener('click', () => {
+  if (document.body.dataset.playing === 'brief' && !audio.paused) { audio.pause(); paintBriefProgress(); }
+  else playBrief(false);
+});
+
+document.getElementById('os-brief')?.addEventListener('click', () => {
+  document.getElementById('brief-screen')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (currentBrief() && audio.paused) playBrief(false);
+});
+
+// Scrub. Pointer events cover mouse and touch with one path.
+(() => {
+  const scrub = document.getElementById('brief-scrub');
+  if (!scrub) return;
+  const seek = (e) => {
+    const ep = currentBrief();
+    if (!ep || document.body.dataset.playing !== 'brief') return;
+    const r = scrub.getBoundingClientRect();
+    const p = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+    if (audio.duration) audio.currentTime = p * audio.duration;
+    paintBriefProgress();
+  };
+  scrub.addEventListener('pointerdown', (e) => { scrub.setPointerCapture(e.pointerId); seek(e); });
+  scrub.addEventListener('pointermove', (e) => { if (scrub.hasPointerCapture(e.pointerId)) seek(e); });
+  scrub.addEventListener('keydown', (e) => {
+    if (!audio.duration || document.body.dataset.playing !== 'brief') return;
+    if (e.key === 'ArrowRight') { audio.currentTime = Math.min(audio.duration, audio.currentTime + 15); e.preventDefault(); }
+    if (e.key === 'ArrowLeft') { audio.currentTime = Math.max(0, audio.currentTime - 15); e.preventDefault(); }
+    paintBriefProgress();
+  });
+})();
+
+audio.addEventListener('play', () => { if (document.body.dataset.playing === 'brief') tickBriefProgress(); });
+audio.addEventListener('pause', paintBriefProgress);
+audio.addEventListener('ended', () => { paintBriefProgress(); });
+
+// Playing a music track takes ownership back from the brief.
+const _origLoadTrack = typeof loadTrack === 'function' ? loadTrack : null;
+if (_origLoadTrack) {
+  loadTrack = function () { document.body.dataset.playing = 'music'; return _origLoadTrack.apply(this, arguments); };
+}
+
+// The tile readout says how fresh today's brief is — "3H AGO" answers
+// the only question you actually have about a daily show.
+const _briefTileText = () => {
+  const ep = currentBrief();
+  if (!ep) return 'NONE YET';
+  const hrs = Math.floor((Date.now() - Date.parse(ep.date)) / 3_600_000);
+  const age = hrs < 1 ? 'JUST NOW' : hrs < 24 ? `${hrs}H AGO` : `${Math.floor(hrs / 24)}D AGO`;
+  return `${Math.round(ep.seconds / 60)} MIN · ${age}`;
+};
+paintTiles = ((orig) => function () {
+  const r = orig.apply(this, arguments);
+  const el = document.getElementById('os-r-brief');
+  if (el) el.textContent = _briefTileText();
+  return r;
+})(paintTiles);
+
+loadBrief();
+setInterval(loadBrief, 30 * 60_000);

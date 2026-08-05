@@ -323,6 +323,10 @@
         <span class="r" id="steps-val">—</span>
         <span class="os-hidden" id="steps-sub"></span>
       </button>
+      <button id="os-brief" class="os-tile" aria-label="Play this morning's brief">
+        <span class="g">◍</span><span class="t" data-i18n="os_brief">BRIEF</span>
+        <span class="r" id="os-r-brief">—</span>
+      </button>
       <a href="/mixtape.html" class="os-tile" aria-label="Open the mixtape — turntable player">
         <span class="g">◉</span><span class="t" data-i18n="os_mixtape">MIXTAPE</span>
         <span class="r">SIDE A/B</span>
@@ -359,6 +363,31 @@
       <svg class="plan-worldmap" id="plan-worldmap"
            viewBox="-185 -90 370 180" preserveAspectRatio="xMidYMid meet"
            aria-label="World timezone map with city positions"></svg>
+    </section>
+
+    <!-- THE BRIEF — what the internet argued about while you slept, read
+         back in your own voice. Written and spoken entirely on your own
+         machines; nothing here went through anybody else's API. -->
+    <section class="brief-screen" id="brief-screen" aria-label="Morning brief">
+      <header class="brief-head">
+        <span class="os-lbl" data-i18n="brief_label">MORNING BRIEF</span>
+        <span class="brief-meta" id="brief-meta">—</span>
+      </header>
+      <div class="brief-title" id="brief-title" data-i18n="brief_waiting">no episode yet</div>
+      <div class="brief-controls">
+        <button class="brief-play" id="brief-play" aria-label="Play or pause the brief">▶</button>
+        <div class="brief-scrub" id="brief-scrub" role="slider"
+             aria-label="Seek" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
+          <div class="brief-bar" id="brief-bar"></div>
+        </div>
+        <span class="brief-time" id="brief-time">00:00</span>
+      </div>
+      <div class="brief-stories" id="brief-stories"></div>
+      <details class="brief-transcript" id="brief-transcript-wrap">
+        <summary data-i18n="brief_transcript">transcript</summary>
+        <div class="brief-transcript-body" id="brief-transcript"></div>
+      </details>
+      <nav class="brief-archive" id="brief-archive" aria-label="Earlier briefs"></nav>
     </section>
 
     <!-- FLEET — every system Non runs, drawn as a transit board. Stations

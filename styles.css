@@ -2824,3 +2824,121 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
     }
     /* Keep the ground caption clear of the room's floating FOCUS button */
     .ground-hud .sky-top { padding-right: 150px; }
+
+    /* ════════════════════════════════════════════════════════
+       THE MORNING BRIEF
+       A player, the stories it was built from, and the transcript.
+       The sources are listed because a summary you cannot check is
+       just a confident voice.
+       ════════════════════════════════════════════════════════ */
+
+    .brief-screen {
+      border-top: 1px solid var(--line);
+      padding-top: 14px;
+      margin-bottom: 26px;
+    }
+    .brief-head {
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: 12px; flex-wrap: wrap; margin-bottom: 10px;
+    }
+    .brief-meta {
+      font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--dim); font-variant-numeric: tabular-nums;
+    }
+    .brief-title {
+      font-family: 'Josefin Sans', sans-serif;
+      font-weight: 300; font-size: 22px; letter-spacing: 0.02em;
+      color: var(--fg); margin-bottom: 16px; line-height: 1.2;
+    }
+    .brief-controls {
+      display: flex; align-items: center; gap: 14px;
+      margin-bottom: 18px;
+    }
+    .brief-play {
+      flex: 0 0 auto;
+      width: 44px; height: 44px;
+      background: transparent;
+      border: 1px solid var(--amber);
+      color: var(--amber);
+      font-family: inherit; font-size: 13px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.12s;
+    }
+    .brief-play:active { background: rgba(245, 158, 11, 0.14); }
+    .brief-scrub {
+      flex: 1 1 auto;
+      height: 44px;                       /* the target is 44px; the line is 1px */
+      display: flex; align-items: center;
+      cursor: pointer; touch-action: none;
+    }
+    .brief-scrub::before {
+      content: ''; position: absolute;
+      width: 0; height: 0;                /* the bar below draws the track */
+    }
+    .brief-scrub { position: relative; }
+    .brief-scrub::after {
+      content: ''; position: absolute; left: 0; right: 0; top: 50%;
+      height: 1px; background: var(--line);
+    }
+    .brief-bar {
+      position: absolute; left: 0; top: 50%;
+      height: 1px; background: var(--amber);
+      z-index: 1;
+    }
+    .brief-time {
+      flex: 0 0 auto;
+      font-size: 9px; letter-spacing: 0.14em;
+      color: var(--dim); font-variant-numeric: tabular-nums;
+    }
+
+    .brief-stories { display: grid; gap: 0; margin-bottom: 14px; }
+    .brief-story {
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: 14px;
+      padding: 9px 0;
+      border-top: 1px solid var(--line);
+      color: var(--fg); text-decoration: none;
+      min-height: 44px;
+    }
+    .brief-story .s-title {
+      font-size: 12px; letter-spacing: 0.01em; line-height: 1.4;
+    }
+    .brief-story .s-meta {
+      flex: 0 0 auto;
+      font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase;
+      color: var(--dim); font-variant-numeric: tabular-nums;
+    }
+    .brief-story:hover .s-title { color: var(--amber); }
+
+    .brief-transcript {
+      border-top: 1px solid var(--line);
+      padding-top: 10px; margin-bottom: 14px;
+    }
+    .brief-transcript summary {
+      font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
+      color: var(--dim); cursor: pointer; min-height: 24px;
+    }
+    .brief-transcript summary:hover { color: var(--amber); }
+    .brief-transcript-body {
+      margin-top: 12px;
+      font-size: 12px; line-height: 1.75;
+      color: var(--fg); opacity: 0.85;
+      white-space: pre-wrap;
+      max-height: 300px; overflow-y: auto;
+    }
+
+    .brief-archive { display: flex; flex-wrap: wrap; gap: 0; }
+    .brief-archive .brief-day {
+      min-height: 44px; padding: 8px 12px;
+      background: transparent;
+      border: 1px solid var(--line);
+      border-right: 0;
+      color: var(--dim);
+      font-family: inherit;
+      font-size: 9px; letter-spacing: 0.18em;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .brief-archive .brief-day:last-child { border-right: 1px solid var(--line); }
+    .brief-archive .brief-day.on { color: var(--amber); border-color: var(--amber); }

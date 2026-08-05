@@ -493,6 +493,42 @@ export default {
       headers: { ...corsHeaders, "Content-Type": "application/json", ...extra },
     });
 
+    // ── Morning brief ────────────────────────────────────────────────
+    // The episode index and the audio itself, straight out of R2. Range
+    // requests matter: without them a phone cannot scrub the audio, it
+    // can only play from the start.
+    if (url.pathname.startsWith("/podcast/")) {
+      const key = decodeURIComponent(url.pathname.slice("/podcast/".length));
+      if (!key || key.includes("..")) return json({ error: "bad key" }, { status: 400 });
+      const wantsRange = req.headers.has("range");
+      const obj = wantsRange
+        ? await env.PODCAST.get(key, { range: req.headers })
+        : await env.PODCAST.get(key);
+      if (!obj) return json({ error: "not found", key }, { status: 404 });
+
+      const h = new Headers(corsHeaders);
+      obj.writeHttpMetadata(h);
+      h.set("etag", obj.httpEtag);
+      h.set("Accept-Ranges", "bytes");
+      h.set("Cache-Control", key.endsWith(".json") ? "max-age=300" : "max-age=86400");
+      if (!h.get("Content-Type")) {
+        h.set("Content-Type", key.endsWith(".json") ? "application/json" : "audio/mpeg");
+      }
+
+      // A 206 without a Content-Range is malformed, and Safari's audio
+      // element refuses to seek on one. Only ever emit the pair together.
+      const r = wantsRange && obj.range ? obj.range : null;
+      if (r) {
+        const offset = r.offset ?? 0;
+        const length = r.length ?? (obj.size - offset);
+        h.set("Content-Range", `bytes ${offset}-${offset + length - 1}/${obj.size}`);
+        h.set("Content-Length", String(length));
+        return new Response(obj.body, { status: 206, headers: h });
+      }
+      h.set("Content-Length", String(obj.size));
+      return new Response(obj.body, { status: 200, headers: h });
+    }
+
     if (url.pathname === "/history") {
       const f = await loadFleet(env);
       const d = url.searchParams.get("domain");

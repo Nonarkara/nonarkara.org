@@ -17,6 +17,11 @@ worker/
 health/
 .health/
 
+# Your voice print. This must never be served from the public site —
+# a one-minute clean recording of you speaking is all anyone needs to
+# clone your voice. It lives here for convenience; it ships nowhere.
+public/
+
 # Not part of the site
 non biographical:academic research/
 index.html.v1-backup

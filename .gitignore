@@ -1,5 +1,8 @@
 .DS_Store
 .wrangler/
+# Voice samples are biometric. Not in the repo, not in the deploy.
+public/
+
 .claude/worktrees/
 dist/
 worker/.dev.vars
