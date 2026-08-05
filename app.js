@@ -120,6 +120,12 @@ const I18N = {
     os_fleet:        'fleet',
     os_theme:        'theme',
     os_signals:      'signals · markets + weather',
+    sky_hint:        'look up',
+    sky_exit:        'back down',
+    sky_over:        'sky over',
+    sky_here:        'here',
+    sky_mag:         'mag',
+    sky_folly:       'the one overhead',
     fleet_checked:   'checked',
     fleet_pages:     'pages line',
     fleet_ext:       'external line',
@@ -186,6 +192,12 @@ const I18N = {
     os_fleet:        'ระบบ',
     os_theme:        'ธีม',
     os_signals:      'สัญญาณ · ตลาด + อากาศ',
+    sky_hint:        'แหงนดูฟ้า',
+    sky_exit:        'กลับลงมา',
+    sky_over:        'ฟ้าเหนือ',
+    sky_here:        'ตรงนี้',
+    sky_mag:         'ความสว่าง',
+    sky_folly:       'ดวงที่อยู่เหนือหัว',
     fleet_checked:   'ตรวจเมื่อ',
     fleet_pages:     'สายหลัก',
     fleet_ext:       'สายภายนอก',
@@ -252,6 +264,12 @@ const I18N = {
     os_fleet:        '机群',
     os_theme:        '主题',
     os_signals:      '信号 · 市场与天气',
+    sky_hint:        '抬头看',
+    sky_exit:        '回到室内',
+    sky_over:        '天空 ·',
+    sky_here:        '此处',
+    sky_mag:         '星等',
+    sky_folly:       '正上方的那一颗',
     fleet_checked:   '检查于',
     fleet_pages:     '主线',
     fleet_ext:       '外部线',
@@ -2481,6 +2499,8 @@ function onClick(e) {
   if (document.getElementById('drawer').classList.contains('in')) return;
   if (document.getElementById('pomodoro').classList.contains('in')) return;
   if (document.getElementById('konami').classList.contains('in')) return;
+  // Up in the sky the room's objects are behind you; a tap names a star.
+  if (window.__skyTap && window.__skyTap(e)) return;
   raycaster.setFromCamera(mouse, camera);
   const hits = raycaster.intersectObjects(INTERACTABLES.map(o => o.userData.hit));
   if (!hits.length) return;
@@ -4557,7 +4577,13 @@ function animate() {
   requestAnimationFrame(animate);
   const t = (performance.now() - startTime) / 1000;
   const fadeT = Math.min(t / 3.5, 1);
-  const ease = 1 - Math.pow(1 - fadeT, 3);
+  // Every room opacity in this loop is written as `ease * k`, so folding
+  // the sky's dimming factor into `ease` fades the whole room at once.
+  // Wong Kar-wai, not a light switch: the room goes faint, never away.
+  // window.__sky is published at the end of this module; animate() runs
+  // its first frame before that line, so read it defensively rather than
+  // touching the sky's own bindings while they are still in the dead zone.
+  const ease = (1 - Math.pow(1 - fadeT, 3)) * (window.__sky ? window.__sky.tick() : 1);
   FADE_TARGETS.forEach(({ mat, target }) => mat.opacity = target * ease);
   clockMat.opacity = ease * 1;
 
@@ -4705,8 +4731,15 @@ function animate() {
   const gyroX = gyroEnabled ? -gyroSmoothY * 0.30 * window.__gyroBlend : 0;
   const drivenY = target.y + gyroY;
   const drivenX = target.x + gyroX;
-  camera.rotation.y += (drivenY + baseRotY - camera.rotation.y) * 0.05;
-  camera.rotation.x += (drivenX + baseRotX - camera.rotation.x) * 0.05;
+  // Blend between where the room wants the camera and where the sky
+  // wants it. One expression, so the two can never fight for ownership.
+  const b = window.__sky ? window.__sky.blend : 0;
+  const skyYaw = window.__sky ? window.__sky.yaw : 0;
+  const skyPitch = window.__sky ? window.__sky.pitch : 0;
+  const wantY = (drivenY + baseRotY) * (1 - b) + skyYaw * b;
+  const wantX = (drivenX + baseRotX) * (1 - b) + skyPitch * b;
+  camera.rotation.y += (wantY - camera.rotation.y) * 0.05;
+  camera.rotation.x += (wantX - camera.rotation.x) * 0.05;
   camera.position.y = 1.7 + Math.sin(t * 0.4) * 0.015;
 
   // Ambient particles
@@ -5304,3 +5337,246 @@ paintPlanStatus = ((orig) => function (data) {
   return r;
 })(paintPlanStatus);
 if (window.__lastStatusData) paintFleet(window.__lastStatusData);
+
+// ════════════════════════════════════════════════════════
+// THE SKY — look up
+//
+// The room has a ceiling. Above the ceiling is the actual sky over
+// wherever you happen to be standing, at whatever moment you are
+// standing there. Tilt the phone up and the room fades to a memory
+// underfoot; turn on the spot and the stars hold still, because they
+// are the fixed thing and you are the one moving.
+//
+// Camera ownership is explicit now. Room drag, the dolly zoom and the
+// sky each want the camera, and before this they composed by accident.
+// ════════════════════════════════════════════════════════
+
+let CAMERA_MODE = 'room';           // 'room' | 'sky'  (dolly runs on top)
+let SKY = null;                     // the built dome, once WebGL is confirmed
+let SKY_BLEND = 0;                  // 0 room · 1 sky
+let SKY_SITE = { lat: 13.7563, lon: 100.5018, label: 'BANGKOK' };
+let SKY_HEADING = null;             // degrees from true north, if the phone knows
+let SKY_YAW = 0;                    // scene yaw actually used
+let SKY_LAST_CALC = 0;
+const SKY_PITCH = 1.32;             // ~76°, so the horizon stays in frame
+
+const skyHud  = document.getElementById('sky-hud');
+const skyHint = document.getElementById('sky-hint');
+
+function skyAvailable() { return WEBGL_OK && SKY; }
+
+async function initSky() {
+  if (!WEBGL_OK || SKY) return;
+  try {
+    const mod = await import('./sky.js');
+    // Starlight, not theme foreground: the sky is night in both themes,
+    // and the light theme's near-black would draw invisible stars.
+    SKY = mod.buildSky(0xe6edf3, 0xf59e0b);
+    SKY.mod = mod;
+    SKY.group.visible = false;
+    scene.add(SKY.group);
+    recalcSky(true);
+    if (skyHint) skyHint.classList.add('in');
+  } catch (e) {
+    // No sky is a missing feature, not a broken room.
+    if (skyHint) skyHint.remove();
+  }
+}
+
+// The sky turns a quarter of a degree per minute. Recomputing every
+// frame would be 152 stars of arithmetic to move them less than a pixel.
+function recalcSky(force) {
+  if (!SKY) return;
+  const now = Date.now();
+  if (!force && now - SKY_LAST_CALC < 10_000) return;
+  SKY_LAST_CALC = now;
+  const d = new Date();
+  SKY.update(d, SKY_SITE);
+  const place = document.getElementById('sky-place');
+  const time  = document.getElementById('sky-time');
+  if (place) place.textContent = `${t('sky_over')} ${SKY_SITE.label}`;
+  if (time) {
+    time.textContent = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+      + (SKY_HEADING != null ? ` · ${cardinal(SKY_HEADING)} ${Math.round(SKY_HEADING)}°` : '');
+  }
+}
+
+const cardinal = (deg) =>
+  ['N','NE','E','SE','S','SW','W','NW'][Math.round(((deg % 360) + 360) % 360 / 45) % 8];
+
+// Ask once, gently, and treat a refusal as a normal answer. Bangkok is
+// not a failure state — it is where this was built.
+function askForLocation() {
+  if (!navigator.geolocation || SKY_SITE.asked) return;
+  SKY_SITE.asked = true;
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      SKY_SITE = {
+        lat: pos.coords.latitude, lon: pos.coords.longitude,
+        label: t('sky_here'), asked: true,
+      };
+      recalcSky(true);
+    },
+    () => {},
+    { timeout: 8000, maximumAge: 600_000 }
+  );
+}
+
+function enterSky() {
+  if (!skyAvailable() || CAMERA_MODE === 'sky') return;
+  CAMERA_MODE = 'sky';
+  SKY.group.visible = true;
+  SKY_YAW = camera.rotation.y;
+  askForLocation();
+  recalcSky(true);
+  document.body.dataset.sky = 'on';
+  if (skyHud) skyHud.setAttribute('aria-hidden', 'false');
+  try { enableGyro(); } catch (_) {}
+}
+
+function exitSky() {
+  if (CAMERA_MODE !== 'sky') return;
+  CAMERA_MODE = 'room';
+  document.body.dataset.sky = 'off';
+  if (skyHud) skyHud.setAttribute('aria-hidden', 'true');
+  const el = document.getElementById('sky-star');
+  if (el) el.textContent = '';
+}
+
+function toggleSky() { CAMERA_MODE === 'sky' ? exitSky() : enterSky(); }
+
+skyHint?.addEventListener('click', enterSky);
+document.getElementById('sky-exit')?.addEventListener('click', exitSky);
+
+// Compass. On iOS webkitCompassHeading rides the same permission grant
+// the room's gyro already asks for; on Android the absolute event
+// carries it in alpha, measured the other way round.
+let SKY_HAS_MOTION = false;
+function onCompass(e) {
+  if (e && typeof e.beta === 'number' && e.beta !== null) SKY_HAS_MOTION = true;
+  let h = null;
+  if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading;
+  else if (e.absolute && typeof e.alpha === 'number') h = 360 - e.alpha;
+  if (h == null || Number.isNaN(h)) return;
+  const screenAngle = (screen.orientation && screen.orientation.angle) || 0;
+  SKY_HEADING = ((h + screenAngle) % 360 + 360) % 360;
+}
+window.addEventListener('deviceorientation', onCompass, true);
+if ('ondeviceorientationabsolute' in window) {
+  window.addEventListener('deviceorientationabsolute', onCompass, true);
+}
+
+// The gesture. Pointing the phone at the sky is the whole affordance —
+// no button to find, you just do the thing you would do outdoors. Both
+// thresholds have hysteresis so a wobble at the boundary can't flap.
+let skyGestureSince = 0;
+function tickSkyGesture() {
+  if (!skyAvailable() || !gyroEnabled || !SKY_HAS_MOTION) return;
+  if (document.body.dataset.view !== 'room') return;
+  const up = gyroSmoothY;                      // +1 is fully tilted back
+  const now = performance.now();
+  if (CAMERA_MODE === 'room') {
+    if (up > 0.62) {
+      if (!skyGestureSince) skyGestureSince = now;
+      else if (now - skyGestureSince > 400) { skyGestureSince = 0; enterSky(); }
+    } else skyGestureSince = 0;
+  } else {
+    if (up < 0.30) {
+      if (!skyGestureSince) skyGestureSince = now;
+      else if (now - skyGestureSince > 600) { skyGestureSince = 0; exitSky(); }
+    } else skyGestureSince = 0;
+  }
+}
+
+// Tap a star for its name. Reuses the room's tooltip element so there is
+// one thing on screen that names what you are pointing at, not two.
+function skyTap(clientX, clientY) {
+  if (CAMERA_MODE !== 'sky' || !SKY) return false;
+  const ndc = new THREE.Vector2(
+    (clientX / window.innerWidth) * 2 - 1,
+    -(clientY / window.innerHeight) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  const hit = SKY.mod.nearestStar(raycaster.ray.direction.clone().normalize(), SKY_SITE, new Date(), 5);
+  const el = document.getElementById('sky-star');
+  if (el) {
+    el.textContent = hit
+      ? `${hit.name.toUpperCase()} · ${t('sky_mag')} ${hit.mag.toFixed(2)}`
+      : '';
+    if (hit && hit.name === SKY.mod.FOLLY.name) {
+      el.textContent += ` · ${t('sky_folly')}`;
+    }
+  }
+  return true;
+}
+
+// Fold the sky into the frame loop: camera blend, opacity, recalcs.
+// Returns how much of the room should remain visible.
+function tickSky() {
+  tickSkyGesture();
+  const want = CAMERA_MODE === 'sky' ? 1 : 0;
+  SKY_BLEND += (want - SKY_BLEND) * 0.055;
+  if (SKY_BLEND < 0.002 && want === 0) {
+    SKY_BLEND = 0;
+    if (SKY) SKY.group.visible = false;
+    return 1;
+  }
+  if (!SKY) return 1;
+  SKY.group.visible = true;
+  recalcSky(false);
+
+  // Compass steers the yaw when the phone knows which way it faces;
+  // otherwise the finger does, exactly as in the room.
+  if (SKY_HEADING != null) {
+    const wantYaw = -SKY_HEADING * Math.PI / 180;
+    let delta = ((wantYaw - SKY_YAW + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+    SKY_YAW += delta * 0.12;                   // ease, so a jittery compass reads calm
+  } else {
+    SKY_YAW = target.y + baseRotY;
+  }
+
+  // Ease the scene clear colour toward night. The CSS background sits
+  // behind the canvas, so without this the light theme keeps painting a
+  // white sky underneath the stars.
+  const night = new THREE.Color(0x05070b);
+  const base = new THREE.Color(THEMES[CURRENT_THEME].bg);
+  scene.background = base.lerp(night, SKY_BLEND);
+
+  const k = SKY_BLEND;
+  SKY.mod.fadeTargets(SKY).forEach(o => {
+    o.material.opacity = (o.userData.targetOpacity ?? 0.6) * k;
+  });
+  return 1 - SKY_BLEND * 0.94;                 // how much of the room remains
+}
+
+// Palette + keyboard. 'S' for sky, Escape comes back down.
+document.addEventListener('keydown', (e) => {
+  const tag = (e.target && e.target.tagName) || '';
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key.toLowerCase() === 's' && document.body.dataset.view === 'room') {
+    e.preventDefault(); toggleSky();
+  } else if (e.key === 'Escape' && CAMERA_MODE === 'sky') {
+    exitSky();
+  }
+});
+
+if (WEBGL_OK) initSky();
+
+// Published for animate(), which runs its first frame before this module
+// finishes evaluating. One handle, so the loop never reaches into the
+// sky's bindings directly.
+window.__skyTap = (e) => {
+  if (CAMERA_MODE !== 'sky') return false;
+  const pt = e.changedTouches ? e.changedTouches[0] : e;
+  return skyTap(pt.clientX, pt.clientY);
+};
+
+window.__sky = {
+  blend: 0, yaw: 0, pitch: SKY_PITCH,
+  tick() {
+    const dim = tickSky();
+    this.blend = SKY_BLEND;
+    this.yaw = SKY_YAW;
+    return dim;
+  },
+};

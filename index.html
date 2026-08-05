@@ -113,6 +113,25 @@
   <div class="tip" id="tip"><span id="tip-text"></span><span class="url" id="tip-url"></span></div>
   <div class="veil" id="veil"></div>
 
+  <!-- THE SKY — shown while the camera is pitched up into the dome.
+       Mono captions only: where you are, what you are pointing at, and
+       one star's name when you tap it. -->
+  <div class="sky-hud" id="sky-hud" aria-hidden="true">
+    <div class="sky-top">
+      <span class="sky-place" id="sky-place">SKY OVER BANGKOK</span>
+      <span class="sky-time" id="sky-time">—</span>
+    </div>
+    <div class="sky-star" id="sky-star"></div>
+    <button class="sky-exit" id="sky-exit" aria-label="Return to the room">
+      <span aria-hidden="true">▼</span>
+      <span data-i18n="sky_exit">BACK DOWN</span>
+    </button>
+  </div>
+  <button class="sky-hint" id="sky-hint" aria-label="Look up at the sky">
+    <span aria-hidden="true">▲</span>
+    <span data-i18n="sky_hint">LOOK UP</span>
+  </button>
+
   <!-- Modal -->
   <div class="modal" id="modal" role="dialog" aria-modal="true">
     <div class="modal-bg" data-close="1"></div>

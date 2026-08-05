@@ -15,6 +15,7 @@ const SHELL = [
   '/mixtape.html',
   '/styles.css',                    // v2: extracted from inline
   '/app.js',                        // v2: extracted from inline
+  '/sky.js',                        // the planetarium — must work offline
   '/manifest.webmanifest',
   '/icon.svg',
   '/apple-touch-icon.png',

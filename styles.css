@@ -2716,3 +2716,84 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
     .fleet-foot[data-status="degraded"] .dot,
     .fleet-foot[data-status="down"] .dot { background: var(--amber); }
     .fleet-foot[data-status="down"] .status { color: var(--amber); }
+
+    /* ════════════════════════════════════════════════════════
+       THE SKY
+       Captions only. The sky is the picture; anything drawn over it is
+       an interruption, so there are exactly three: where you are, what
+       you tapped, and the way back down.
+       ════════════════════════════════════════════════════════ */
+
+    .sky-hint {
+      position: fixed;
+      top: calc(50% - 22px); left: 50%;
+      transform: translateX(-50%);
+      z-index: 40;
+      display: none;
+      align-items: center; gap: 8px;
+      min-height: 44px; padding: 10px 16px;
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--dim);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.4s ease, color 0.2s, border-color 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body[data-view="room"] .sky-hint.in { display: inline-flex; opacity: 0.5; }
+    .sky-hint:hover { color: var(--amber); border-color: var(--amber); opacity: 1; }
+    body[data-sky="on"] .sky-hint { display: none !important; }
+
+    .sky-hud {
+      position: fixed; inset: 0;
+      z-index: 38;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.6s ease;
+      font-family: 'JetBrains Mono', monospace;
+      padding: calc(18px + var(--sat)) calc(18px + var(--sar))
+               calc(18px + var(--sab)) calc(18px + var(--sal));
+    }
+    body[data-sky="on"] .sky-hud { opacity: 1; }
+
+    .sky-top {
+      display: flex; justify-content: space-between; align-items: baseline;
+      gap: 16px; flex-wrap: wrap;
+      font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
+      color: var(--dim);
+    }
+    .sky-place { color: var(--fg); opacity: 0.75; }
+    .sky-time { font-variant-numeric: tabular-nums; }
+
+    .sky-star {
+      position: absolute; left: 0; right: 0;
+      top: 50%; transform: translateY(-50%);
+      text-align: center;
+      font-size: 10px; letter-spacing: 0.32em; text-transform: uppercase;
+      color: var(--amber);
+      min-height: 14px;
+    }
+
+    .sky-exit {
+      position: absolute;
+      left: 50%; transform: translateX(-50%);
+      bottom: calc(24px + var(--sab));
+      pointer-events: auto;
+      display: inline-flex; flex-direction: column; align-items: center; gap: 6px;
+      min-height: 44px; min-width: 44px; padding: 8px 14px;
+      background: transparent; border: 0;
+      color: var(--dim);
+      font-family: inherit;
+      font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: color 0.2s;
+    }
+    .sky-exit:hover { color: var(--amber); }
+
+    /* The sky is always the night sky, in either theme. A planetarium on
+       warm paper is not a planetarium — this is the one place the theme
+       system is deliberately overruled. */
+    body[data-sky="on"] { background: #05070b; }
