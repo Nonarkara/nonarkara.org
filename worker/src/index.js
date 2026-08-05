@@ -29,6 +29,7 @@ const ACTIVE = [
   "tkcx.nonarkara.org",
   "monitor.nonarkara.org",
   "bangkok-ioc.pages.dev",
+  "globalmonitor.nonarkara.org",
   "conflict.nonarkara.org",
   "mem.nonarkara.org",
   "geo.nonarkara.org",
@@ -51,12 +52,10 @@ const ACTIVE = [
 // board as closed stations so the map stays honest, but they never alert
 // and never drag the uptime numbers down.
 //   oil / bot / brain — point at Render + Vercel targets deleted long ago
-//   tkc-digital-twin  — suspended Fly app (530 since at least 2026-05)
 const PARKED = [
   "oil.nonarkara.org",
   "bot.nonarkara.org",
   "brain.nonarkara.org",
-  "tkc-digital-twin.fly.dev",
 ];
 
 const DOMAINS = [...ACTIVE, ...PARKED];
