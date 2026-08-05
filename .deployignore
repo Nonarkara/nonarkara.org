@@ -25,7 +25,8 @@ public/
 # Not part of the site
 non biographical:academic research/
 index.html.v1-backup
-dns-setup.sh
+# No shell script on this site is meant to be downloadable.
+*.sh
 
 # Unused pre-crop portrait sources — 25MB nothing links to. Kept in git as
 # the originals for future crops; two of them are AI-generated and have no
