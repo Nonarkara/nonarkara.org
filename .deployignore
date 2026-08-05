@@ -1,0 +1,30 @@
+# Everything here is in the repo but has no business being on the public
+# site. Cloudflare Pages has no ignore mechanism of its own, so the deploy
+# workflow rsyncs the repo into dist/ with these excluded and ships that.
+#
+# Rule of thumb: if a browser has no reason to fetch it, it goes here.
+.git/
+.github/
+.claude/
+.wrangler/
+.DS_Store
+dist/
+
+# Worker source — wrangler.toml carries the account and KV namespace ids
+worker/
+
+# Health archive — the Worker owns health now; these are kept for history
+health/
+.health/
+
+# Not part of the site
+non biographical:academic research/
+index.html.v1-backup
+dns-setup.sh
+
+# Unused pre-crop portrait sources — 25MB nothing links to. Kept in git as
+# the originals for future crops; two of them are AI-generated and have no
+# business being served from a site that bans AI imagery.
+portraits/Gemini_Generated_Image_*.png
+portraits/non formal portrait*.png
+portraits/IMG_4734.jpg

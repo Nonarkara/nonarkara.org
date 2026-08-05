@@ -1,0 +1,5 @@
+.DS_Store
+.wrangler/
+.claude/worktrees/
+dist/
+worker/.dev.vars

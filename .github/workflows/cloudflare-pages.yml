@@ -14,9 +14,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # Pages uploads whatever directory it is given, verbatim, and has no
+      # ignore mechanism. Stage a clean copy instead of shipping the repo.
+      - name: Stage the public site
+        run: |
+          rsync -a --exclude-from=.deployignore ./ dist/
+          echo "--- staged files ---"
+          find dist -type f | wc -l
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy . --project-name=nonarkara-org --branch=main
+          command: pages deploy dist --project-name=nonarkara-org --branch=main
