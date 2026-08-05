@@ -378,6 +378,17 @@ export default {
           metadata: body.metadata || {},
         };
 
+        // KV queue — the path braind actually drains into the vault.
+        // The Supabase/Sheets/embedding chain below is legacy best-effort
+        // (its Supabase project no longer resolves in DNS); this line is
+        // the one that must not fail, so it happens first.
+        // ponytail: read-modify-write race if two captures land in the
+        // same instant; single-user capture stream, acceptable.
+        const queue = (await env.STATUS.get("captures:queue", "json")) || [];
+        queue.push({ id, created_at: ts, text: record.text, source: record.source, tags: record.tags });
+        if (queue.length > 500) queue.splice(0, queue.length - 500);
+        await env.STATUS.put("captures:queue", JSON.stringify(queue));
+
         // Fan-out: Supabase + Sheets + embedding (all async, best-effort)
         const tasks = [];
 
@@ -488,9 +499,16 @@ export default {
       }
     }
 
-    const json = (obj, extra = {}) => new Response(JSON.stringify(obj, null, 2), {
-      headers: { ...corsHeaders, "Content-Type": "application/json", ...extra },
-    });
+    // extra = {status, ...headers}. `status` is lifted out — before this,
+    // a {status: 401} silently became a header named "status" and every
+    // error in the newer endpoints shipped as a confident 200.
+    const json = (obj, extra = {}) => {
+      const { status = 200, ...hdrs } = extra;
+      return new Response(JSON.stringify(obj, null, 2), {
+        status,
+        headers: { ...corsHeaders, "Content-Type": "application/json", ...hdrs },
+      });
+    };
 
     // ── Morning brief ────────────────────────────────────────────────
     // The episode index and the audio itself, straight out of R2. Range
@@ -526,6 +544,59 @@ export default {
       }
       h.set("Content-Length", String(obj.size));
       return new Response(obj.body, { status: 200, headers: h });
+    }
+
+    // ── braind — the resident brain worker on the M5 ─────────────────
+    // Three endpoints. Two are authed with BRAIND_KEY (wrangler secret):
+    //   GET  /captures?since=ISO   — pull notes captured from anywhere,
+    //                                so the laptop vault ingests them
+    //   POST /brain-status         — the daemon reports its pulse
+    // One is public and deliberately boring:
+    //   GET  /brain                — counts and timestamps only. The
+    //                                brain's contents never leave the
+    //                                laptop; only its vital signs do.
+    if (url.pathname === "/captures") {
+      if (!env.BRAIND_KEY || url.searchParams.get("key") !== env.BRAIND_KEY) {
+        return json({ error: "unauthorized" }, { status: 401 });
+      }
+      const since = url.searchParams.get("since") || "1970-01-01T00:00:00Z";
+      if (!/^\d{4}-\d{2}-\d{2}T[\d:.]+Z?$/.test(since)) {
+        return json({ error: "bad since" }, { status: 400 });
+      }
+      // The queue lives in KV, not Supabase — the old second-brain
+      // Supabase project no longer resolves in DNS, so /capture's cloud
+      // chain has been a zombie for a while. KV is already here, needs
+      // no credential, and a personal capture stream never outruns it.
+      const queue = (await env.STATUS.get("captures:queue", "json")) || [];
+      return json({ captures: queue.filter(c => c.created_at > since).slice(0, 200) });
+    }
+
+    if (url.pathname === "/brain-status" && req.method === "POST") {
+      if (!env.BRAIND_KEY || url.searchParams.get("key") !== env.BRAIND_KEY) {
+        return json({ error: "unauthorized" }, { status: 401 });
+      }
+      let body;
+      try { body = await req.json(); } catch { return json({ error: "bad json" }, { status: 400 }); }
+      // Allowlist, not passthrough: whatever the daemon sends, only
+      // these fields can ever become publicly readable.
+      const pick = (k, t) => (typeof body[k] === t ? body[k] : null);
+      const status = {
+        ts: new Date().toISOString(),
+        mode: pick("mode", "string")?.slice(0, 40) ?? "unknown",
+        documents: pick("documents", "number"),
+        chunks: pick("chunks", "number"),
+        pulses: pick("pulses", "number"),
+        capturesPulled: pick("capturesPulled", "number"),
+        lastPulseNote: pick("lastPulseNote", "string")?.slice(0, 10) ?? null, // date only
+        indexFresh: pick("indexFresh", "boolean"),
+      };
+      await env.STATUS.put("brain:v1", JSON.stringify(status), { expirationTtl: 60 * 60 * 24 * 7 });
+      return json({ ok: true });
+    }
+
+    if (url.pathname === "/brain") {
+      const s = await env.STATUS.get("brain:v1", "json");
+      return json(s || { mode: "asleep", ts: null });
     }
 
     if (url.pathname === "/history") {

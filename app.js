@@ -35,6 +35,10 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   3.1 (2026-08-05) the second brain gets a body — braind pulses on the
+//                    M5 every 15 min (transfer online / compute offline),
+//                    BRAIN tile shows its vital signs; captures now queue
+//                    in Worker KV (the old Supabase project is gone).
 //   3.0 (2026-08-05) NON OS — the plan view becomes a home screen with an
 //                    offline pill and stateful app tiles; fleet console as
 //                    a transit board with real uptime history and Telegram
@@ -57,7 +61,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '3.0';
+const NON_VERSION = '3.1';
 window.NON_VERSION = NON_VERSION;
 
 // A host is up if it answers at all in the 2xx/3xx range. The old check
@@ -136,6 +140,8 @@ const I18N = {
     sky_here:        'here',
     sky_mag:         'mag',
     sky_folly:       'the one overhead',
+    os_brain:        'brain',
+    brain_asleep:    'asleep',
     os_brief:        'brief',
     brief_label:     'morning brief',
     brief_waiting:   'no episode yet',
@@ -215,6 +221,8 @@ const I18N = {
     sky_here:        'ตรงนี้',
     sky_mag:         'ความสว่าง',
     sky_folly:       'ดวงที่อยู่เหนือหัว',
+    os_brain:        'สมอง',
+    brain_asleep:    'หลับอยู่',
     os_brief:        'สรุปเช้า',
     brief_label:     'สรุปข่าวเช้า',
     brief_waiting:   'ยังไม่มีตอน',
@@ -294,6 +302,8 @@ const I18N = {
     sky_here:        '此处',
     sky_mag:         '星等',
     sky_folly:       '正上方的那一颗',
+    os_brain:        '大脑',
+    brain_asleep:    '沉睡中',
     os_brief:        '简报',
     brief_label:     '晨间简报',
     brief_waiting:   '还没有节目',
@@ -5886,3 +5896,44 @@ paintTiles = ((orig) => function () {
 
 loadBrief();
 setInterval(loadBrief, 30 * 60_000);
+
+// ════════════════════════════════════════════════════════
+// BRAIN — vital signs of the resident brain worker on the M5
+//
+// braind pulses every 15 minutes: transfers when the laptop is online,
+// computes regardless. Only counts and dates ever reach this page — the
+// brain's contents stay on the laptop, which is the entire point of a
+// second brain that lives at home.
+// ════════════════════════════════════════════════════════
+
+let BRAIN_STATUS = null;
+let brainAlt = false; // tile alternates between two readouts on tap
+
+async function loadBrainStatus() {
+  try {
+    const r = await fetch('https://api.nonarkara.org/brain', { cache: 'no-cache' });
+    if (!r.ok) return;
+    BRAIN_STATUS = await r.json();
+    paintBrainTile();
+  } catch (_) { /* offline — the tile keeps its last truth */ }
+}
+
+function paintBrainTile() {
+  const el = document.getElementById('os-r-brain');
+  if (!el) return;
+  const b = BRAIN_STATUS;
+  if (!b || !b.ts) { el.textContent = t('brain_asleep'); return; }
+  const hrs = Math.floor((Date.now() - Date.parse(b.ts)) / 3_600_000);
+  const age = hrs < 1 ? 'NOW' : `${hrs}H`;
+  el.textContent = brainAlt
+    ? `${(b.mode || '').toUpperCase()} · ${b.pulses ?? 0} PULSES`
+    : `${b.documents ?? '?'} DOCS · ${age}`;
+}
+
+document.getElementById('os-brain')?.addEventListener('click', () => {
+  brainAlt = !brainAlt;
+  paintBrainTile();
+});
+
+loadBrainStatus();
+setInterval(loadBrainStatus, 5 * 60_000);
