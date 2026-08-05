@@ -9,6 +9,25 @@ permissions:
   contents: read
   deployments: write
 
+# HEADS UP (2026-08-05): this workflow is correct, but the
+# CLOUDFLARE_API_TOKEN secret is expired — every run fails with
+# "Authentication error [code: 10000]". The same token appears to be
+# shared with slic-index and smart-city-thailand-index, which have been
+# failing the same way.
+#
+# Until it is rotated, deploy with ./ship.sh, which uses the wrangler
+# OAuth session on Dr Non's machine and needs no secret.
+#
+# To fix: create a token in the Cloudflare dashboard with
+# "Cloudflare Pages: Edit" on account 74ad6bf8dfaaccf82de6f0847f7d2d54
+# (API tokens can only be minted in the dashboard, not over the API),
+# then hand it to GitHub without pasting it anywhere it can be read back:
+#
+#   gh secret set CLOUDFLARE_API_TOKEN -R Nonarkara/nonarkara.org
+#
+# That prompts for the value on stdin. Nothing is echoed and nothing
+# lands in shell history.
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
