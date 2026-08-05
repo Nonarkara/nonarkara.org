@@ -120,6 +120,9 @@ const I18N = {
     os_fleet:        'fleet',
     os_theme:        'theme',
     os_signals:      'signals · markets + weather',
+    ground_hint:     'look down',
+    ground_exit:     'back up',
+    ground_label:    'the ground',
     sky_hint:        'look up',
     sky_exit:        'back down',
     sky_over:        'sky over',
@@ -192,6 +195,9 @@ const I18N = {
     os_fleet:        'ระบบ',
     os_theme:        'ธีม',
     os_signals:      'สัญญาณ · ตลาด + อากาศ',
+    ground_hint:     'ก้มดูพื้น',
+    ground_exit:     'กลับขึ้นมา',
+    ground_label:    'พื้นดิน',
     sky_hint:        'แหงนดูฟ้า',
     sky_exit:        'กลับลงมา',
     sky_over:        'ฟ้าเหนือ',
@@ -264,6 +270,9 @@ const I18N = {
     os_fleet:        '机群',
     os_theme:        '主题',
     os_signals:      '信号 · 市场与天气',
+    ground_hint:     '低头看',
+    ground_exit:     '回到室内',
+    ground_label:    '地面',
     sky_hint:        '抬头看',
     sky_exit:        '回到室内',
     sky_over:        '天空 ·',
@@ -5351,9 +5360,14 @@ if (window.__lastStatusData) paintFleet(window.__lastStatusData);
 // sky each want the camera, and before this they composed by accident.
 // ════════════════════════════════════════════════════════
 
-let CAMERA_MODE = 'room';           // 'room' | 'sky'  (dolly runs on top)
+let CAMERA_MODE = 'room';           // 'room' | 'sky' | 'ground'  (dolly on top)
 let SKY = null;                     // the built dome, once WebGL is confirmed
 let SKY_BLEND = 0;                  // 0 room · 1 sky
+// Reused every frame. Allocating two Colors per frame is 120 objects a
+// second for the garbage collector to clean up after, for no reason.
+const _bgScratch = new THREE.Color();
+const _night = new THREE.Color(0x05070b);
+const _deepEarth = new THREE.Color(0x070a0f);
 let SKY_SITE = { lat: 13.7563, lon: 100.5018, label: 'BANGKOK' };
 let SKY_HEADING = null;             // degrees from true north, if the phone knows
 let SKY_YAW = 0;                    // scene yaw actually used
@@ -5416,6 +5430,7 @@ function askForLocation() {
         label: t('sky_here'), asked: true,
       };
       recalcSky(true);
+      if (GROUND) GROUND.load(SKY_SITE);
     },
     () => {},
     { timeout: 8000, maximumAge: 600_000 }
@@ -5445,6 +5460,57 @@ function exitSky() {
 
 function toggleSky() { CAMERA_MODE === 'sky' ? exitSky() : enterSky(); }
 
+// ── THE GROUND — the sky's mirror ───────────────────────────
+// Same position, same compass, opposite direction. The floor goes to
+// glass and underneath it is the actual ground, from orbit, turned so
+// that north on the photograph is north in the room.
+let GROUND = null;
+let GROUND_BLEND = 0;
+const GROUND_PITCH = -1.18;
+
+async function initGround() {
+  if (!WEBGL_OK || GROUND) return;
+  try {
+    const mod = await import('./ground.js');
+    GROUND = mod.buildGround(0xe6edf3, 0xf59e0b, renderer.capabilities.getMaxAnisotropy());
+    GROUND.mod = mod;
+    GROUND.group.visible = false;
+    scene.add(GROUND.group);
+    document.getElementById('ground-hint')?.classList.add('in');
+  } catch (_) {
+    document.getElementById('ground-hint')?.remove();
+  }
+}
+
+function enterGround() {
+  if (!GROUND || CAMERA_MODE === 'ground') return;
+  if (CAMERA_MODE === 'sky') exitSky();
+  CAMERA_MODE = 'ground';
+  GROUND.group.visible = true;
+  askForLocation();
+  GROUND.load(SKY_SITE);
+  document.body.dataset.ground = 'on';
+  const cap = document.getElementById('ground-cap');
+  if (cap) {
+    cap.textContent = `${GROUND.scaleLabel(SKY_SITE.lat)} · ${GROUND.mod.ATTRIBUTION}`;
+  }
+  const place = document.getElementById('ground-place');
+  if (place) {
+    place.textContent = `${SKY_SITE.lat.toFixed(4)}°, ${SKY_SITE.lon.toFixed(4)}°`;
+  }
+  try { enableGyro(); } catch (_) {}
+}
+
+function exitGround() {
+  if (CAMERA_MODE !== 'ground') return;
+  CAMERA_MODE = 'room';
+  document.body.dataset.ground = 'off';
+}
+
+function toggleGround() { CAMERA_MODE === 'ground' ? exitGround() : enterGround(); }
+document.getElementById('ground-hint')?.addEventListener('click', enterGround);
+document.getElementById('ground-exit')?.addEventListener('click', exitGround);
+
 skyHint?.addEventListener('click', enterSky);
 document.getElementById('sky-exit')?.addEventListener('click', exitSky);
 
@@ -5471,19 +5537,27 @@ if ('ondeviceorientationabsolute' in window) {
 // thresholds have hysteresis so a wobble at the boundary can't flap.
 let skyGestureSince = 0;
 function tickSkyGesture() {
-  if (!skyAvailable() || !gyroEnabled || !SKY_HAS_MOTION) return;
+  if (!gyroEnabled || !SKY_HAS_MOTION) return;
+  if (!skyAvailable() && !GROUND) return;
   if (document.body.dataset.view !== 'room') return;
   const up = gyroSmoothY;                      // +1 is fully tilted back
   const now = performance.now();
   if (CAMERA_MODE === 'room') {
-    if (up > 0.62) {
+    if (up > 0.62 || up < -0.62) {
       if (!skyGestureSince) skyGestureSince = now;
-      else if (now - skyGestureSince > 400) { skyGestureSince = 0; enterSky(); }
+      else if (now - skyGestureSince > 400) {
+        skyGestureSince = 0;
+        up > 0 ? enterSky() : enterGround();
+      }
     } else skyGestureSince = 0;
   } else {
-    if (up < 0.30) {
+    // Coming back to level exits whichever direction you went.
+    if (Math.abs(up) < 0.30) {
       if (!skyGestureSince) skyGestureSince = now;
-      else if (now - skyGestureSince > 600) { skyGestureSince = 0; exitSky(); }
+      else if (now - skyGestureSince > 600) {
+        skyGestureSince = 0;
+        CAMERA_MODE === 'sky' ? exitSky() : exitGround();
+      }
     } else skyGestureSince = 0;
   }
 }
@@ -5511,21 +5585,10 @@ function skyTap(clientX, clientY) {
 
 // Fold the sky into the frame loop: camera blend, opacity, recalcs.
 // Returns how much of the room should remain visible.
-function tickSky() {
-  tickSkyGesture();
-  const want = CAMERA_MODE === 'sky' ? 1 : 0;
-  SKY_BLEND += (want - SKY_BLEND) * 0.055;
-  if (SKY_BLEND < 0.002 && want === 0) {
-    SKY_BLEND = 0;
-    if (SKY) SKY.group.visible = false;
-    return 1;
-  }
-  if (!SKY) return 1;
-  SKY.group.visible = true;
-  recalcSky(false);
-
-  // Compass steers the yaw when the phone knows which way it faces;
-  // otherwise the finger does, exactly as in the room.
+// Compass steers the yaw when the phone knows which way it faces;
+// otherwise the finger does, exactly as in the room. Sky and ground
+// share it — pointing north means the same thing in both directions.
+function tickYaw() {
   if (SKY_HEADING != null) {
     const wantYaw = -SKY_HEADING * Math.PI / 180;
     let delta = ((wantYaw - SKY_YAW + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
@@ -5533,19 +5596,54 @@ function tickSky() {
   } else {
     SKY_YAW = target.y + baseRotY;
   }
+}
+
+function tickSky() {
+  tickSkyGesture();
+  if (CAMERA_MODE !== 'room') tickYaw();
+  const roomLeftByGround = tickGround();
+  const want = CAMERA_MODE === 'sky' ? 1 : 0;
+  SKY_BLEND += (want - SKY_BLEND) * 0.055;
+  if (SKY_BLEND < 0.002 && want === 0) {
+    SKY_BLEND = 0;
+    if (SKY) SKY.group.visible = false;
+    return roomLeftByGround;
+  }
+  if (!SKY) return roomLeftByGround;
+  SKY.group.visible = true;
+  recalcSky(false);
 
   // Ease the scene clear colour toward night. The CSS background sits
   // behind the canvas, so without this the light theme keeps painting a
   // white sky underneath the stars.
-  const night = new THREE.Color(0x05070b);
-  const base = new THREE.Color(THEMES[CURRENT_THEME].bg);
-  scene.background = base.lerp(night, SKY_BLEND);
+  _bgScratch.set(THEMES[CURRENT_THEME].bg).lerp(_night, SKY_BLEND);
+  scene.background = _bgScratch;
 
   const k = SKY_BLEND;
   SKY.mod.fadeTargets(SKY).forEach(o => {
     o.material.opacity = (o.userData.targetOpacity ?? 0.6) * k;
   });
-  return 1 - SKY_BLEND * 0.94;                 // how much of the room remains
+  return Math.min(roomLeftByGround, 1 - SKY_BLEND * 0.94);   // room left visible
+}
+
+// The ground fades the room the same way the sky does, and eases the
+// scene toward the deep blue of an image seen from very high up.
+function tickGround() {
+  const want = CAMERA_MODE === 'ground' ? 1 : 0;
+  GROUND_BLEND += (want - GROUND_BLEND) * 0.055;
+  if (GROUND_BLEND < 0.002) {
+    GROUND_BLEND = 0;
+    if (GROUND) GROUND.group.visible = false;
+    return 1;
+  }
+  if (!GROUND) return 1;
+  GROUND.group.visible = true;
+  GROUND.fadeTargets().forEach(o => {
+    o.material.opacity = (o.userData.targetOpacity ?? 0.8) * GROUND_BLEND;
+  });
+  _bgScratch.set(THEMES[CURRENT_THEME].bg).lerp(_deepEarth, GROUND_BLEND);
+  scene.background = _bgScratch;
+  return 1 - GROUND_BLEND * 0.88;
 }
 
 // Palette + keyboard. 'S' for sky, Escape comes back down.
@@ -5553,14 +5651,14 @@ document.addEventListener('keydown', (e) => {
   const tag = (e.target && e.target.tagName) || '';
   if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
-  if (e.key.toLowerCase() === 's' && document.body.dataset.view === 'room') {
-    e.preventDefault(); toggleSky();
-  } else if (e.key === 'Escape' && CAMERA_MODE === 'sky') {
-    exitSky();
-  }
+  const inRoom = document.body.dataset.view === 'room';
+  if (e.key.toLowerCase() === 's' && inRoom) { e.preventDefault(); toggleSky(); }
+  else if (e.key.toLowerCase() === 'g' && inRoom) { e.preventDefault(); toggleGround(); }
+  else if (e.key === 'Escape' && CAMERA_MODE === 'sky') exitSky();
+  else if (e.key === 'Escape' && CAMERA_MODE === 'ground') exitGround();
 });
 
-if (WEBGL_OK) initSky();
+if (WEBGL_OK) { initSky(); initGround(); }
 
 // Published for animate(), which runs its first frame before this module
 // finishes evaluating. One handle, so the loop never reaches into the
@@ -5575,7 +5673,15 @@ window.__sky = {
   blend: 0, yaw: 0, pitch: SKY_PITCH,
   tick() {
     const dim = tickSky();
-    this.blend = SKY_BLEND;
+    // Sky and ground are mutually exclusive, so one blend and one pitch
+    // can stand for both — whichever is currently pulling the camera.
+    if (GROUND_BLEND > SKY_BLEND) {
+      this.blend = GROUND_BLEND;
+      this.pitch = GROUND_PITCH;
+    } else {
+      this.blend = SKY_BLEND;
+      this.pitch = SKY_PITCH;
+    }
     this.yaw = SKY_YAW;
     return dim;
   },

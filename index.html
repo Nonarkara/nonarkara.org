@@ -132,6 +132,24 @@
     <span data-i18n="sky_hint">LOOK UP</span>
   </button>
 
+  <!-- THE GROUND — the sky's mirror. Where you are, from orbit, turned
+       so north on the photograph is north in the room. -->
+  <div class="sky-hud ground-hud" id="ground-hud" aria-hidden="true">
+    <div class="sky-top">
+      <span class="sky-place" id="ground-place">—</span>
+      <span class="sky-time" data-i18n="ground_label">THE GROUND</span>
+    </div>
+    <div class="ground-cap" id="ground-cap"></div>
+    <button class="sky-exit" id="ground-exit" aria-label="Return to the room">
+      <span aria-hidden="true">▲</span>
+      <span data-i18n="ground_exit">BACK UP</span>
+    </button>
+  </div>
+  <button class="sky-hint ground-hint" id="ground-hint" aria-label="Look down at the ground">
+    <span aria-hidden="true">▼</span>
+    <span data-i18n="ground_hint">LOOK DOWN</span>
+  </button>
+
   <!-- Modal -->
   <div class="modal" id="modal" role="dialog" aria-modal="true">
     <div class="modal-bg" data-close="1"></div>

@@ -16,6 +16,7 @@ const SHELL = [
   '/styles.css',                    // v2: extracted from inline
   '/app.js',                        // v2: extracted from inline
   '/sky.js',                        // the planetarium — must work offline
+  '/ground.js',                     // the satellite floor (tiles need network)
   '/manifest.webmanifest',
   '/icon.svg',
   '/apple-touch-icon.png',

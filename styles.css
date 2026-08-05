@@ -2797,3 +2797,30 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
        warm paper is not a planetarium — this is the one place the theme
        system is deliberately overruled. */
     body[data-sky="on"] { background: #05070b; }
+
+    /* THE GROUND — the sky's mirror, so it reuses the sky's chrome and
+       only changes where it sits and what it credits. */
+    .ground-hint {
+      top: auto;
+      bottom: calc(96px + var(--sab));
+    }
+    body[data-view="room"] .ground-hint.in { display: inline-flex; opacity: 0.5; }
+    body[data-ground="on"] .ground-hint,
+    body[data-ground="on"] .sky-hint,
+    body[data-sky="on"] .ground-hint { display: none !important; }
+    .ground-hud { opacity: 0; }
+    body[data-ground="on"] .ground-hud { opacity: 1; }
+    body[data-ground="on"] { background: #070a0f; }
+    .ground-hud .sky-exit { bottom: auto; top: calc(84px + var(--sat)); }
+    /* Attribution is a condition of using the imagery, so it renders on
+       screen rather than living in a comment nobody reads. */
+    .ground-cap {
+      position: absolute; left: 0; right: 0;
+      bottom: calc(22px + var(--sab));
+      text-align: center;
+      font-size: 9px; letter-spacing: 0.26em; text-transform: uppercase;
+      color: var(--dim);
+      padding: 0 16px;
+    }
+    /* Keep the ground caption clear of the room's floating FOCUS button */
+    .ground-hud .sky-top { padding-right: 150px; }
