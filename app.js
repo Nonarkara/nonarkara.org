@@ -36,6 +36,11 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   3.4 (2026-08-06) the Pavilion for real — the enclosure is gone, the
+//                    roof floats at 3.6m, five planes stand free, the
+//                    work wall is 8 heroes not 21. And the service worker
+//                    stops serving stale code: app.js is network-first,
+//                    so a deploy is visible on the next load.
 //   3.3 (2026-08-06) Pavilion that you can actually see — charcoal walls,
 //                    gallery board behind the TVs, screens lit at ~80%
 //                    (were ghosted at 45%), solid furniture fills, discovery
@@ -68,7 +73,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '3.3';
+const NON_VERSION = '3.4';
 window.NON_VERSION = NON_VERSION;
 
 // Discovery layer — wired once the HUD nodes exist (see boot below).
@@ -501,7 +506,7 @@ scene.fog = new THREE.Fog(0x000000, 9, 36);
 
 const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 100);
 camera.position.set(0, 1.7, 7.5);
-camera.lookAt(0, 2.6, -10);
+camera.lookAt(0, 2.0, -10);
 let baseRotX = camera.rotation.x;
 let baseRotY = camera.rotation.y;
 
@@ -513,11 +518,11 @@ function applyCameraFraming() {
   if (aspect < 0.85) {
     camera.fov = 70;
     camera.position.set(0, 1.95, 5.5);
-    camera.lookAt(0, 2.4, -10);
+    camera.lookAt(0, 1.9, -10);
   } else {
     camera.fov = 58;
     camera.position.set(0, 1.7, 7.5);
-    camera.lookAt(0, 2.6, -10);
+    camera.lookAt(0, 2.0, -10);
   }
   baseRotX = camera.rotation.x;
   baseRotY = camera.rotation.y;
@@ -633,77 +638,93 @@ const wirebox = (w, h, d, mat = matFurni) =>
   new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, d)), mat);
 const placeAt = (obj, x, y, z) => { obj.position.set(x, y, z); return obj; };
 
-// ── Floor / ceiling / walls ──────────────────────────────
-{
-  const grid = new THREE.GridHelper(140, 70, 0xf5f5f0, 0xf5f5f0);
-  grid.material = matDim;
-  scene.add(grid);
-}
-{
-  const ceiling = new THREE.GridHelper(140, 35, 0xf5f5f0, 0xf5f5f0);
-  ceiling.material = matDim;
-  ceiling.position.y = 6.0;
-  scene.add(ceiling);
-}
-[-9.5, 9.5].forEach(x => {
-  const geom = new THREE.PlaneGeometry(60, 6.0, 30, 7);
-  const wire = new THREE.LineSegments(new THREE.WireframeGeometry(geom), matDim);
-  wire.position.set(x, 3.0, -10);
-  wire.rotation.y = x > 0 ? -Math.PI / 2 : Math.PI / 2;
-  scene.add(wire);
-});
+// ── THE PAVILION ─────────────────────────────────────────
+// Mies, Barcelona, 1929. The move that makes it that building and not
+// a room: the roof floats on free-standing planes that never meet, so
+// space runs past them and out. A box with walls is a box. This is the
+// opposite of a box.
+//
+// v3.2/v3.3 got this backwards — they added four solid walls to the old
+// enclosure and kept the six-metre ceiling and the 140-unit grid plain,
+// which is why the room still read as the room from four months ago.
+// The enclosure is gone here. What is left is a plinth, a low floating
+// roof, and five planes standing free of each other.
+const PAV = {
+  W: 30, D: 18,        // plinth
+  ROOF_Y: 3.6,         // low. Domestic. You can feel the ceiling.
+  ROOF_W: 26, ROOF_D: 15,
+};
+const PAV_MATS = { floor: null, wall: null, gallery: null, roof: null };
 
-// ── Pavilion mass (v3.3) ─────────────────────────────────
-// v3.2 used #0a0e14 on black — mathematically present, optically nothing.
-// These fills must read at a glance: charcoal walls, lit gallery board,
-// amber crown. MeshBasicMaterial only — phone-cheap, no shadows.
-const PAV_MATS = { floor: null, wall: null, gallery: null };
+{
+  // Plinth grid — 30×18 at 1.5m, not 140 units at 2m. A defined ground
+  // you stand on, not an infinite plain you float above.
+  const grid = new THREE.GridHelper(PAV.W, Math.round(PAV.W / 1.5), 0xf5f5f0, 0xf5f5f0);
+  grid.material = matDim;
+  grid.scale.z = PAV.D / PAV.W;
+  scene.add(grid);
+
+  // The plinth edge. Mies' podium reads because it ends somewhere.
+  const edge = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(PAV.W, 0.12, PAV.D)), matFurni);
+  edge.position.y = -0.06;
+  scene.add(edge);
+}
+
 if (WEBGL_OK) {
-  PAV_MATS.floor = new THREE.MeshBasicMaterial({
-    color: 0x121820, side: THREE.DoubleSide,
-  });
-  const floorMass = new THREE.Mesh(new THREE.PlaneGeometry(36, 36), PAV_MATS.floor);
+  PAV_MATS.floor = new THREE.MeshBasicMaterial({ color: 0x121820, side: THREE.DoubleSide });
+  const floorMass = new THREE.Mesh(new THREE.PlaneGeometry(PAV.W, PAV.D), PAV_MATS.floor);
   floorMass.rotation.x = -Math.PI / 2;
   floorMass.position.y = 0.002;
   scene.add(floorMass);
 
-  PAV_MATS.wall = new THREE.MeshBasicMaterial({
-    color: 0x1a222e, side: THREE.DoubleSide,
-  });
-  const backWall = new THREE.Mesh(new THREE.PlaneGeometry(20, 6.2), PAV_MATS.wall);
-  backWall.position.set(0, 3.1, -10.04);
-  scene.add(backWall);
-  const frontWall = new THREE.Mesh(new THREE.PlaneGeometry(20, 6.2), PAV_MATS.wall);
-  frontWall.position.set(0, 3.1, 9.54);
-  scene.add(frontWall);
-  [-9.54, 9.54].forEach(x => {
-    const side = new THREE.Mesh(new THREE.PlaneGeometry(40, 6.2), PAV_MATS.wall);
-    side.position.set(x, 3.1, -0.5);
-    side.rotation.y = Math.PI / 2;
-    scene.add(side);
-  });
+  // The floating roof. Finite, so you see void past its edge — that is
+  // what makes it float instead of enclose.
+  PAV_MATS.roof = new THREE.MeshBasicMaterial({ color: 0x0d131b, side: THREE.DoubleSide });
+  const roof = new THREE.Mesh(new THREE.PlaneGeometry(PAV.ROOF_W, PAV.ROOF_D), PAV_MATS.roof);
+  roof.rotation.x = -Math.PI / 2;
+  roof.position.y = PAV.ROOF_Y;
+  scene.add(roof);
+  const roofEdge = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(PAV.ROOF_W, 0.1, PAV.ROOF_D)), matFurni);
+  roofEdge.position.y = PAV.ROOF_Y;
+  scene.add(roofEdge);
 
-  // Gallery board — the TV wall sits on a real surface, not void.
-  PAV_MATS.gallery = new THREE.MeshBasicMaterial({
-    color: 0x243041, side: THREE.DoubleSide,
-  });
-  const gallery = new THREE.Mesh(new THREE.PlaneGeometry(9.4, 4.6), PAV_MATS.gallery);
-  gallery.position.set(0, 2.55, -10.06);
-  scene.add(gallery);
-  const galFrame = new THREE.LineSegments(
-    new THREE.EdgesGeometry(new THREE.BoxGeometry(9.55, 4.75, 0.04)),
-    matHover
-  );
-  galFrame.position.set(0, 2.55, -10.05);
-  scene.add(galFrame);
+  // Five free-standing planes. None touches another; every gap is a way
+  // through. Offsets are deliberate — a pinwheel, not a perimeter.
+  //        x      z     rotY          w     h    role
+  const PLANES = [
+    [  0.0, -9.6,  0,            11.0, 3.2, 'gallery'],   // behind the work wall
+    [ -8.2, -3.0,  Math.PI / 2,   7.0, 3.2, 'west'],      // credentials side
+    [  8.6,  0.5,  Math.PI / 2,   9.0, 3.2, 'east'],      // voice / portrait side
+    [ -8.6,  4.2,  Math.PI / 2,   6.0, 2.4, 'south-w'],   // left flank, low — parallel to the sightline
+    [  6.8,  8.6,  0,             5.0, 3.2, 'south-e'],   // behind your shoulder — found by turning
+  ];
+  PAV_MATS.wall = new THREE.MeshBasicMaterial({ color: 0x1a222e, side: THREE.DoubleSide });
+  for (const [x, z, ry, w, h, role] of PLANES) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
+      role === 'gallery' ? (PAV_MATS.gallery = new THREE.MeshBasicMaterial({
+        color: 0x243041, side: THREE.DoubleSide })) : PAV_MATS.wall);
+    m.position.set(x, h / 2, z);
+    m.rotation.y = ry;
+    scene.add(m);
+    // Hairline edge — the plane has to end visibly or it reads as fog.
+    const e = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.PlaneGeometry(w, h)), matFurni);
+    e.position.copy(m.position);
+    e.rotation.y = ry;
+    scene.add(e);
+  }
 
-  // Amber crown — thick enough to read as architecture, not a 1px hair.
-  const wash = new THREE.Mesh(
-    new THREE.PlaneGeometry(9.4, 0.18),
-    new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.55, depthWrite: false })
+  // The one amber line: a floor seam running the length of the plinth,
+  // past the planes and out. Law 2 — the grid holds, one move breaks it.
+  const seam = new THREE.Mesh(
+    new THREE.PlaneGeometry(PAV.W, 0.05),
+    new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.5, depthWrite: false })
   );
-  wash.position.set(0, 5.05, -10.02);
-  scene.add(wash);
+  seam.rotation.x = -Math.PI / 2;
+  seam.position.set(0, 0.006, 1.2);
+  scene.add(seam);
 
   _themeRedrawHooks.push(() => {
     if (!PAV_MATS.floor) return;
@@ -711,10 +732,12 @@ if (WEBGL_OK) {
       PAV_MATS.floor.color.setHex(0x121820);
       PAV_MATS.wall.color.setHex(0x1a222e);
       PAV_MATS.gallery.color.setHex(0x243041);
+      PAV_MATS.roof.color.setHex(0x0d131b);
     } else {
       PAV_MATS.floor.color.setHex(0xe6e2d8);
       PAV_MATS.wall.color.setHex(0xd8d3c8);
       PAV_MATS.gallery.color.setHex(0xcfc9bb);
+      PAV_MATS.roof.color.setHex(0xeeeae0);
     }
   });
 }
@@ -928,7 +951,7 @@ let RECORD_DISC = null;  // exposed for spin animation
 // its Y axis. Click/tap → toggles dark ↔ light theme.
 let CHAND_GROUP = null;
 {
-  const X = 0, Y = 4.7, Z = 3.6;
+  const X = 0, Y = 2.75, Z = 3.6;   // hangs below the 3.6m roof, not through it
   const outer = new THREE.LineSegments(
     new THREE.EdgesGeometry(new THREE.BoxGeometry(0.42, 0.42, 0.42)), matBright);
   const inner = new THREE.LineSegments(
@@ -939,10 +962,10 @@ let CHAND_GROUP = null;
   group.add(outer);
   group.add(inner);
 
-  // Rod from cube top up to the ceiling at y=6.0
+  // Rod from cube top up to the roof (PAV.ROOF_Y)
   const rodG = new THREE.BufferGeometry().setFromPoints([
     new THREE.Vector3(X, Y + 0.21, Z),
-    new THREE.Vector3(X, 6.0,      Z),
+    new THREE.Vector3(X, PAV.ROOF_Y, Z),
   ]);
   scene.add(new THREE.Line(rodG, matDim));
 
@@ -1669,21 +1692,27 @@ setInterval(fetchCouncil,     5 * 60_000);  // council: every 5 min (matches cro
 // ════════════════════════════════════════════════════════
 const TV_W = 1.22, TV_H = 0.72;
 const GAP_X = 0.18, GAP_Y = 0.20;
-const COLS = 5;
-const ROWS = Math.ceil(PROJECTS.length / COLS);
+const COLS = 4;
+// Eight on the wall, not twenty-one. Five rows of screens stood 4.6m
+// tall, which is what forced a six-metre ceiling and made the room a
+// hall instead of a pavilion. The other thirteen are one tap away in
+// the drawer, which already lists every project — nothing is lost, the
+// wall just stops being a spreadsheet.
+const WALL_TVS = PROJECTS.slice(0, 8);
+const ROWS = Math.ceil(WALL_TVS.length / COLS);
 const tvLoader = new THREE.TextureLoader();
 const TVs = [];
 
 // Center any partial last row instead of left-aligning it.
 // (e.g. 21 projects → 4 full rows of 5 + 1 row of 1, centered.)
-const LAST_ROW_COUNT = PROJECTS.length - (ROWS - 1) * COLS;
-PROJECTS.forEach((p, i) => {
+const LAST_ROW_COUNT = WALL_TVS.length - (ROWS - 1) * COLS;
+WALL_TVS.forEach((p, i) => {
   const col = i % COLS;
   const row = Math.floor(i / COLS);
   const colsThisRow = (row === ROWS - 1) ? LAST_ROW_COUNT : COLS;
   const cx = (col - (colsThisRow - 1) / 2) * (TV_W + GAP_X);
-  const cy = 2.4 + ((ROWS - 1) / 2 - row) * (TV_H + GAP_Y);
-  const cz = -10;
+  const cy = 1.75 + ((ROWS - 1) / 2 - row) * (TV_H + GAP_Y);
+  const cz = -9.5;
 
   const grp = new THREE.Group();
   grp.position.set(cx, cy, cz);
@@ -2206,28 +2235,20 @@ PROJECTS.forEach((p, i) => {
   FADE_TARGETS.push({ mat: pgLabelMat, target: 0.85 });
 }
 
-// CEILING — wireframe grid that mirrors the floor. Cyberpunk.
-// Real specular reflection is heavy on phones, so we draw the
-// mirror visually: a grid above with the same spacing + amber
-// equator like the floor. Looking up = seeing the room reflected.
+// CEILING — the roof plane is the ceiling now.
+// This used to be a 22×22 wireframe grid mirroring the floor, which
+// suited a six-metre cyberpunk hall. Under a 3.6m Pavilion roof it sat
+// four inches below the slab and read as spaghetti — the single biggest
+// source of visual noise in the room. The roof plane and its hairline
+// edge do the job; a second amber equator up here would also break
+// Law 1, since the floor seam is already the one amber line.
+// __ceilingEquator is kept as a live no-op so the pulse animation that
+// drives it has something to write to.
 // ════════════════════════════════════════════════════════
 {
-  const CEIL_Y = 5.0;
-  const CEIL_SIZE = 22;
-  const ceilGrid = new THREE.GridHelper(CEIL_SIZE, 22, 0x666666, 0x666666);
-  ceilGrid.material = matFurni;
-  ceilGrid.position.y = CEIL_Y;
-  scene.add(ceilGrid);
-  // Inverted-perspective amber equator — a single line across the ceiling
-  // matching the floor's amber stripe. Adds the "reflected" feel.
-  const equatorGeom = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(-CEIL_SIZE / 2, CEIL_Y - 0.001, 0),
-    new THREE.Vector3( CEIL_SIZE / 2, CEIL_Y - 0.001, 0),
-  ]);
-  const equatorMat = new THREE.LineBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0 });
-  const equator = new THREE.Line(equatorGeom, equatorMat);
-  scene.add(equator);
-  window.__ceilingEquator = equatorMat;
+  window.__ceilingEquator = new THREE.LineBasicMaterial({
+    color: 0xf59e0b, transparent: true, opacity: 0,
+  });
 }
 
 // ════════════════════════════════════════════════════════
@@ -2247,7 +2268,7 @@ PROJECTS.forEach((p, i) => {
       url: 'https://scholar.google.com/citations?user=cKPauPQAAAAJ', x: 3.0 },
   ];
 
-  const BADGE_R = 0.55, BADGE_Y = 4.4, BADGE_Z = 1.5;
+  const BADGE_R = 0.55, BADGE_Y = 2.85, BADGE_Z = 1.5;  // under the 3.6m roof
 
   BADGES.forEach((b) => {
     const group = new THREE.Group();
@@ -2273,7 +2294,7 @@ PROJECTS.forEach((p, i) => {
     // Suspension line from ceiling to badge top
     const chainGeom = new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(0,  BADGE_R + 0.02, 0),
-      new THREE.Vector3(0,  5.0 - BADGE_Y, 0),
+      new THREE.Vector3(0,  PAV.ROOF_Y - BADGE_Y, 0),
     ]);
     const chain = new THREE.Line(chainGeom, matFurni);
     group.add(chain); lines.push(chain);

@@ -6,8 +6,15 @@
  * for same-origin, so a stale version means users keep the old shell.
  */
 
-const CACHE_VERSION = 'non-2026-08-06-v3.3';
+const CACHE_VERSION = 'non-2026-08-06-v3.4';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
+
+// The app's own code. These are always revalidated when online so a
+// deploy is visible on the next load, not the load after the load after.
+const CODE = new Set([
+  '/', '/index.html', '/mixtape.html',
+  '/styles.css', '/app.js', '/discover.js', '/sky.js', '/ground.js',
+]);
 
 const SHELL = [
   '/',
@@ -114,15 +121,42 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // The code of the app is network-first; everything else is cache-first.
+  //
+  // This used to be cache-first for all same-origin requests, and app.js
+  // was served from cache with no revalidation at all. The effect: after
+  // a deploy, a returning visitor kept running the OLD app.js until a new
+  // service worker activated — and sw.js itself is edge-cached for four
+  // hours. So a shipped change could be invisible for hours on the one
+  // browser that mattered, while curl showed the new build live. That is
+  // exactly how you conclude "none of the work was committed."
+  //
+  // Network-first here costs one conditional request per file when online
+  // and changes nothing offline: the cache is still written on every
+  // success and still answers the moment the network fails.
   if (url.origin === self.location.origin) {
+    const isCode = CODE.has(url.pathname) || req.destination === 'document';
     event.respondWith((async () => {
+      if (isCode) {
+        try {
+          const fresh = await fetch(req);
+          if (fresh && fresh.ok) {
+            const cache = await caches.open(CACHE_VERSION);
+            cache.put(req, fresh.clone());
+            return fresh;
+          }
+        } catch (e) { /* offline — fall through to cache */ }
+        const cachedCode = await caches.match(req);
+        if (cachedCode) return cachedCode;
+        if (req.mode === 'navigate') {
+          const shell = await caches.match('/');
+          if (shell) return shell;
+        }
+        return fetch(req);
+      }
+
       const cached = await caches.match(req);
       if (cached) {
-        if (req.destination === 'document') {
-          fetch(req).then(res => {
-            if (res && res.ok) caches.open(CACHE_VERSION).then(c => c.put(req, res));
-          }).catch(() => {});
-        }
         return cached;
       }
       try {

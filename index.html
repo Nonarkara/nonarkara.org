@@ -41,7 +41,15 @@
         location.replace('/');
       })();
     }
-    if ('serviceWorker' in navigator) {
+    // No service worker on localhost. It caches the shell, then serves it
+    // back over your own edits, so every reload during development shows
+    // the previous build — which looks exactly like "my change did nothing".
+    const __isLocal = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+    if (__isLocal && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()));
+      caches.keys?.().then(ks => ks.forEach(k => caches.delete(k))).catch(() => {});
+    }
+    if (!__isLocal && 'serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').then(reg => {
           try { reg.update(); } catch (_) {}
