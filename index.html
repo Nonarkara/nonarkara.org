@@ -361,6 +361,16 @@
 
     <!-- TODAY — one intent, one number. Everything else on this page is
          information; this row is the only thing asking for a commitment. -->
+    <!-- THE GLANCE — the one line this whole screen exists for. Forty
+         times a day the question is "is everything fine", and the answer
+         should cost no reading. Tap it for the board. -->
+    <button class="os-health" id="os-health" data-state="ok"
+            aria-label="System health — tap for the full board">
+      <span class="os-health-dot" aria-hidden="true"></span>
+      <span class="os-health-lbl">—</span>
+      <span class="os-health-more" aria-hidden="true">›</span>
+    </button>
+
     <section class="os-today">
       <button class="os-intent" data-intent-open aria-label="Set today's intent">
         <span class="os-lbl" data-i18n="os_today">TODAY</span>

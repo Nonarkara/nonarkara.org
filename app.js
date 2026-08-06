@@ -41,6 +41,13 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.0 (2026-08-06) the whole estate, at a glance — 17 systems from the
+//                    Axiom page that were built and shipped but never
+//                    monitored are now on the board (43 live), pipeline
+//                    work with no public URL appears as its own row so
+//                    Sabai Sabai is visible, and one line at the top of
+//                    the OS answers the only question that matters all
+//                    day: is anything broken.
 //   3.9 (2026-08-06) the sky teaches — tap a star and get how to find
 //                    its constellation, who drew it and why, and one true
 //                    fact with a number. The ground is OpenStreetMap now:
@@ -105,7 +112,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '3.9';
+const NON_VERSION = '4.0';
 window.NON_VERSION = NON_VERSION;
 // Stamp the build into the room HUD as early as possible — this element
 // is the answer to "am I actually seeing the new version?".
@@ -194,6 +201,12 @@ const I18N = {
     sky_here:        'here',
     sky_mag:         'mag',
     sky_folly:       'the one overhead',
+    fleet_pipeline:  'in the pipeline',
+    health_systems:  'systems',
+    health_allgood:  'all running',
+    health_problem:  'needs you',
+    health_problems: 'need you',
+    health_pipeline: 'building',
     sky_ly:          'light years',
     nav_walk:        'hold',
     walk:            'walk',
@@ -278,6 +291,12 @@ const I18N = {
     sky_here:        'ตรงนี้',
     sky_mag:         'ความสว่าง',
     sky_folly:       'ดวงที่อยู่เหนือหัว',
+    fleet_pipeline:  'กำลังพัฒนา',
+    health_systems:  'ระบบ',
+    health_allgood:  'ทำงานปกติ',
+    health_problem:  'ต้องดูแล',
+    health_problems: 'ต้องดูแล',
+    health_pipeline: 'กำลังสร้าง',
     sky_ly:          'ปีแสง',
     nav_walk:        'กดค้าง',
     walk:            'เดิน',
@@ -362,6 +381,12 @@ const I18N = {
     sky_here:        '此处',
     sky_mag:         '星等',
     sky_folly:       '正上方的那一颗',
+    fleet_pipeline:  '开发中',
+    health_systems:  '系统',
+    health_allgood:  '全部正常',
+    health_problem:  '需要处理',
+    health_problems: '需要处理',
+    health_pipeline: '建设中',
     sky_ly:          '光年',
     nav_walk:        '按住',
     walk:            '漫步',
@@ -5425,6 +5450,12 @@ function fleetLines(data) {
   return [
     { key: 'pages',  label: t('fleet_pages'),  stations: own },
     { key: 'ext',    label: t('fleet_ext'),    stations: ext },
+    // Work with no public URL — under NDA or too experimental to point
+    // at. It cannot be probed, so it is never counted up or down, but a
+    // board that shows only what is deployable is not a picture of the
+    // work. Sabai Sabai lives here.
+    { key: 'pipeline', label: t('fleet_pipeline'),
+      stations: (data.pipeline || []).map(p => p.id), pipeline: data.pipeline || [] },
     { key: 'parked', label: t('fleet_parked'), stations: sid },
   ].filter(l => l.stations.length);
 }
@@ -5439,6 +5470,14 @@ function _paintFleetBody(data) {
     <div class="fleet-line" data-line="${line.key}">
       <div class="fleet-line-lbl">${line.label}</div>
       <div class="fleet-stns">${line.stations.map(d => {
+        if (line.key === 'pipeline') {
+          const p = (line.pipeline || []).find(x => x.id === d) || { label: d, note: '' };
+          return `<span class="fleet-stn" data-state="pipeline" title="${p.note}"
+                        aria-label="${p.label} — in the pipeline, not deployed">
+                    <span class="fleet-dot" aria-hidden="true"></span>
+                    <span class="fleet-code">${p.label}</span>
+                  </span>`;
+        }
         const v = data.sites[d];
         const state = parked.has(d) ? 'parked' : (OK_CODE(v.code) ? 'up' : 'down');
         return `<button class="fleet-stn" data-dom="${d}" data-state="${state}"
@@ -5469,8 +5508,35 @@ function _paintFleetBody(data) {
     sum.classList.add('flash');
   }
 
+  paintHealthGlance(active.length, up, (data.pipeline || []).length);
   paintFleetDetail(data);
   paintIncidents();
+}
+
+/**
+ * The health line: one sentence, readable at arm's length, answering
+ * the only question you have forty times a day — is everything fine?
+ *
+ * Green when it is, amber when it is not. Two colours in a status
+ * readout is a deliberate exception to the one-amber law: amber stays
+ * the interrupt and never means "fine", so the page still has exactly
+ * one attention colour. A green dot is not competing for your eye —
+ * it is telling you that you can stop looking.
+ */
+function paintHealthGlance(total, up, pipelineCount) {
+  const el = document.getElementById('os-health');
+  if (!el) return;
+  const down = total - up;
+  const ok = down === 0;
+  el.dataset.state = ok ? 'ok' : 'bad';
+  const label = ok
+    ? `${total} ${t('health_systems')} · ${t('health_allgood')}`
+    : `${down} ${down === 1 ? t('health_problem') : t('health_problems')} · ${up}/${total}`;
+  const pipe = pipelineCount ? ` · ${pipelineCount} ${t('health_pipeline')}` : '';
+  const next = label + pipe;
+  if (el.querySelector('.os-health-lbl').textContent !== next) {
+    el.querySelector('.os-health-lbl').textContent = next;
+  }
 }
 
 function paintFleetDetail(data) {
@@ -6158,6 +6224,10 @@ function paintBrainTile() {
     ? `${(b.mode || '').toUpperCase()} · ${b.pulses ?? 0} PULSES`
     : `${b.documents ?? '?'} DOCS · ${age}`;
 }
+
+document.getElementById('os-health')?.addEventListener('click', () => {
+  document.getElementById('plan-fleet')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
 
 document.getElementById('os-brain')?.addEventListener('click', () => {
   brainAlt = !brainAlt;

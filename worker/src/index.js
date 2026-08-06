@@ -46,6 +46,41 @@ const ACTIVE = [
   "scl.nonarkara.org",
   "dao.nonarkara.org",
   "solitude.nonarkara.org",
+
+  // The rest of the estate, taken from the systems section of the Axiom
+  // page. These were built and shipped but never monitored, which meant
+  // the board claimed "25/25 up" while saying nothing about two-thirds
+  // of the work. All seventeen answered when added.
+  "air.nonarkara.org",                      // Air D&D · Sabai Sabai
+  "atlas.nonarkara.org",                    // BKKx 3D Atlas
+  "chula.nonarkara.org",                    // Chula campus control tower
+  "global.nonarkara.org",                   // Global Monitor
+  "hcmc.nonarkara.org",                     // Ho Chi Minh super dashboard
+  "nsp.nonarkara.org",                      // NSP
+  "sikhio.nonarkara.org",                   // Sikhio
+  "chonburi-control-tower.pages.dev",
+  "city-hub.pages.dev",                     // UNL city hub
+  "flood-ami.pages.dev",                    // FloodDash
+  "horizon-field-lab.pages.dev",            // Horizon 45
+  "kmitl-control-tower.pages.dev",
+  "lcbcity.pages.dev",
+  "mtt-super-dashboard-v2.pages.dev",       // Muang Thong Thani
+  "siam-markets.pages.dev",
+  "yala-control-tower.pages.dev",
+  "ascn-smart-cities-network.pages.dev",
+];
+
+// In the pipeline: real work with no public URL yet, either because it
+// is under NDA or because it is too experimental to point at. They
+// cannot be probed, so they are never counted as up or down — but they
+// appear on the board, because a board that only shows what is
+// deployable is not a picture of the work.
+const PIPELINE = [
+  { id: "sabai-sabai",  label: "SABAI SABAI",  note: "Air D&D · experimental" },
+  { id: "tkc-pmo",      label: "TKC PMO",      note: "client · NDA" },
+  { id: "each",         label: "EACH",         note: "ERP · ACT · CRM · HR" },
+  { id: "otop",         label: "OTOP",         note: "in development" },
+  { id: "ikigai",       label: "IKIGAI",       note: "finance engine · research" },
 ];
 
 // Parked: DNS still resolves, nothing is meant to be serving. Kept on the
@@ -73,7 +108,7 @@ const FAIL_STRIKES  = 2;    // consecutive failures before an alert fires
 
 const isUp = c => c >= 200 && c < 400;
 
-export { isUp, ACTIVE, PARKED };  // for test-fold.mjs
+export { isUp, ACTIVE, PARKED, PIPELINE };  // for test-fold.mjs
 
 async function probe(d) {
   const start = Date.now();
@@ -638,9 +673,9 @@ export default {
         // the write as soon as the response is sent, and the fleet
         // document never gets created.
         ctx.waitUntil(env.STATUS.put(FLEET_KEY, JSON.stringify(fresh)));
-        return json({ ...data, parked: PARKED });
+        return json({ ...data, parked: PARKED, pipeline: PIPELINE });
       }
-      return json({ ts: f.ts, sites: f.sites, parked: PARKED });
+      return json({ ts: f.ts, sites: f.sites, parked: PARKED, pipeline: PIPELINE });
     }
 
     return new Response(
