@@ -43,6 +43,11 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.3 (2026-08-06) the sky is where the sky is — phone pitch drives the
+//                    view instead of a fixed 76°, so holding the phone
+//                    normally no longer feels like lying on the floor.
+//                    LOOK UP / LOOK DOWN moved to the right rail, full
+//                    opacity, full label: they were off-screen at x=-97.
 //   4.2 (2026-08-06) the keyboard actually works — arrows turn instead of
 //                    strafing, any movement key starts the walk, and
 //                    turning is time-based so it is the same speed on a
@@ -118,7 +123,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.2';
+const NON_VERSION = '4.3';
 window.NON_VERSION = NON_VERSION;
 // Stamp the build into the room HUD as early as possible — this element
 // is the answer to "am I actually seeing the new version?".
@@ -5889,8 +5894,39 @@ document.getElementById('sky-exit')?.addEventListener('click', exitSky);
 // the room's gyro already asks for; on Android the absolute event
 // carries it in alpha, measured the other way round.
 let SKY_HAS_MOTION = false;
+let DEVICE_PITCH = null;            // radians: +up, 0 = horizon, -down
+
+/**
+ * The phone's actual pitch, absolute — not relative to however you were
+ * holding it when you started.
+ *
+ * DeviceOrientation beta is 0 when the phone lies flat face-up and 90
+ * when you hold it upright in front of you. So looking-up angle is
+ * (90 - beta): flat means you are pointing at the zenith, upright means
+ * you are pointing at the horizon.
+ *
+ * This is the difference between a planetarium and a picture of one. The
+ * sky used to sit at a FIXED 76° whatever you did, so holding the phone
+ * normally showed you the zenith — which reads exactly as lying on your
+ * back on the floor. Now the sky is where the sky is: lift the phone and
+ * the stars are behind the screen, lower it and the horizon comes down,
+ * keep going and you are looking at the map under your feet.
+ */
+function pitchFromBeta(beta, gamma) {
+  const screenAngle = (screen.orientation && screen.orientation.angle) || 0;
+  let b = beta;
+  // Landscape: the phone's front-back axis is gamma, not beta.
+  if (screenAngle === 90) b = -gamma;
+  else if (screenAngle === -90 || screenAngle === 270) b = gamma;
+  const deg = 90 - b;                       // 0 = horizon, +90 = zenith
+  return Math.max(-85, Math.min(89, deg)) * Math.PI / 180;
+}
+
 function onCompass(e) {
-  if (e && typeof e.beta === 'number' && e.beta !== null) SKY_HAS_MOTION = true;
+  if (e && typeof e.beta === 'number' && e.beta !== null) {
+    SKY_HAS_MOTION = true;
+    DEVICE_PITCH = pitchFromBeta(e.beta, e.gamma || 0);
+  }
   let h = null;
   if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading;
   else if (e.absolute && typeof e.alpha === 'number') h = 360 - e.alpha;
@@ -6073,10 +6109,14 @@ window.__sky = {
     // can stand for both — whichever is currently pulling the camera.
     if (GROUND_BLEND > SKY_BLEND) {
       this.blend = GROUND_BLEND;
-      this.pitch = GROUND_PITCH;
+      // On a phone, point it where you actually point it. The fixed
+      // angle is the desktop fallback, where there is nothing to point.
+      this.pitch = (SKY_HAS_MOTION && DEVICE_PITCH !== null)
+        ? Math.min(DEVICE_PITCH, -0.15) : GROUND_PITCH;
     } else {
       this.blend = SKY_BLEND;
-      this.pitch = SKY_PITCH;
+      this.pitch = (SKY_HAS_MOTION && DEVICE_PITCH !== null)
+        ? DEVICE_PITCH : SKY_PITCH;
     }
     this.yaw = SKY_YAW;
     return dim;
