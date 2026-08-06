@@ -3205,3 +3205,47 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
     /* The build stamp is amber on dark; on cream it needs the deeper
        amber or it disappears into the travertine. */
     body[data-room-light="1"] .hud-build { color: #b45309; }
+
+    /* ── One HUD at a time ────────────────────────────────────────
+       Looking up put the sky's caption on top of the room's status
+       line, character for character — "SKYAVOILERONBANGKOK". The room
+       chrome has to stand down while you are looking at the sky or the
+       ground; you are not in the room at that moment, you are in the
+       thing the room opens onto. */
+    body[data-sky="on"] .room-hud,
+    body[data-ground="on"] .room-hud,
+    body[data-sky="on"] .brand,
+    body[data-ground="on"] .brand,
+    body[data-sky="on"] .caption,
+    body[data-ground="on"] .caption,
+    body[data-sky="on"] .hint,
+    body[data-ground="on"] .hint,
+    body[data-sky="on"] .meta,
+    body[data-ground="on"] .meta,
+    body[data-sky="on"] .nav-pad,
+    body[data-ground="on"] .nav-pad,
+    body[data-sky="on"] .discover-chip,
+    body[data-ground="on"] .discover-chip,
+    body[data-sky="on"] #intent-line,
+    body[data-ground="on"] #intent-line,
+    body[data-sky="on"] .intent-line,
+    body[data-ground="on"] .intent-line {
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+
+    /* And the two overlays are mutually exclusive — never both. */
+    body[data-sky="on"] .ground-hud,
+    body[data-ground="on"] .sky-hud {
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+
+    /* Sky and ground are their own worlds: always dark ink off, light
+       ink on, regardless of what the room's daylight was doing. */
+    body[data-sky="on"] .sky-hud,
+    body[data-ground="on"] .ground-hud,
+    body[data-sky="on"] .sky-hud *,
+    body[data-ground="on"] .ground-hud * { color: #e6edf3; }
+    body[data-sky="on"] .sky-exit,
+    body[data-ground="on"] .sky-exit { border-color: rgba(230, 237, 243, 0.3); }

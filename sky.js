@@ -319,6 +319,7 @@ export function buildSky(themeColor = 0xf5f5f0, amber = 0xf59e0b) {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(idx.length * 3), 3));
     const mat = new THREE.PointsMaterial({
+      fog: false,   // the dome is 400 units out; room fog would erase it
       color: themeColor, size: BINS[b].size,
       sizeAttenuation: false, transparent: true,
       opacity: 0, depthWrite: false,
@@ -335,6 +336,7 @@ export function buildSky(themeColor = 0xf5f5f0, amber = 0xf59e0b) {
   const figGeo = new THREE.BufferGeometry();
   figGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(figIdx.length * 3), 3));
   const figures = new THREE.LineSegments(figGeo, new THREE.LineBasicMaterial({
+      fog: false,   // the dome is 400 units out; room fog would erase it
     color: themeColor, transparent: true, opacity: 0, depthWrite: false,
   }));
   figures.userData = { indices: figIdx, targetOpacity: 0.18 };
@@ -346,6 +348,7 @@ export function buildSky(themeColor = 0xf5f5f0, amber = 0xf59e0b) {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3), 3));
     const p = new THREE.Points(geo, new THREE.PointsMaterial({
+      fog: false,   // the dome is 400 units out; room fog would erase it
       color, size, sizeAttenuation: false, transparent: true, opacity: 0, depthWrite: false,
     }));
     p.userData = { targetOpacity: target };
@@ -363,6 +366,7 @@ export function buildSky(themeColor = 0xf5f5f0, amber = 0xf59e0b) {
       return new THREE.Vector3(Math.cos(a) * 14, Math.sin(a) * 14, 0);
     }));
   const follyRing = new THREE.Line(ringGeo, new THREE.LineBasicMaterial({
+      fog: false,   // the dome is 400 units out; room fog would erase it
     color: amber, transparent: true, opacity: 0, depthWrite: false,
   }));
   follyRing.userData = { targetOpacity: 0.85 };
@@ -377,6 +381,7 @@ export function buildSky(themeColor = 0xf5f5f0, amber = 0xf59e0b) {
       return new THREE.Vector3(Math.sin(a) * R, 0, -Math.cos(a) * R);
     }));
   const horizon = new THREE.Line(horizonGeo, new THREE.LineBasicMaterial({
+      fog: false,   // the dome is 400 units out; room fog would erase it
     color: themeColor, transparent: true, opacity: 0, depthWrite: false,
   }));
   horizon.userData = { targetOpacity: 0.22 };

@@ -40,6 +40,11 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   3.8 (2026-08-06) look up / look down stop scrambling — far plane was
+//                    100 with the star dome at 400, fog was tuned for a
+//                    20m box, the camera teleported to the origin on every
+//                    resize, and the room HUD drew straight through the
+//                    sky's. Sky and ground now follow the walker too.
 //   3.7 (2026-08-06) the room knows where and when it is — sun altitude
 //                    at the visitor's latitude drives night/dawn/day/dusk,
 //                    rain falls only where there is no roof, and the
@@ -94,7 +99,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '3.7';
+const NON_VERSION = '3.8';
 window.NON_VERSION = NON_VERSION;
 // Stamp the build into the room HUD as early as possible — this element
 // is the answer to "am I actually seeing the new version?".
@@ -535,9 +540,14 @@ const VCARD = [
 // ════════════════════════════════════════════════════════
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
-scene.fog = new THREE.Fog(0x000000, 9, 36);
+// Fog was 9–36 units, which suited the old 20m room and swallows a 54m
+// podium whole. The sky opts out of fog entirely (see sky.js).
+scene.fog = new THREE.Fog(0x000000, 30, 260);
 
-const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 100);
+// far = 1200: the star dome is 400 units out and the podium is 54 long.
+// At the old far = 100 the sky was entirely behind the far plane, which
+// is most of why looking up produced nonsense rather than stars.
+const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 1200);
 camera.position.set(0, 1.7, 7.5);
 camera.lookAt(0, 2.0, -10);
 let baseRotX = camera.rotation.x;
@@ -548,20 +558,20 @@ let baseRotY = camera.rotation.y;
 function applyCameraFraming() {
   const aspect = window.innerWidth / window.innerHeight;
   camera.aspect = aspect;
-  if (aspect < 0.85) {
-    camera.fov = 70;
-    camera.position.set(0, 1.95, 5.5);
-    camera.lookAt(0, 1.9, -10);
-  } else {
-    camera.fov = 58;
-    camera.position.set(0, 1.7, 7.5);
-    camera.lookAt(0, 2.0, -10);
-  }
-  baseRotX = camera.rotation.x;
-  baseRotY = camera.rotation.y;
+  // Framing owns the lens, never the position. This used to hard-reset
+  // camera.position on every call — and it is called on every resize, so
+  // any layout change (including the one the sky/ground overlays cause)
+  // teleported you back to the origin mid-transition and threw away
+  // where you had walked to. That was the scrambling.
+  camera.fov = aspect < 0.85 ? 70 : 58;
   camera.updateProjectionMatrix();
 }
 applyCameraFraming();
+// Initial pose. The spawn point overrides this once the plan is built.
+camera.position.set(0, 1.7, 7.5);
+camera.lookAt(0, 2.0, -10);
+baseRotX = camera.rotation.x;
+baseRotY = camera.rotation.y;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -4920,6 +4930,26 @@ function animate() {
   }
   if (window.__tickWeather) window.__tickWeather();
 
+  // The sky dome and the ground tiles were both built around a viewer
+  // standing at the origin, which was true when the camera could not
+  // move. It can now walk 27m in any direction across the podium, and
+  // at that distance the star dome is visibly off-centre and the map
+  // tiles are simply somewhere else — which is what "everything
+  // scrambled" was. Both follow the walker horizontally; the sky also
+  // follows vertically so the horizon stays at eye level.
+  if (window.__skyGroup) {
+    window.__skyGroup.position.set(camera.position.x, camera.position.y, camera.position.z);
+  }
+  if (window.__groundGroup) {
+    // The map lies on the podium, not on your face — but it must lie
+    // just ABOVE it. The podium's top face is y=0 and the paving grid
+    // y=0.004, so tiles drawn at y=0 z-fight with the floor they are
+    // supposed to replace.
+    window.__groundGroup.position.x = camera.position.x;
+    window.__groundGroup.position.z = camera.position.z;
+    window.__groundGroup.position.y = 0.06;
+  }
+
   // Ambient particles
   if (particles.visible) {
     const positions = particles.geometry.attributes.position.array;
@@ -5577,6 +5607,7 @@ async function initSky() {
     // Starlight, not theme foreground: the sky is night in both themes,
     // and the light theme's near-black would draw invisible stars.
     SKY = mod.buildSky(0xe6edf3, 0xf59e0b);
+    window.__skyGroup = SKY.group;
     SKY.mod = mod;
     SKY.group.visible = false;
     scene.add(SKY.group);
@@ -5665,6 +5696,7 @@ async function initGround() {
   try {
     const mod = await import('./ground.js');
     GROUND = mod.buildGround(0xe6edf3, 0xf59e0b, renderer.capabilities.getMaxAnisotropy());
+    window.__groundGroup = GROUND.group;
     GROUND.mod = mod;
     GROUND.group.visible = false;
     scene.add(GROUND.group);
