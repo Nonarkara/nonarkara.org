@@ -43,6 +43,10 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.6 (2026-08-06) keyboard walk + sky/ground — sustained movement
+//                    builds into a jog so 120m between buildings is not
+//                    forty seconds of holding a button, and the compass
+//                    chip says out loud that tapping it takes you there.
 //   4.5 (2026-08-06) keyboard that behaves — S no longer toggles the sky
 //                    while you walk backwards (U/J look up/down instead);
 //                    WASD calls setWalk so desktop gets pointer-lock and
@@ -134,7 +138,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.5';
+const NON_VERSION = '4.6';
 window.NON_VERSION = NON_VERSION;
 // Stamp the build into the room HUD as early as possible — this element
 // is the answer to "am I actually seeing the new version?".

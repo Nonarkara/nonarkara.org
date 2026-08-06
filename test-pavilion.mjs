@@ -110,13 +110,15 @@ const step = (w, yaw, n = 60, dt = 1 / 60) => { for (let i = 0; i < n; i++) w.up
 // Speed is a walk, not a sprint — and shift is slower, not faster.
 {
   const w = mkWalk([], { x: 0, z: 0 });
-  w.keys.add('w'); step(w, 0, 120);
+  // Half a second: still the indoor walk, before the jog engages.
+  w.keys.add('w'); step(w, 0, 30);
   const fast = Math.hypot(w.vel.x, w.vel.z);
   const s = mkWalk([], { x: 0, z: 0 });
-  s.keys.add('w'); s.keys.add('shift'); step(s, 0, 120);
+  s.keys.add('w'); s.keys.add('shift'); step(s, 0, 30);
   const slow = Math.hypot(s.vel.x, s.vel.z);
   assert(fast > slow, 'shift must slow you down, not speed you up');
-  assert(fast <= 4.3, `top speed ${fast.toFixed(2)} m/s is a run, not a walk`);
+  assert(fast <= 3.2, `indoor pace ${fast.toFixed(2)} m/s is already a run`);
+  // Sustained movement is allowed to build — that is the jog, tested below.
 }
 
 // A long stall must not fling you across the building.
@@ -169,6 +171,35 @@ const step = (w, yaw, n = 60, dt = 1 / 60) => { for (let i = 0; i < n; i++) w.up
   assert(Math.abs(s2.vel.x) > 1 && Math.abs(s2.vel.z) < 0.2,
     `D at yaw 0 must strafe along X, got vx=${s2.vel.x.toFixed(2)} vz=${s2.vel.z.toFixed(2)}`);
   assert.equal(s2.turnInput(), 0, 'strafing must not also turn you');
+}
+
+
+// ── The jog ───────────────────────────────────────────────────
+// 120m between buildings at an indoor pace is forty seconds of holding
+// a button. Sustained movement must build; a short press must not.
+{
+  const w = mkWalk([], { x: 0, z: 0 });
+  w.keys.add('w');
+  step(w, 0, 45);                                  // 0.75s — still placing yourself
+  const early = Math.hypot(w.vel.x, w.vel.z);
+  assert(early <= 3.2, `a short press must stay a walk, got ${early.toFixed(2)} m/s`);
+  step(w, 0, 180);                                 // now sustained
+  const late = Math.hypot(w.vel.x, w.vel.z);
+  assert(late > early + 1, `sustained movement must build to a jog, got ${late.toFixed(2)}`);
+  assert(late <= 6.5, `and must not become a sprint, got ${late.toFixed(2)}`);
+
+  // Letting go resets it — you do not resume at a run.
+  w.keys.clear(); step(w, 0, 60);
+  w.keys.add('w'); step(w, 0, 30);
+  assert(Math.hypot(w.vel.x, w.vel.z) <= 3.2, 'releasing must reset the jog');
+}
+
+// Shift is always the precise walk and never accelerates.
+{
+  const w = mkWalk([], { x: 0, z: 0 });
+  w.keys.add('w'); w.keys.add('shift');
+  step(w, 0, 300);
+  assert(Math.hypot(w.vel.x, w.vel.z) < 1.6, 'shift must never build into a jog');
 }
 
 console.log(`pavilion: all checks passed · ${PLAN.walls.length} walls · ${PLAN.columnRows.length * PLAN.columnXs.length} columns · ${PLAN.podium.w}×${PLAN.podium.d}m podium`);

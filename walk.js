@@ -26,6 +26,14 @@ const RADIUS = 0.34;       // how fat you are, for collision
 const ACCEL = 28;          // m/s² — was 42; hard launches read as teleport
 const FRICTION = 14;       // stop sooner so releases feel planted
 const SPEED = 3.1;         // m/s — indoor walk, not a jog across the podium
+// Crossing 120m of open plain at an indoor pace is forty seconds of
+// holding a button, which turns a place you explore into a chore. Keep
+// going and you break into a jog, the way anyone does when the ground
+// opens up. It engages only after 1.2s of continuous movement, so it
+// never interferes with placing yourself inside a room — and shift
+// still gives you the slow, precise walk with no acceleration at all.
+const SPEED_RUN = 6.4;
+const RUN_AFTER = 1.2;
 const SPEED_SLOW = 1.4;
 const BOB_HZ = 1.7;
 const BOB_M = 0.025;
@@ -41,6 +49,7 @@ export class Walk {
     this.enabled = false;
     this.bobT = 0;
     this.moved = false;       // has the user ever actually walked?
+    this.heldFor = 0;         // seconds of continuous movement, for the jog
     this._onKeyDown = this._onKeyDown.bind(this);
     this._onKeyUp = this._onKeyUp.bind(this);
   }
@@ -109,7 +118,9 @@ export class Walk {
     const mag = Math.hypot(fwd, str);
     if (mag > 1) { fwd /= mag; str /= mag; }
 
-    const top = k.has('shift') ? SPEED_SLOW : SPEED;
+    if (mag > 0.01) this.heldFor += dt; else this.heldFor = 0;
+    const slow = k.has('shift');
+    const top = slow ? SPEED_SLOW : (this.heldFor > RUN_AFTER ? SPEED_RUN : SPEED);
 
     // Camera yaw: -Z is forward in three.js, so forward is (-sin, -cos).
     const sin = Math.sin(yaw), cos = Math.cos(yaw);
