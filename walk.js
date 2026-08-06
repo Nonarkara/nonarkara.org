@@ -23,12 +23,12 @@
 
 const EYE = 1.65;          // eye height, metres
 const RADIUS = 0.34;       // how fat you are, for collision
-const ACCEL = 42;          // m/s²
-const FRICTION = 11;
-const SPEED = 4.2;         // m/s — a brisk indoor walk
-const SPEED_SLOW = 1.7;
-const BOB_HZ = 1.9;
-const BOB_M = 0.03;
+const ACCEL = 28;          // m/s² — was 42; hard launches read as teleport
+const FRICTION = 14;       // stop sooner so releases feel planted
+const SPEED = 3.1;         // m/s — indoor walk, not a jog across the podium
+const SPEED_SLOW = 1.4;
+const BOB_HZ = 1.7;
+const BOB_M = 0.025;
 
 export class Walk {
   constructor(camera, colliders, spawn) {
@@ -64,7 +64,9 @@ export class Walk {
   _onKeyDown(e) {
     if (this._typing(e)) return;
     const k = e.key.toLowerCase();
-    if (['w', 'a', 's', 'd', 'q', 'e', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'shift'].includes(k)) {
+    if (['w', 'a', 's', 'd', 'q', 'e',
+         'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
+         'pageup', 'pagedown', 'shift'].includes(k)) {
       // Arrow keys scroll the page underneath; WASD must not be swallowed
       // by anything else either once you are walking.
       if (k !== 'shift') e.preventDefault();
@@ -97,14 +99,11 @@ export class Walk {
     let fwd = 0, str = 0;
     if (k.has('w') || k.has('arrowup')) fwd += 1;
     if (k.has('s') || k.has('arrowdown')) fwd -= 1;
-    // A/D strafe. Left/Right arrows do NOT — they turn you, which is
-    // handled by the yaw owner in app.js. Without a mouse, arrows that
-    // strafe leave you unable to change direction at all: you slide
-    // sideways forever facing the same wall.
+    // A/D strafe. Left/Right arrows and Q/E turn you — see turnInput().
+    // Q/E used to strafe, which left keyboard-only users with no way to
+    // look around except the arrows (already used for turn+move).
     if (k.has('a')) str -= 1;
     if (k.has('d')) str += 1;
-    if (k.has('q')) str -= 1;
-    if (k.has('e')) str += 1;
     if (this.stick) { fwd += -this.stick.dy; str += this.stick.dx; }
 
     const mag = Math.hypot(fwd, str);
@@ -152,9 +151,18 @@ export class Walk {
    */
   turnInput() {
     let t = 0;
-    if (this.keys.has('arrowleft')) t += 1;
-    if (this.keys.has('arrowright')) t -= 1;
+    if (this.keys.has('arrowleft') || this.keys.has('q')) t += 1;
+    if (this.keys.has('arrowright') || this.keys.has('e')) t -= 1;
     return t;
+  }
+
+  /** Pitch intent from the keyboard, -1..1 (up positive).
+   *  PageUp / PageDown only — F already means FOCUS in the room. */
+  pitchInput() {
+    let p = 0;
+    if (this.keys.has('pageup')) p += 1;
+    if (this.keys.has('pagedown')) p -= 1;
+    return p;
   }
 
   teleport(x, z) {

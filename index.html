@@ -167,9 +167,10 @@
       <span data-i18n="sky_exit">BACK DOWN</span>
     </button>
   </div>
-  <button class="sky-hint" id="sky-hint" aria-label="Look up at the sky">
+  <button class="sky-hint" id="sky-hint" aria-label="Look up at the sky · keyboard U">
     <span aria-hidden="true">▲</span>
     <span data-i18n="sky_hint">LOOK UP</span>
+    <span class="sky-key" aria-hidden="true">U</span>
   </button>
 
   <!-- THE GROUND — the sky's mirror. Where you are, from orbit, turned
@@ -198,9 +199,10 @@
     <button class="nav-back" id="nav-back" aria-label="Step back">▼</button>
   </div>
 
-  <button class="sky-hint ground-hint" id="ground-hint" aria-label="Look down at the ground">
+  <button class="sky-hint ground-hint" id="ground-hint" aria-label="Look down at the ground · keyboard J">
     <span aria-hidden="true">▼</span>
     <span data-i18n="ground_hint">LOOK DOWN</span>
+    <span class="sky-key" aria-hidden="true">J</span>
   </button>
 
   <!-- Modal -->
@@ -274,13 +276,17 @@
 
   <!-- Keyboard shortcut hints (desktop only) -->
   <div class="shortcut-hints" id="shortcut-hints" aria-hidden="true">
-    <span class="hint-pair"><kbd>F</kbd> focus</span>
+    <span class="hint-pair"><kbd>WASD</kbd> walk</span>
     <span class="hint-sep">·</span>
-    <span class="hint-pair"><kbd>M</kbd> music</span>
+    <span class="hint-pair"><kbd>U</kbd> sky</span>
+    <span class="hint-sep">·</span>
+    <span class="hint-pair"><kbd>J</kbd> ground</span>
+    <span class="hint-sep">·</span>
+    <span class="hint-pair"><kbd>F</kbd> focus</span>
     <span class="hint-sep">·</span>
     <span class="hint-pair"><kbd>P</kbd> plan</span>
     <span class="hint-sep">·</span>
-    <span class="hint-pair"><kbd>esc</kbd> close</span>
+    <span class="hint-pair"><kbd>esc</kbd> leave</span>
   </div>
 
   <!-- Portrait gallery -->

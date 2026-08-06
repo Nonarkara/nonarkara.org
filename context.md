@@ -38,6 +38,8 @@ v3.0–v3.1 shipped real backend organs (fleet history, braind, Worker capture q
 
 **v3.2 scar (2026-08-06):** shipped dual-surface routing + discovery + "architectural mass" at `#0a0e14` on black. Deploy was real (`PAVILION` HUD label). Look was not. Dr Non could not tell the difference from May. Rule: if a visual change needs a hex debugger to prove, it did not ship. v3.3 lights the TV wall, paints charcoal fills, and puts the discovery chip where you cannot miss it.
 
+**v4.4→4.5 scar (2026-08-06):** `S` both walked backwards and toggled the sky. WASD enabled walk without pointer-lock, so the mouse could not look. Keyboard felt broken; sky/ground felt "missing." Fix: U/J for sky/ground, setWalk on WASD (pointer-lock), turn on baseRotY, pitch-to-enter.
+
 ## Conservation law
 
 `visitor experience = host OS XOR guest Pavilion` on first entry; both remain reachable by toggle. Host never loses the all-day OS. Guest never lands in a private dashboard that isn't for them.

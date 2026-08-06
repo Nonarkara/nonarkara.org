@@ -43,6 +43,12 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.5 (2026-08-06) keyboard that behaves — S no longer toggles the sky
+//                    while you walk backwards (U/J look up/down instead);
+//                    WASD calls setWalk so desktop gets pointer-lock and
+//                    mouse-look; arrow turns apply to baseRotY (no more
+//                    boat-rudder lag); pitching the view far enough enters
+//                    sky/ground the way the phone tilt already did.
 //   4.4 (2026-08-06) mobile, actually usable — pinch no longer collapses
 //                    into a one-way universe, drag is slow enough to aim,
 //                    the pitch clamp lets you look up at all, and the
@@ -128,7 +134,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.4';
+const NON_VERSION = '4.5';
 window.NON_VERSION = NON_VERSION;
 // Stamp the build into the room HUD as early as possible — this element
 // is the answer to "am I actually seeing the new version?".
@@ -5767,6 +5773,12 @@ function skyAvailable() { return WEBGL_OK && SKY; }
 
 async function initSky() {
   if (!WEBGL_OK || SKY) return;
+  // Show the control immediately — waiting on the module made the sky
+  // look "missing" for the whole first second (and forever if import failed silently).
+  if (skyHint) {
+    skyHint.classList.add('in');
+    skyHint.disabled = true;
+  }
   try {
     const mod = await import('./sky.js');
     // Starlight, not theme foreground: the sky is night in both themes,
@@ -5777,7 +5789,7 @@ async function initSky() {
     SKY.group.visible = false;
     scene.add(SKY.group);
     recalcSky(true);
-    if (skyHint) skyHint.classList.add('in');
+    if (skyHint) skyHint.disabled = false;
   } catch (e) {
     // No sky is a missing feature, not a broken room.
     if (skyHint) skyHint.remove();
@@ -5858,6 +5870,8 @@ const GROUND_PITCH = -1.18;
 
 async function initGround() {
   if (!WEBGL_OK || GROUND) return;
+  const gHint = document.getElementById('ground-hint');
+  if (gHint) { gHint.classList.add('in'); gHint.disabled = true; }
   try {
     const mod = await import('./ground.js');
     GROUND = mod.buildGround(0xe6edf3, 0xf59e0b, renderer.capabilities.getMaxAnisotropy());
@@ -5865,9 +5879,9 @@ async function initGround() {
     GROUND.mod = mod;
     GROUND.group.visible = false;
     scene.add(GROUND.group);
-    document.getElementById('ground-hint')?.classList.add('in');
+    if (gHint) gHint.disabled = false;
   } catch (_) {
-    document.getElementById('ground-hint')?.remove();
+    gHint?.remove();
   }
 }
 
@@ -5954,24 +5968,36 @@ if ('ondeviceorientationabsolute' in window) {
 }
 
 // The gesture. Pointing the phone at the sky is the whole affordance —
-// no button to find, you just do the thing you would do outdoors. Both
-// thresholds have hysteresis so a wobble at the boundary can't flap.
+// no button to find, you just do the thing you would do outdoors. On
+// desktop the same idea: pitch the view far enough (mouse-look or
+// PageUp / PageDown) and the room yields. Both thresholds have
+// hysteresis so a wobble at the boundary can't flap.
 let skyGestureSince = 0;
 function tickSkyGesture() {
-  if (!gyroEnabled || !SKY_HAS_MOTION) return;
   if (!skyAvailable() && !GROUND) return;
   if (document.body.dataset.view !== 'room') return;
-  const up = gyroSmoothY;                      // +1 is fully tilted back
   const now = performance.now();
+  // Phone tilt when we have it; otherwise the camera pitch itself.
+  let up = 0;
+  if (gyroEnabled && SKY_HAS_MOTION) {
+    up = gyroSmoothY;                            // +1 is fully tilted back
+  } else if (CAMERA_MODE === 'room') {
+    // target.x is the look pitch offset; ~1.0 is nearly ceiling.
+    up = (target.x + baseRotX) / 1.05;
+  } else {
+    // In sky/ground, level the view to come back — use sky blend pitch
+    // only via gyro; without gyro, Esc / U / J / the exit button exit.
+    return;
+  }
   if (CAMERA_MODE === 'room') {
-    if (up > 0.62 || up < -0.62) {
+    if (up > 0.72 || up < -0.72) {
       if (!skyGestureSince) skyGestureSince = now;
-      else if (now - skyGestureSince > 400) {
+      else if (now - skyGestureSince > 450) {
         skyGestureSince = 0;
         up > 0 ? enterSky() : enterGround();
       }
     } else skyGestureSince = 0;
-  } else {
+  } else if (gyroEnabled && SKY_HAS_MOTION) {
     // Coming back to level exits whichever direction you went.
     if (Math.abs(up) < 0.30) {
       if (!skyGestureSince) skyGestureSince = now;
@@ -6092,14 +6118,18 @@ function tickGround() {
   return 1 - GROUND_BLEND * 0.88;
 }
 
-// Palette + keyboard. 'S' for sky, Escape comes back down.
+// Palette + keyboard. U = look up (sky), J = look down (ground).
+// S used to toggle the sky — and S is also walk-backwards. Every step
+// reverse flipped the planetarium on and off. That is why "sky and floor
+// are missing" while the keyboard felt broken.
 document.addEventListener('keydown', (e) => {
   const tag = (e.target && e.target.tagName) || '';
   if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const inRoom = document.body.dataset.view === 'room';
-  if (e.key.toLowerCase() === 's' && inRoom) { e.preventDefault(); toggleSky(); }
-  else if (e.key.toLowerCase() === 'g' && inRoom) { e.preventDefault(); toggleGround(); }
+  const k = e.key.toLowerCase();
+  if (k === 'u' && inRoom) { e.preventDefault(); toggleSky(); }
+  else if (k === 'j' && inRoom) { e.preventDefault(); toggleGround(); }
   else if (e.key === 'Escape' && CAMERA_MODE === 'sky') exitSky();
   else if (e.key === 'Escape' && CAMERA_MODE === 'ground') exitGround();
 });
@@ -6554,24 +6584,17 @@ window.addEventListener('keydown', (e) => {
   // Same key that starts a walk in most games.
   if ((e.key === 'v' || e.key === 'V') && document.body.dataset.view === 'room') setWalk(!WALK.enabled);
 
-  // Pressing a movement key IS the request to move. Requiring you to
-  // find the WALK chip first is a mode you have to discover before the
-  // controls do anything — press an arrow, nothing happens, conclude the
-  // keyboard is not wired up. Pointer lock is deliberately NOT grabbed
-  // here: the keyboard alone should not steal the cursor. Press V or the
-  // chip when you want mouse-look too.
+  // Pressing a movement key IS the request to move. Call setWalk so
+  // desktop also gets pointer-lock + mouse-look — without it, WASD
+  // slid you around a fixed gaze and felt like a broken camera, not a
+  // walk. Esc still releases the lock and ends the walk.
   if (document.body.dataset.view !== 'room' || WALK.enabled) return;
   if (document.getElementById('modal')?.classList.contains('in')) return;
   if (document.getElementById('drawer')?.classList.contains('in')) return;
   const k = e.key.toLowerCase();
   if (['w', 'a', 's', 'd', 'q', 'e',
        'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) {
-    WALK.enabled = true;
-    WALK.teleport(camera.position.x, camera.position.z);
-    document.body.classList.add('walking');
-    const btn = document.getElementById('walk-btn');
-    if (btn) { btn.classList.add('on'); btn.setAttribute('aria-pressed', 'true'); }
-    try { window.__discover?.('walk'); } catch (_) {}
+    setWalk(true);
   }
 });
 
@@ -6620,7 +6643,8 @@ window.addEventListener('keydown', (e) => {
   // nameable. 1.9 rad/s is a brisk but controllable turn — a full
   // circle in about 3.3 seconds.
   let padTurn = 0;
-  const TURN_RATE = 1.9;
+  const TURN_RATE = 2.2;   // rad/s — a full circle in ~2.8s
+  const PITCH_RATE = 1.4;
   hold(document.getElementById('nav-left'),  () => { padTurn = 1; },  () => { padTurn = 0; });
   hold(document.getElementById('nav-right'), () => { padTurn = -1; }, () => { padTurn = 0; });
 
@@ -6629,10 +6653,15 @@ window.addEventListener('keydown', (e) => {
     now = now || performance.now();
     const dt = Math.min((now - lastSpin) / 1000, 0.05);
     lastSpin = now;
-    // Keyboard arrows and the pad add together, then clamp — holding
-    // both should not turn you twice as fast.
+    // Apply to baseRotY, not target.y. The camera eases toward
+    // (target + base) at 5%/frame — putting the turn on target made
+    // every keypress feel like steering a boat.
     const t = Math.max(-1, Math.min(1, padTurn + WALK.turnInput()));
-    if (t) target.y += t * TURN_RATE * dt;
+    if (t) baseRotY += t * TURN_RATE * dt;
+    const p = WALK.pitchInput();
+    if (p) {
+      target.x = Math.max(-1.1, Math.min(1.1, target.x + p * PITCH_RATE * dt));
+    }
     requestAnimationFrame(spin);
   })();
 

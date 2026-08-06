@@ -3447,6 +3447,22 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
     body[data-view="room"] .sky-hint:hover,
     body[data-view="room"] .ground-hint:hover { color: var(--amber); border-color: var(--amber); }
 
+    /* Keyboard chord shown on the glance buttons — desktop only. */
+    .sky-key {
+      display: none;
+      margin-left: 2px;
+      padding: 1px 5px;
+      border: 1px solid var(--line);
+      font-size: 8px;
+      letter-spacing: 0.12em;
+      opacity: 0.7;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      body[data-view="room"] .sky-key { display: inline-block; }
+    }
+    button:disabled.sky-hint,
+    button:disabled.ground-hint { opacity: 0.35; pointer-events: none; }
+
     /* Bright room: dark ink, same as the rest of the overlay. */
     body[data-room-light="1"][data-view="room"] .sky-hint,
     body[data-room-light="1"][data-view="room"] .ground-hint {
