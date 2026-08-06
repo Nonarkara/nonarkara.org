@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { createDiscovery } from './discover.js';
 import { buildPavilion, PLAN } from './pavilion.js';
+import { buildGlassHouse, PLAN as GLASS_PLAN, paint as paintGlass } from './glasshouse.js';
+import { buildSavoye, PLAN as SAVOYE_PLAN, paint as paintSavoye } from './savoye.js';
 import { Walk, attachStick } from './walk.js';
 import { sunAltitude, paletteFor, fetchWeather, makeRain } from './daylight.js';
 import { poemForDate } from './poems.js';
@@ -112,7 +114,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.0';
+const NON_VERSION = '4.1';
 window.NON_VERSION = NON_VERSION;
 // Stamp the build into the room HUD as early as possible — this element
 // is the answer to "am I actually seeing the new version?".
@@ -576,7 +578,11 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 // Fog was 9–36 units, which suited the old 20m room and swallows a 54m
 // podium whole. The sky opts out of fog entirely (see sky.js).
-scene.fog = new THREE.Fog(0x000000, 30, 260);
+// Far went 260 → 460 when the site grew from one building to three:
+// the far corners of the triangle are ~124m out, and at the old far
+// they were solid fog. Near stays at 30 so the Pavilion reads exactly
+// as it did.
+scene.fog = new THREE.Fog(0x000000, 30, 460);
 
 // far = 1200: the star dome is 400 units out and the podium is 54 long.
 // At the old far = 100 the sky was entirely behind the far plane, which
@@ -722,8 +728,47 @@ const placeAt = (obj, x, y, z) => { obj.position.set(x, y, z); return obj; };
 // controller collides against, so there can be no invisible wall and no
 // wall you can walk through.
 let PAVILION = null;
+let GLASS = null, SAVOYE = null;
+// Every building on the site, nearest-first lookups included. The
+// Pavilion is at the origin because it was here first and everything
+// else — the poem, the rain, the spawn — is measured from it.
+const SITE = [];
 if (WEBGL_OK) {
-  PAVILION = buildPavilion(THREE, scene, { dark: CURRENT_THEME !== 'light' });
+  // fence:false — the podium edge used to be the end of the world.
+  PAVILION = buildPavilion(THREE, scene, { dark: CURRENT_THEME !== 'light', fence: false });
+  GLASS = buildGlassHouse(THREE, scene, { dark: CURRENT_THEME !== 'light' });
+  SAVOYE = buildSavoye(THREE, scene, { dark: CURRENT_THEME !== 'light' });
+  SITE.push(
+    { name: 'PAVILION', plan: PLAN, origin: { x: 0, z: 0 }, build: PAVILION },
+    { name: GLASS_PLAN.name, plan: GLASS_PLAN, origin: GLASS_PLAN.origin, build: GLASS },
+    { name: SAVOYE_PLAN.name, plan: SAVOYE_PLAN, origin: SAVOYE_PLAN.origin, build: SAVOYE },
+  );
+
+  // ── The ground they share ─────────────────────────────
+  // Three buildings 120m apart need something to stand on that is not
+  // each other's podium. It sits 3cm below the walking datum, so every
+  // floor in the site reads as slightly proud of the plain rather than
+  // sunk into it — and nothing z-fights.
+  const GROUND_Y = -0.03;
+  const plain = new THREE.Mesh(
+    new THREE.PlaneGeometry(600, 600),
+    new THREE.MeshBasicMaterial({ color: 0x0a0d10 })
+  );
+  plain.rotation.x = -Math.PI / 2;
+  plain.position.y = GROUND_Y;
+  scene.add(plain);
+  window.__plainMat = plain.material;
+
+  // A 10m grid, barely there. Crossing 120m of nothing with no texture
+  // reads as not moving; the grid is how you feel the distance close.
+  const plainGrid = new THREE.GridHelper(600, 60, 0x8b98a6, 0x8b98a6);
+  plainGrid.material = new THREE.LineBasicMaterial({
+    color: 0x6f7d8a, transparent: true, opacity: 0.07,
+  });
+  plainGrid.position.y = GROUND_Y + 0.002;
+  scene.add(plainGrid);
+  window.__plainGridMat = plainGrid.material;
+
   _themeRedrawHooks.push(() => {
     // Rebuild materials in place rather than the whole building.
     const dark = CURRENT_THEME !== 'light';
@@ -736,6 +781,22 @@ if (WEBGL_OK) {
     M.roof.color.setHex(dark ? 0x121413 : 0xeae5db);
     M.glass.color.setHex(dark ? 0x223040 : 0xbcc8d2);
     // onyx stays amber in both themes — it is the one accent.
+
+    // The other two, in their own materials. Same two-state fallback
+    // the Pavilion uses; the daylight palette overrides all three the
+    // moment it next refreshes.
+    const G = GLASS.materials, S = SAVOYE.materials;
+    G.steel.color.setHex(dark ? 0x333c45 : 0x424951);
+    G.glass.color.setHex(dark ? 0x080d12 : 0xa8bcc8);
+    G.deck.color.setHex(dark ? 0x1c1e1c : 0xe6e1d5);
+    G.floor.color.setHex(dark ? 0x2a2b28 : 0xd8d2c4);
+    G.roof.color.setHex(dark ? 0x121413 : 0xc9c4b8);
+    S.render.color.setHex(dark ? 0x484f4f : 0xc9c9c3);
+    S.piloti.color.setHex(dark ? 0x8e9aa6 : 0xaab4bd);
+    S.glass.color.setHex(dark ? 0x080d12 : 0xa8bcc8);
+    S.base.color.setHex(dark ? 0x0d1013 : 0x8f9490);
+    S.slab.color.setHex(dark ? 0x121413 : 0xc9c4b8);
+    // Brick and ramp stay warm in both themes, like the onyx.
   });
 }
 
@@ -748,7 +809,9 @@ camera.lookAt(PLAN.spawn.lookAt.x, PLAN.spawn.lookAt.y, PLAN.spawn.lookAt.z);
 baseRotX = camera.rotation.x;
 baseRotY = camera.rotation.y;
 
-const WALK = new Walk(camera, PAVILION ? PAVILION.colliders : [], PLAN.spawn);
+// The walk collides against the union of all three buildings. One list,
+// built from the same plans the geometry came from.
+const WALK = new Walk(camera, SITE.flatMap(b => b.build.colliders), PLAN.spawn);
 WALK.attach();
 window.__walk = WALK;
 
@@ -4953,7 +5016,11 @@ function animate() {
   // Walking owns the camera's position when it is on; otherwise the room
   // keeps its slow idle float. Movement is relative to where you are
   // looking, so it reads the yaw the line above just settled.
-  if (WALK.enabled) {
+  if (window.__tickTravel && window.__tickTravel()) {
+    // Travelling between buildings owns the camera outright — input is
+    // ignored for the 1.6s, which is why it cannot fight the walker.
+    window.__lastWalkT = performance.now();
+  } else if (WALK.enabled) {
     const now = performance.now();
     const dt = Math.min((now - (window.__lastWalkT || now)) / 1000, 0.05);
     window.__lastWalkT = now;
@@ -6286,6 +6353,107 @@ function setWalk(on) {
 }
 window.__setWalk = setWalk;
 
+// ════════════════════════════════════════════════════════
+// THE COMPASS — getting between three buildings
+//
+// The triangle is about 120m a side. On foot that is a minute and a
+// half of empty grass each way, three times over, and the third time
+// nobody does it. So the compass names the nearest building you are
+// not standing in, says how far it is and which way, and takes you to
+// its threshold if you tap it.
+//
+// It names the building rather than drawing a marker on it because you
+// often cannot see the thing — you are behind an onyx wall, or under
+// Savoye, or it is raining. A name and a number work from anywhere.
+//
+// The travel itself is not a cut. You cover the distance in 1.6s along
+// the straight line, which is fast enough not to be a walk and slow
+// enough that you watch the ground go past and know you moved. A cut
+// would leave you unsure whether you had been teleported or the world
+// had been swapped.
+// ════════════════════════════════════════════════════════
+let TRAVEL = null;
+if (WEBGL_OK && SITE.length > 1) {
+  const chip = document.getElementById('compass-chip');
+  const label = document.getElementById('compass-label');
+  const needle = document.getElementById('compass-needle');
+
+  // Where you are put down: the building's own arrival point, in world
+  // coordinates, which is the view its plan was drawn to be seen from.
+  const doorstep = (b) => ({
+    x: b.origin.x + b.plan.spawn.x,
+    z: b.origin.z + b.plan.spawn.z,
+    lookX: b.origin.x + b.plan.spawn.lookAt.x,
+    lookZ: b.origin.z + b.plan.spawn.lookAt.z,
+  });
+
+  // Nearest building that is not the one you are standing in. Sorting
+  // and taking the second means the chip cycles on its own: arrive at
+  // the Glass House and it starts offering Savoye.
+  const byDistance = () => {
+    const p = camera.position;
+    return SITE
+      .map(b => ({ b, d: Math.hypot(b.origin.x - p.x, b.origin.z - p.z) }))
+      .sort((a, c) => a.d - c.d);
+  };
+  const nextBuilding = () => byDistance()[1];
+
+  const travelTo = (b) => {
+    if (TRAVEL) return;
+    const to = doorstep(b);
+    // Face the building on arrival. Forward is (-sin y, -cos y), so the
+    // yaw that looks along (dx,dz) is atan2(-dx,-dz). Setting the base
+    // rotation lets the render loop's own easing turn the head, which
+    // is why the turn and the travel finish together.
+    baseRotY = Math.atan2(-(to.lookX - to.x), -(to.lookZ - to.z));
+    baseRotX = 0;
+    target.x = 0; target.y = 0;
+    // Pointer lock has to be asked for inside the tap, not 1.6s later.
+    setWalk(true);
+    TRAVEL = { from: { ...WALK.pos }, to, t0: performance.now(), ms: 1600 };
+    document.body.classList.add('travelling');
+  };
+
+  // Called from the render loop. Owns the camera while it runs.
+  window.__tickTravel = () => {
+    if (!TRAVEL) return false;
+    const t = Math.min(1, (performance.now() - TRAVEL.t0) / TRAVEL.ms);
+    const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    WALK.teleport(
+      TRAVEL.from.x + (TRAVEL.to.x - TRAVEL.from.x) * e,
+      TRAVEL.from.z + (TRAVEL.to.z - TRAVEL.from.z) * e,
+    );
+    camera.position.set(WALK.pos.x, 1.65, WALK.pos.z);
+    if (t >= 1) { TRAVEL = null; document.body.classList.remove('travelling'); }
+    return true;
+  };
+
+  chip?.addEventListener('click', () => {
+    const n = nextBuilding();
+    if (n) travelTo(n.b);
+  });
+
+  // Four times a second is plenty for a distance readout and keeps the
+  // needle honest without putting DOM writes in the render loop.
+  const here = document.querySelector('.room-hud-cluster.top-left .hud-eyebrow');
+  setInterval(() => {
+    if (!chip || document.body.dataset.view !== 'room') return;
+    const near = byDistance();
+    // The HUD used to say PAVILION whatever happened. There are three
+    // buildings now and it has to say the true one, or it is lying.
+    if (here && here.textContent !== near[0].b.name) here.textContent = near[0].b.name;
+    const n = near[1];
+    if (!n) return;
+    label.textContent = `${n.b.name} · ${Math.round(n.d)} M`;
+    // Bearing relative to where you are looking, so the needle points
+    // at the building on screen and not at magnetic north.
+    const dx = n.b.origin.x - camera.position.x;
+    const dz = n.b.origin.z - camera.position.z;
+    const rel = Math.atan2(dx, -dz) + camera.rotation.y;
+    needle.style.transform = `rotate(${(rel * 180) / Math.PI}deg)`;
+  }, 250);
+}
+
 // Full mouse-look while the pointer is locked. Without the lock the
 // existing gentle parallax stays exactly as it was.
 document.addEventListener('mousemove', (e) => {
@@ -6404,6 +6572,11 @@ if (WEBGL_OK && PAVILION) {
   let RAIN = makeRain(THREE, PLAN);
   scene.add(RAIN.points);
 
+  const mixHex = (a, b, t) => {
+    const m = (s) => Math.round(((a >> s) & 255) + (((b >> s) & 255) - ((a >> s) & 255)) * t);
+    return (m(16) << 16) | (m(8) << 8) | m(0);
+  };
+
   const applyPalette = (p) => {
     const M = PAVILION.materials;
     M.travertine.color.setHex(p.travertine);
@@ -6412,8 +6585,19 @@ if (WEBGL_OK && PAVILION) {
     M.water.color.setHex(p.water);
     M.podium.color.setHex(p.podium);
     M.roof.color.setHex(p.roof);
+    // The other two answer the same light in their own materials —
+    // steel and brick over there, render and pale columns over there.
+    if (GLASS) paintGlass(GLASS.materials, p);
+    if (SAVOYE) paintSavoye(SAVOYE.materials, p);
     if (scene.background) scene.background.setHex(p.bg);
     else scene.background = new THREE.Color(p.bg);
+    // Fog has to follow the sky or the far buildings sit in last
+    // night's haze at noon.
+    if (scene.fog) scene.fog.color.setHex(p.bg);
+    // The plain is the ground under all three: a shade off the sky, so
+    // there is a horizon rather than a void.
+    if (window.__plainMat) window.__plainMat.color.setHex(mixHex(p.bg, p.podium, 0.35));
+    if (window.__plainGridMat) window.__plainGridMat.color.setHex(p.line);
     // The HUD is white-on-dark by default. In the day and twilight
     // palettes the ground goes pale and every label vanishes into it —
     // §11.10, unreadable is shipped broken. Flip the overlay to dark ink
@@ -6463,7 +6647,7 @@ if (WEBGL_OK && PAVILION) {
     const now = performance.now();
     const dt = Math.min((now - _rainT) / 1000, 0.05);
     _rainT = now;
-    RAIN.tick(dt, !!weather?.raining);
+    RAIN.tick(dt, !!weather?.raining, camera.position);
   };
 }
 

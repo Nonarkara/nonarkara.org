@@ -139,15 +139,22 @@ export async function fetchWeather(lat, lon) {
 export function makeRain(THREE, plan, count = 900) {
   const pos = new Float32Array(count * 3);
   const spd = new Float32Array(count);
-  const hw = plan.podium.w / 2, hd = plan.podium.d / 2;
   const r = plan.roof;
+  // The field follows the walker, because there are two more buildings
+  // on the plain now and rain that stops 30m from the podium is not
+  // weather, it is a bug. Wide enough to fill the view, small enough
+  // that 900 drops still read as rain.
+  const REACH = 34;
+  const at = { x: 0, z: 0 };
 
   const place = (i) => {
     let x, z, guard = 0;
     do {
-      x = (Math.random() * 2 - 1) * hw;
-      z = (Math.random() * 2 - 1) * hd;
+      x = at.x + (Math.random() * 2 - 1) * REACH;
+      z = at.z + (Math.random() * 2 - 1) * REACH;
       guard++;
+      // The Pavilion roof is the one thing on this site that keeps rain
+      // off you, and it is at the world origin.
     } while (guard < 12 && x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1);
     pos[i * 3] = x;
     pos[i * 3 + 1] = Math.random() * 12 + 1;
@@ -167,8 +174,13 @@ export function makeRain(THREE, plan, count = 900) {
 
   return {
     points, material: mat,
-    /** @param dt seconds @param on whether it is currently raining */
-    tick(dt, on) {
+    /**
+     * @param dt seconds
+     * @param on whether it is currently raining
+     * @param who {x,z} the walker — the field re-seeds around them
+     */
+    tick(dt, on, who) {
+      if (who) { at.x = who.x; at.z = who.z; }
       const targetOpacity = on ? 0.5 : 0;
       mat.opacity += (targetOpacity - mat.opacity) * 0.04;
       points.visible = mat.opacity > 0.01;

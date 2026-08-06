@@ -257,12 +257,17 @@ export function buildPavilion(THREE, scene, opts = {}) {
     colliders.push({ minX: pool.x0, maxX: pool.x1, minZ: pool.z0, maxZ: pool.z1 });
   }
 
-  // Step down off the podium is a fall, so fence the perimeter.
-  const halfW = p.w / 2, halfD = p.d / 2, T = 1.0;
-  colliders.push({ minX: -halfW - T, maxX: -halfW, minZ: -halfD, maxZ: halfD });
-  colliders.push({ minX: halfW, maxX: halfW + T, minZ: -halfD, maxZ: halfD });
-  colliders.push({ minX: -halfW, maxX: halfW, minZ: -halfD - T, maxZ: -halfD });
-  colliders.push({ minX: -halfW, maxX: halfW, minZ: halfD, maxZ: halfD + T });
+  // Step down off the podium used to be a fall, so the perimeter was
+  // fenced. It is not a fall any more: there is a ground plane out
+  // there now, and two other buildings standing on it. Pass
+  // {fence:false} and you can walk off the podium and go and see them.
+  if (opts.fence !== false) {
+    const halfW = p.w / 2, halfD = p.d / 2, T = 1.0;
+    colliders.push({ minX: -halfW - T, maxX: -halfW, minZ: -halfD, maxZ: halfD });
+    colliders.push({ minX: halfW, maxX: halfW + T, minZ: -halfD, maxZ: halfD });
+    colliders.push({ minX: -halfW, maxX: halfW, minZ: -halfD - T, maxZ: -halfD });
+    colliders.push({ minX: -halfW, maxX: halfW, minZ: halfD, maxZ: halfD + T });
+  }
 
   return { group: G, colliders, surfaces, materials: MATS, plan: PLAN };
 }

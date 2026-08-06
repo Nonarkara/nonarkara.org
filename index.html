@@ -241,6 +241,13 @@
       <span class="hud-chip-glyph">◎</span>
       <span class="hud-chip-label" id="discover-count">0 / 14</span>
     </button>
+    <!-- The compass. Three buildings 120m apart is a two-minute walk
+         each way; this names the next one, says how far, points at it,
+         and takes you to its threshold if you tap it. -->
+    <button id="compass-chip" class="hud-chip compass-chip" aria-label="Travel to the next building">
+      <span class="hud-chip-glyph compass-needle" id="compass-needle" aria-hidden="true">▲</span>
+      <span class="hud-chip-label" id="compass-label">—</span>
+    </button>
     <button id="walk-btn" class="hud-chip walk-btn" aria-label="Walk through the pavilion" aria-pressed="false">
       <span class="hud-chip-glyph" aria-hidden="true">⇱</span>
       <span class="hud-chip-label" data-i18n="walk">WALK</span>

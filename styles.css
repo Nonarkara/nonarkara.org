@@ -1738,6 +1738,40 @@
     .hud-chip:active { background: rgba(245, 158, 11, 0.06); }
     .hud-chip-glyph { font-size: 11px; color: var(--amber); }
 
+    /* Compass — bottom right, opposite the thumbstick, so a right thumb
+       reaches it without crossing the look-drag area. It names the
+       nearest building you are not standing in, how far it is, and
+       which way; tapping it walks you there. Signifier before
+       affordance: nobody would guess the buildings are tappable, so
+       the compass says the distance out loud instead. */
+    .compass-chip {
+      /* Top centre. Bottom-right belongs to PLAN and MENU, bottom-left
+         to the thumbstick, bottom-centre to the discovery counter —
+         and a heading indicator reads correctly at the top anyway. */
+      top: calc(52px + var(--sat));
+      right: auto;
+      left: 50%;
+      transform: translateX(-50%);
+      min-width: 176px;
+      /* 44px, not the 36px the older chips settled for — this one is a
+         travel control and gets the full Apple HIG target (§11.8). */
+      min-height: 44px;
+      justify-content: flex-start;
+      background: rgba(10, 14, 20, 0.92);
+      font-variant-numeric: tabular-nums;
+      /* A building name plus a distance must stay on one line — wrapped
+         it becomes a two-line block that lands on the page title. */
+      white-space: nowrap;
+    }
+    .compass-needle {
+      /* Rotated by JS to the real bearing. Transition kept short so it
+         tracks the head rather than lagging behind it. */
+      display: inline-block;
+      transition: transform 120ms linear;
+    }
+    body.travelling .compass-chip { opacity: 0.35; pointer-events: none; }
+    body[data-room-light="1"] .compass-chip { background: rgba(236, 238, 240, 0.92); }
+
     /* Discovery chip — bottom center, amber, can't miss it.
        Top-right twin to FOCUS was easy to overlook; this is the game. */
     #discover-chip {
@@ -1792,6 +1826,18 @@
         left: 50%;
         bottom: calc(64px + var(--sab));
         min-width: 132px;
+      }
+      .compass-chip {
+        /* Right-aligned under the WALK chip. Centred on a 375px screen
+           it sat on top of "THE PAVILION"; beside WALK it was 10px from
+           it, which is a mis-tap waiting to happen. Under it, the whole
+           right column is free. */
+        left: auto;
+        right: calc(14px + var(--sar));
+        transform: none;
+        top: calc(60px + var(--sat));
+        min-height: 44px;
+        min-width: 0;
       }
       .discover-toast {
         bottom: calc(112px + var(--sab));
