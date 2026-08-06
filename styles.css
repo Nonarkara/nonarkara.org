@@ -1738,6 +1738,35 @@
     .hud-chip:active { background: rgba(245, 158, 11, 0.06); }
     .hud-chip-glyph { font-size: 11px; color: var(--amber); }
 
+    /* Discovery counter sits left of FOCUS so both chips share the top-right. */
+    #discover-chip {
+      right: calc(18px + var(--sar) + 108px);
+    }
+    .discover-toast {
+      position: fixed;
+      top: calc(60px + var(--sat));
+      right: calc(18px + var(--sar));
+      z-index: 31;
+      pointer-events: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--amber);
+      background: var(--bg);
+      border: 1px solid var(--amber);
+      padding: 10px 14px;
+      min-height: 44px;
+      display: flex; align-items: center;
+      opacity: 0;
+      transform: translateY(-4px);
+      transition: opacity 180ms ease-out, transform 180ms ease-out;
+    }
+    .discover-toast.in {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
     @media (max-width: 600px) {
       .hud-chip {
         top: calc(14px + var(--sat));
@@ -1745,6 +1774,14 @@
         min-height: 36px;
         padding: 0 12px;
         font-size: 9px;
+      }
+      #discover-chip {
+        right: calc(14px + var(--sar) + 96px);
+      }
+      .discover-toast {
+        right: calc(14px + var(--sar));
+        font-size: 10px;
+        min-height: 40px;
       }
       .room-hud-cluster.top-left {
         font-size: 9px;
@@ -2320,12 +2357,15 @@ body[data-theme="light"] .door-btn:focus-visible { background: rgba(0,0,0,0.04);
 body[data-mode="guest"] #hud-focus,
 body[data-mode="guest"] #hud-note,
 body[data-mode="guest"] #os-steps,
+body[data-mode="guest"] #os-brain,
 body[data-mode="guest"] #intent-line,
 body[data-mode="guest"] #room-hud-focus,
 body[data-mode="guest"] .os-today,
 body[data-mode="guest"] #plan-council {
   display: none !important;
 }
+/* Guests keep the discovery counter — that is their game. */
+body[data-mode="guest"] #discover-chip { display: inline-flex !important; }
 
 /* Guest-only contact card — see index.html #plan-guest-card */
 .plan-card-guest { display: none; }

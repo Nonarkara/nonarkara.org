@@ -9,6 +9,9 @@
 .wrangler/
 .DS_Store
 dist/
+node_modules/
+context.md
+*.mjs
 
 # Worker source — wrangler.toml carries the account and KV namespace ids
 worker/

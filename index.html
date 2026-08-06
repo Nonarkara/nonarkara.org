@@ -94,8 +94,8 @@
   <!-- Overlay UI (room view) -->
   <div class="overlay">
     <div class="brand" id="brand">NON</div>
-    <div class="caption" id="caption" data-i18n="palace">memory palace</div>
-    <div class="hint" id="hint" data-i18n="hint">tap any screen or object · drag to look around</div>
+    <div class="caption" id="caption" data-i18n="palace">the pavilion</div>
+    <div class="hint" id="hint" data-i18n="hint">tap to discover · drag to look around · ◎ counts what you find</div>
     <div class="lang" id="lang" role="group" aria-label="Language">
       <button data-l="en" class="on" aria-label="English" aria-pressed="true">EN</button>
       <span class="sep" aria-hidden="true">·</span>
@@ -169,17 +169,22 @@
   <div class="room-hud" id="room-hud" aria-hidden="true">
     <div class="room-hud-cluster top-left">
       <span class="hud-dot" aria-hidden="true"></span>
-      <span class="hud-eyebrow">NON.OS · ROOM</span>
+      <span class="hud-eyebrow">PAVILION</span>
       <span class="hud-sep">·</span>
       <span class="hud-status">LIVE</span>
       <span class="hud-sep">·</span>
       <span class="hud-clock" id="hud-clock">--:--:--</span>
     </div>
+    <button id="discover-chip" class="hud-chip discover-chip" aria-label="Secrets found in the pavilion">
+      <span class="hud-chip-glyph">◎</span>
+      <span class="hud-chip-label" id="discover-count">0 / 14</span>
+    </button>
     <button id="room-hud-focus" class="hud-chip" aria-label="Open Pomodoro focus timer">
       <span class="hud-chip-glyph">▷</span>
       <span class="hud-chip-label">FOCUS</span>
     </button>
   </div>
+  <div class="discover-toast" id="discover-toast" aria-live="polite"></div>
 
   <!-- Tilt-to-look hint (gyro-capable phones only, auto-fades) -->
   <div class="tilt-hint" id="tilt-hint" aria-hidden="true">
@@ -522,24 +527,25 @@
 
   <!-- Door — first-visit entry choice between host and guest mode.
        localStorage nonarkara.mode = 'host' | 'guest' remembers the pick.
-       ?door query clears and re-asks. ?host / ?guest force a mode. -->
+       ?door query clears and re-asks. ?host / ?guest force a mode.
+       Host → NON OS (all-day). Guest → Pavilion (discovery room). -->
   <div id="door" aria-label="Choose how you arrived">
     <div class="door-mark">N<span class="door-o">O</span>N</div>
     <div class="door-tag">how did you arrive</div>
     <div class="door-list">
       <button class="door-btn" id="door-host" type="button">
-        <span class="eyebrow">non's room</span>
-        <span class="title">enter the room</span>
-        <span class="sub">full memory palace · focus, deep session, the works</span>
+        <span class="eyebrow">this is my device</span>
+        <span class="title">NON OS</span>
+        <span class="sub">time · fleet · signals · keep it open all day</span>
       </button>
       <div class="door-divider">— or —</div>
       <button class="door-btn" id="door-guest" type="button">
         <span class="eyebrow">you arrived by link</span>
-        <span class="title">guest preview</span>
-        <span class="sub">look around · take the contact card with you</span>
+        <span class="title">enter the pavilion</span>
+        <span class="sub">walk the room · find who Non is · Easter eggs</span>
       </button>
     </div>
-    <div class="door-foot">no login · no tracking · this choice stays on this device</div>
+    <div class="door-foot">no login · this choice stays on this device · ?door to choose again</div>
   </div>
 
   <!-- Main app module -->

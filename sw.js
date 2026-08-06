@@ -6,7 +6,7 @@
  * for same-origin, so a stale version means users keep the old shell.
  */
 
-const CACHE_VERSION = 'non-2026-08-05-v3.1';
+const CACHE_VERSION = 'non-2026-08-06-v3.2';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const SHELL = [
@@ -15,6 +15,7 @@ const SHELL = [
   '/mixtape.html',
   '/styles.css',                    // v2: extracted from inline
   '/app.js',                        // v2: extracted from inline
+  '/discover.js',                   // pavilion discovery counter
   '/sky.js',                        // the planetarium — must work offline
   '/ground.js',                     // the satellite floor (tiles need network)
   '/manifest.webmanifest',

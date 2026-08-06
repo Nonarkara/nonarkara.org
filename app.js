@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createDiscovery } from './discover.js';
 
 // ── Visitor tracker — fire-and-forget, one ping per session ──────────────────
 (function () {
@@ -35,6 +36,11 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   3.2 (2026-08-06) drawing board — two surfaces made honest: host lands
+//                    in NON OS (all-day), guest lands in the Pavilion;
+//                    room gets architectural mass (not CAD-only wireframe);
+//                    quiet discovery counter + more eggs. Baby kept:
+//                    braind, fleet, sky, ground, aphorisms, furniture.
 //   3.1 (2026-08-05) the second brain gets a body — braind pulses on the
 //                    M5 every 15 min (transfer online / compute offline),
 //                    BRAIN tile shows its vital signs; captures now queue
@@ -44,8 +50,7 @@ const WEBGL2_OK = hasWebGL2();
 //                    a transit board with real uptime history and Telegram
 //                    alerts; the sky (152-star planetarium, compass-driven);
 //                    the ground (satellite imagery of where you stand); the
-//                    morning brief, written and spoken on-machine. Room
-//                    geometry is still v2 — the Pavilion rebuild is next.
+//                    morning brief, written and spoken on-machine.
 //   2.4 (2026-05-14) accessibility pass — skip-to-content, aria-labels on
 //                    all interactive controls, aria-pressed sync on lang
 //                    switchers, lang attrs on Thai/Chinese buttons
@@ -61,8 +66,12 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '3.1';
+const NON_VERSION = '3.2';
 window.NON_VERSION = NON_VERSION;
+
+// Discovery layer — wired once the HUD nodes exist (see boot below).
+let DISCOVERY = null;
+window.__discover = (id) => { try { return DISCOVERY?.mark(id); } catch (_) { return false; } };
 
 // A host is up if it answers at all in the 2xx/3xx range. The old check
 // enumerated 200/301/302 only, so every 307 (tkc, war-room) painted red.
@@ -100,8 +109,8 @@ if (!WEBGL_OK) {
 // ════════════════════════════════════════════════════════
 const I18N = {
   en: {
-    palace:  'a window to the mind',
-    hint:    'tap any screen or object · drag to look around',
+    palace:  'the pavilion',
+    hint:    'tap to discover · drag to look around · ◎ counts what you find',
     contact: 'contact',
     cv_eyebrow:      'CV',
     cv_title:        'Curriculum Vitae',
@@ -181,8 +190,8 @@ const I18N = {
     philo_p3:        'If you want to talk about a city, a region, or a question, the contact card is in the personal section above. Tap it.',
   },
   th: {
-    palace:  'หน้าต่างสู่ความคิด',
-    hint:    'แตะจอหรือสิ่งของใดก็ได้ · ลากเพื่อมองรอบ',
+    palace:  'ศาลา',
+    hint:    'แตะเพื่อค้นพบ · ลากเพื่อมองรอบ · ◎ นับสิ่งที่เจอ',
     contact: 'ติดต่อ',
     cv_eyebrow:      'ประวัติ',
     cv_title:        'ประวัติย่อ',
@@ -262,8 +271,8 @@ const I18N = {
     philo_p3:        'หากต้องการคุยเรื่องเมือง พื้นที่ หรือคำถามใด ๆ นามบัตรของผมอยู่ในส่วน "ส่วนตัว" ด้านบน แตะได้เลย',
   },
   zh: {
-    palace:  '思维之窗',
-    hint:    '点按屏幕或物件 · 拖动环视',
+    palace:  '亭',
+    hint:    '点按去发现 · 拖动环视 · ◎ 计数',
     contact: '联系',
     cv_eyebrow:      '简历',
     cv_title:        '个人履历',
@@ -641,6 +650,44 @@ const placeAt = (obj, x, y, z) => { obj.position.set(x, y, z); return obj; };
   wire.rotation.y = x > 0 ? -Math.PI / 2 : Math.PI / 2;
   scene.add(wire);
 });
+
+// ── Pavilion mass (v3.2) ─────────────────────────────────
+// Wireframe alone reads as a 2019 CAD demo. Add dark architectural
+// planes so the room has volume; keep the edge lines as the signature.
+// MeshBasicMaterial — no lights, no shadows, cheap on mid-range phones.
+if (WEBGL_OK) {
+  const massMat = new THREE.MeshBasicMaterial({
+    color: 0x0a0e14, transparent: true, opacity: 0.88, side: THREE.DoubleSide, depthWrite: false,
+  });
+  const floorMass = new THREE.Mesh(new THREE.PlaneGeometry(36, 36), massMat);
+  floorMass.rotation.x = -Math.PI / 2;
+  floorMass.position.y = 0.002;
+  scene.add(floorMass);
+
+  const wallMat = new THREE.MeshBasicMaterial({
+    color: 0x0a0e14, transparent: true, opacity: 0.72, side: THREE.DoubleSide, depthWrite: false,
+  });
+  const backWall = new THREE.Mesh(new THREE.PlaneGeometry(20, 6.2), wallMat);
+  backWall.position.set(0, 3.1, -10.04);
+  scene.add(backWall);
+  const frontWall = new THREE.Mesh(new THREE.PlaneGeometry(20, 6.2), wallMat);
+  frontWall.position.set(0, 3.1, 9.54);
+  scene.add(frontWall);
+  [-9.54, 9.54].forEach(x => {
+    const side = new THREE.Mesh(new THREE.PlaneGeometry(40, 6.2), wallMat);
+    side.position.set(x, 3.1, -0.5);
+    side.rotation.y = Math.PI / 2;
+    scene.add(side);
+  });
+
+  // Amber key wash — a single soft plane as "window light", not a second accent.
+  const wash = new THREE.Mesh(
+    new THREE.PlaneGeometry(8, 0.08),
+    new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.14, depthWrite: false })
+  );
+  wash.position.set(0, 5.6, -9.9);
+  scene.add(wash);
+}
 
 // ── Interactables registry ───────────────────────────────
 const INTERACTABLES = [];
@@ -1764,6 +1811,15 @@ PROJECTS.forEach((p, i) => {
   );
   doorHandle.position.set(DOOR_X - DOOR_W * 0.4, DOOR_H * 0.5, FRONT_Z - 0.05);
   scene.add(doorHandle);
+  // Clickable door — discovery egg (still locked; the find is the point)
+  {
+    const { group, lines } = makeClickableGroup(
+      'furniture', 'door', DOOR_W + 0.2, DOOR_H + 0.2, 0.4,
+      DOOR_X, DOOR_H / 2 + 0.05, FRONT_Z - 0.08
+    );
+    lines.push(doorFrame, doorHandle);
+    group.userData.baseMaterial = matFurni;
+  }
   // 🔒 label texture beside the door
   {
     const c = document.createElement('canvas');
@@ -1895,6 +1951,14 @@ PROJECTS.forEach((p, i) => {
   window.__aphPlane = aphPlane;
   window.__aphMat = aphMat;
   _themeRedrawHooks.push(drawAphorism);
+  // Tap the words — discovery egg
+  {
+    const { group } = makeClickableGroup(
+      'furniture', 'aphorism', APH_W, APH_H, 0.3,
+      -1.5, 2.8, FRONT_Z - 0.02
+    );
+    group.rotation.y = Math.PI;
+  }
 
   // ── Wireframe screen frame around the projection ──────────
   const screenFrame = new THREE.LineSegments(
@@ -2547,23 +2611,32 @@ function onClick(e) {
   const ud = grp.userData;
   if (ud.kind === 'tv') {
     const p = ud.project;
+    try { window.__discover?.('tv'); } catch (_) {}
     if (p?.url) openUrlModal(p.code, p.title, p.url);
   } else if (ud.kind === 'furniture') {
     openFurnitureModal(ud.key);
   } else if (ud.kind === 'city') {
+    if (ud.city?.name && /bangkok/i.test(ud.city.name)) {
+      try { window.__discover?.('bangkok'); } catch (_) {}
+    }
     openCityModal(ud.city);
   } else if (ud.kind === 'pomoBtn') {
     openPomodoro();
   } else if (ud.kind === 'chandelier') {
+    try { window.__discover?.('chandelier'); } catch (_) {}
     toggleTheme();
   } else if (ud.kind === 'record') {
+    try { window.__discover?.('vinyl'); } catch (_) {}
     openMusicModal();
   } else if (ud.kind === 'badge') {
     const b = ud.badge;
     if (b?.url) openUrlModal(b.label, b.label + ' · ' + b.sub, b.url);
   } else if (ud.kind === 'poster') {
     if (ud.action === 'frame')     { try { openFrame(); }          catch (_) {} }
-    if (ud.action === 'portraits') { try { openPortraitGallery(); } catch (_) {} }
+    if (ud.action === 'portraits') {
+      try { window.__discover?.('portraits'); } catch (_) {}
+      try { openPortraitGallery(); } catch (_) {}
+    }
   }
 }
 window.addEventListener('click', onClick);
@@ -2606,6 +2679,11 @@ modal.addEventListener('click', (e) => { if (e.target.dataset.close === '1') clo
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 
 function openFurnitureModal(key) {
+  // Quiet discovery — mark on open; toast only fires the first time.
+  if (key === 'cup' || key === 'bookshelf' || key === 'pedestal' || key === 'coffee' ||
+      key === 'door' || key === 'aphorism') {
+    try { window.__discover?.(key); } catch (_) {}
+  }
   if (key === 'bookshelf') {
     const url = 'https://nonarkara.org/cv.pdf';
     const html = `
@@ -2643,6 +2721,20 @@ function openFurnitureModal(key) {
         <a class="row" href="${url}" target="_blank" rel="noopener">sabaisabai-airdnd.pages.dev</a>
       </div>`;
     showModal('☕ ·', 'Sabai Sabai', html);
+  } else if (key === 'door') {
+    showModal('LOCKED', 'not yet', `
+      <div class="modal-cap">some doors stay shut on purpose</div>
+      <div class="modal-meta">
+        <span class="row">the pavilion keeps one room for later</span>
+        <span class="row">you found the lock — that counts</span>
+      </div>`);
+  } else if (key === 'aphorism') {
+    showModal('NONHARVARD', 'his words', `
+      <div class="modal-cap">from the corpus · rotating on this wall</div>
+      <div class="modal-meta">
+        <span class="row">tap anything else · keep walking</span>
+        <a class="row" href="https://nonharvard.wordpress.com" target="_blank" rel="noopener">nonharvard.wordpress.com</a>
+      </div>`);
   }
 }
 
@@ -3329,8 +3421,21 @@ function lsGet(key) { try { return localStorage.getItem(key); } catch (_) { retu
 function lsSet(key, v) { try { localStorage.setItem(key, v); } catch (_) {} }
 
 function chooseDefaultView() {
+  // One-time v3.2 migration: host → OS, guest → Pavilion.
+  // Without this, old localStorage keeps everyone on the pre-redraw view
+  // and the dual-surface law never becomes visible.
+  if (lsGet('nonarkara.migrated.v32') !== '1') {
+    lsSet('nonarkara.migrated.v32', '1');
+    const mode = lsGet('nonarkara.mode');
+    if (mode === 'host') lsSet('nonarkara.view', 'plan');
+    if (mode === 'guest') lsSet('nonarkara.view', 'room');
+  }
   const saved = lsGet('nonarkara.view');
   if (saved === 'plan' || saved === 'room') return saved;
+  // Host keeps the OS open all day. Guest walks the Pavilion.
+  const mode = lsGet('nonarkara.mode');
+  if (mode === 'host') return 'plan';
+  if (mode === 'guest') return 'room';
   try { return matchMedia('(max-width: 768px)').matches ? 'plan' : 'room'; }
   catch (_) { return 'room'; }
 }
@@ -4350,6 +4455,7 @@ window.addEventListener('keydown', (e) => {
   if (konamiBuf.length > KONAMI_SEQ.length) konamiBuf = konamiBuf.slice(-KONAMI_SEQ.length);
   if (konamiBuf.length === KONAMI_SEQ.length && konamiBuf.every((v, i) => v === KONAMI_SEQ[i])) {
     konamiBuf = [];
+    try { window.__discover?.('konami'); } catch (_) {}
     showHaiku();
   }
 });
@@ -4719,6 +4825,10 @@ function animate() {
         if (ud.key === 'cup') {
           // The easter egg whispers, doesn't announce.
           tip.innerHTML = `· · ·<span class="url">click</span>`;
+        } else if (ud.key === 'door') {
+          tip.innerHTML = `LOCKED<span class="url">tap anyway</span>`;
+        } else if (ud.key === 'aphorism') {
+          tip.innerHTML = `NONHARVARD<span class="url">his words</span>`;
         } else {
           const eyebrowKey = { bookshelf: 'cv_eyebrow', pedestal: 'li_eyebrow', coffee: 'contact_eyebrow' }[ud.key];
           const titleKey   = { bookshelf: 'cv_title',   pedestal: 'li_title',   coffee: 'contact_title'   }[ud.key];
@@ -5067,11 +5177,33 @@ function closeFrameWithRitual() {
     applyMode(mode);
     if (mode === 'guest') paintGuestCardQR();
     doorEl.classList.add('skip');
+    // Host → OS all day. Guest → Pavilion. Clear saved view so the
+    // mode's default wins on this first choice (later toggles stick).
+    try {
+      localStorage.removeItem('nonarkara.view');
+      const go = mode === 'host' ? 'plan' : 'room';
+      (window.setView || setView)(go);
+    } catch (_) {}
   }
 
   document.getElementById('door-host')?.addEventListener('click',  () => pick('host'));
   document.getElementById('door-guest')?.addEventListener('click', () => pick('guest'));
 })();
+
+// Discovery HUD — counter + toast. Lives next to the room HUD.
+DISCOVERY = createDiscovery({
+  counterEl: document.getElementById('discover-count'),
+  toastEl: document.getElementById('discover-toast'),
+});
+document.getElementById('discover-chip')?.addEventListener('click', () => {
+  if (!DISCOVERY) return;
+  const rows = DISCOVERY.list().map(s =>
+    `<span class="row">${s.found ? '▣' : '▢'}  ${s.found ? s.title : s.whisper}</span>`
+  ).join('');
+  showModal('FOUND', `${DISCOVERY.found.size} / ${DISCOVERY.total}`, `
+    <div class="modal-cap">walk the pavilion · nothing is announced</div>
+    <div class="modal-meta">${rows}</div>`);
+});
 
 // ════════════════════════════════════════════════════════
 // ACCESSIBILITY — aria-pressed sync on lang switchers
@@ -5477,6 +5609,7 @@ function enterSky() {
   document.body.dataset.sky = 'on';
   if (skyHud) skyHud.setAttribute('aria-hidden', 'false');
   try { enableGyro(); } catch (_) {}
+  try { window.__discover?.('sky'); } catch (_) {}
 }
 
 function exitSky() {
@@ -5529,6 +5662,7 @@ function enterGround() {
     place.textContent = `${SKY_SITE.lat.toFixed(4)}°, ${SKY_SITE.lon.toFixed(4)}°`;
   }
   try { enableGyro(); } catch (_) {}
+  try { window.__discover?.('ground'); } catch (_) {}
 }
 
 function exitGround() {
