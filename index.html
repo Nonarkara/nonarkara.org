@@ -41,6 +41,35 @@
         location.replace('/');
       })();
     }
+    // SELF-HEAL — the answer to "I'm still seeing the old version".
+    //
+    // version.json is written at ship time from NON_VERSION and fetched
+    // with no-store, so it is always the truth from the network. If the
+    // build actually running is older, every cache on this device is
+    // wrong: unregister the workers, delete the caches, reload once.
+    // Guarded by sessionStorage so a genuine mismatch can never become a
+    // reload loop. Costs one tiny request per load and removes the whole
+    // class of "shipped but invisible" bugs.
+    window.addEventListener('load', () => {
+      setTimeout(async () => {
+        try {
+          const r = await fetch('/version.json', { cache: 'no-store' });
+          if (!r.ok) return;
+          const { version } = await r.json();
+          const running = window.NON_VERSION;
+          if (!version || !running || version === running) return;
+          if (sessionStorage.getItem('non.healed') === version) return;  // already tried
+          sessionStorage.setItem('non.healed', version);
+          console.warn(`[NON] running ${running}, live is ${version} — clearing caches`);
+          const ws = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(ws.map(w => w.unregister()));
+          const ks = await caches.keys();
+          await Promise.all(ks.map(k => caches.delete(k)));
+          location.reload();
+        } catch (_) { /* offline — keep whatever build we have */ }
+      }, 1500);
+    });
+
     // No service worker on localhost. It caches the shell, then serves it
     // back over your own edits, so every reload during development shows
     // the previous build — which looks exactly like "my change did nothing".
@@ -182,6 +211,12 @@
       <span class="hud-status">LIVE</span>
       <span class="hud-sep">·</span>
       <span class="hud-clock" id="hud-clock">--:--:--</span>
+      <span class="hud-sep">·</span>
+      <!-- Which build you are looking at. The plan view has carried a
+           version stamp for months; the room never did, so there was no
+           way to tell a stale cached build from a fresh one by looking
+           at it — which is exactly the question that mattered. -->
+      <span class="hud-build" id="hud-build">v—</span>
     </div>
     <button id="discover-chip" class="hud-chip discover-chip" aria-label="Secrets found in the pavilion">
       <span class="hud-chip-glyph">◎</span>

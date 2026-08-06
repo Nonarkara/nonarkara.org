@@ -40,6 +40,11 @@ fi
 say "stage"
 rm -rf dist
 rsync -a --exclude-from=.deployignore ./ dist/ || die "staging failed"
+
+# The truth the running page checks itself against. Generated here so it
+# can never drift from NON_VERSION in app.js.
+printf '{"version":"%s"}\n' "$LOCAL_VERSION" > dist/version.json
+echo "  version.json → $LOCAL_VERSION"
 echo "  $(find dist -type f | wc -l | tr -d ' ') files, $(du -sh dist | cut -f1)"
 
 # The shell must never see a token here; wrangler uses its OAuth session.

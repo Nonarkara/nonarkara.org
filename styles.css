@@ -2997,3 +2997,14 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
     }
     .brief-archive .brief-day:last-child { border-right: 1px solid var(--line); }
     .brief-archive .brief-day.on { color: var(--amber); border-color: var(--amber); }
+
+    /* Build stamp in the room HUD — same mono/low-contrast treatment as
+       the rest of the cluster. Present so a stale cache is visible at a
+       glance instead of being argued about. */
+    .hud-build {
+      font-size: 9px;
+      letter-spacing: 0.18em;
+      color: var(--amber);
+      opacity: 0.75;
+      font-variant-numeric: tabular-nums;
+    }

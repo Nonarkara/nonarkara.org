@@ -6,3 +6,6 @@ public/
 .claude/worktrees/
 dist/
 worker/.dev.vars
+
+# Written by ship.sh from NON_VERSION — never committed, so it cannot drift.
+/version.json

@@ -36,6 +36,12 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   3.5 (2026-08-06) you can finally SEE which build you are running —
+//                    version stamp in the room HUD (the plan view has had
+//                    one for months; the room never did). Plus self-heal:
+//                    the page checks version.json on load and, if it is
+//                    running something older, clears every cache and
+//                    reloads itself once.
 //   3.4 (2026-08-06) the Pavilion for real — the enclosure is gone, the
 //                    roof floats at 3.6m, five planes stand free, the
 //                    work wall is 8 heroes not 21. And the service worker
@@ -73,8 +79,14 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '3.4';
+const NON_VERSION = '3.5';
 window.NON_VERSION = NON_VERSION;
+// Stamp the build into the room HUD as early as possible — this element
+// is the answer to "am I actually seeing the new version?".
+try {
+  const _hb = document.getElementById('hud-build');
+  if (_hb) _hb.textContent = 'v' + NON_VERSION;
+} catch (_) {}
 
 // Discovery layer — wired once the HUD nodes exist (see boot below).
 let DISCOVERY = null;
