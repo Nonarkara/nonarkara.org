@@ -43,6 +43,11 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.4 (2026-08-06) mobile, actually usable — pinch no longer collapses
+//                    into a one-way universe, drag is slow enough to aim,
+//                    the pitch clamp lets you look up at all, and the
+//                    room asks for motion access so holding the phone up
+//                    finally does something.
 //   4.3 (2026-08-06) the sky is where the sky is — phone pitch drives the
 //                    view instead of a fixed 76°, so holding the phone
 //                    normally no longer feels like lying on the floor.
@@ -123,7 +128,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.3';
+const NON_VERSION = '4.4';
 window.NON_VERSION = NON_VERSION;
 // Stamp the build into the room HUD as early as possible — this element
 // is the answer to "am I actually seeing the new version?".
@@ -2712,9 +2717,14 @@ function onTouchMove(e) {
   // Drag-to-rotate: 360° on the horizontal (you can spin all the way
   // around to see the aphorism wall behind you), gentle pitch clamp
   // on the vertical so you don't end up looking at your own feet.
-  target.y = touchAnchor.targetY - dx * Math.PI;     // full screen drag = ~180°
-  target.x = touchAnchor.targetX + dy * 0.65;
-  target.x = Math.max(-0.55, Math.min(0.55, target.x));
+  // A full-width drag used to spin you 180°, which is unaimable on a
+  // phone — you overshoot whatever you were trying to look at. Now ~70°,
+  // slow enough to land on a thing.
+  target.y = touchAnchor.targetY - dx * 1.22;
+  // And the pitch was clamped to ±31°, so you literally could not drag
+  // far enough up to see the roof, let alone the sky. ±63° now.
+  target.x = touchAnchor.targetX + dy * 1.05;
+  target.x = Math.max(-1.1, Math.min(1.1, target.x));
   // Update mouse for ongoing raycast (so the city/tv they're sliding over highlights)
   mouse.x = (t.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(t.clientY / window.innerHeight) * 2 + 1;
@@ -5009,7 +5019,11 @@ function animate() {
   const gyroTarget = touchAnchor ? 0 : 1;
   window.__gyroBlend = (window.__gyroBlend ?? 0) + ((gyroTarget - (window.__gyroBlend ?? 0)) * 0.06);
   const gyroY = gyroEnabled ? -gyroSmoothX * 0.45 * window.__gyroBlend : 0;
-  const gyroX = gyroEnabled ? -gyroSmoothY * 0.30 * window.__gyroBlend : 0;
+  // Was 0.30, which over a ±30° hold range moved the view by about 9° —
+  // indistinguishable from nothing, so lifting the phone appeared dead.
+  // 1.15 makes the room respond like the window it is meant to be, and
+  // it still rides on top of the finger rather than fighting it.
+  const gyroX = gyroEnabled ? -gyroSmoothY * 1.15 * window.__gyroBlend : 0;
   const drivenY = target.y + gyroY;
   const drivenX = target.x + gyroX;
   // Blend between where the room wants the camera and where the sky
@@ -6516,6 +6530,23 @@ document.addEventListener('pointerlockchange', () => {
 
 document.getElementById('walk-btn')?.addEventListener('click', () => setWalk(!WALK.enabled));
 
+// iOS only grants motion access from a user gesture, and the only place
+// that ever asked was entering the sky. So in the room the gyro was
+// simply off, and holding the phone up did nothing at all. Ask on the
+// first touch in the room instead — one prompt, then the room is a
+// window for the rest of the session.
+if (IS_TOUCH) {
+  const askMotionOnce = () => {
+    window.removeEventListener('touchend', askMotionOnce);
+    if (document.body.dataset.view !== 'room') {
+      window.addEventListener('touchend', askMotionOnce, { once: true, passive: true });
+      return;
+    }
+    try { enableGyro(); } catch (_) {}
+  };
+  window.addEventListener('touchend', askMotionOnce, { once: true, passive: true });
+}
+
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && WALK.enabled) setWalk(false);
   const t = e.target;
@@ -6607,30 +6638,63 @@ window.addEventListener('keydown', (e) => {
 
   // Pinch to zoom the field of view. Narrowing the FOV is how you look
   // closely at something across the room without walking to it.
-  let pinch0 = null, fov0 = camera.fov;
-  window.addEventListener('touchstart', (e) => {
-    if (e.touches.length !== 2) return;
-    pinch0 = Math.hypot(
-      e.touches[0].clientX - e.touches[1].clientX,
-      e.touches[0].clientY - e.touches[1].clientY);
-    fov0 = camera.fov;
-  }, { passive: true });
-  window.addEventListener('touchmove', (e) => {
-    if (e.touches.length !== 2 || !pinch0) return;
-    const d = Math.hypot(
-      e.touches[0].clientX - e.touches[1].clientX,
-      e.touches[0].clientY - e.touches[1].clientY);
-    camera.fov = Math.max(24, Math.min(75, fov0 * (pinch0 / d)));
+  // ── Pinch zoom ────────────────────────────────────────────
+  // The previous version collapsed and could not be reversed. touchstart
+  // fires again whenever the touch list changes, so a finger wobbling
+  // mid-pinch re-captured the baseline at the ALREADY-zoomed FOV. Every
+  // re-capture ratcheted further in and nothing could undo it: a
+  // collapsing universe, exactly as described.
+  //
+  // Fixes: capture the baseline once, on the transition into a two-finger
+  // gesture and never again while it lasts; keep the range narrow enough
+  // that no gesture can strand you; and always leave a way out.
+  const FOV_MIN = 38, FOV_MAX = 75, FOV_HOME = 58;
+  let pinching = false, pinch0 = 0, fov0 = FOV_HOME;
+
+  const setFov = (v) => {
+    camera.fov = Math.max(FOV_MIN, Math.min(FOV_MAX, v));
     camera.updateProjectionMatrix();
+  };
+  window.__resetFov = () => setFov(FOV_HOME);
+
+  const pinchDist = (e) => Math.hypot(
+    e.touches[0].clientX - e.touches[1].clientX,
+    e.touches[0].clientY - e.touches[1].clientY);
+
+  window.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2 && !pinching) {   // the transition, once
+      pinching = true;
+      pinch0 = pinchDist(e);
+      fov0 = camera.fov;
+    }
   }, { passive: true });
-  window.addEventListener('touchend', (e) => { if (e.touches.length < 2) pinch0 = null; }, { passive: true });
+
+  window.addEventListener('touchmove', (e) => {
+    if (!pinching || e.touches.length !== 2) return;
+    const d = pinchDist(e);
+    if (d < 20 || pinch0 < 20) return;           // ignore degenerate pinches
+    setFov(fov0 * (pinch0 / d));
+  }, { passive: true });
+
+  const endPinch = (e) => { if (!e.touches || e.touches.length < 2) pinching = false; };
+  window.addEventListener('touchend', endPinch, { passive: true });
+  window.addEventListener('touchcancel', endPinch, { passive: true });
+
+  // Always a way back. Double-tap anywhere in the room returns the lens
+  // to normal — the escape hatch the old version simply did not have.
+  let lastTap = 0;
+  window.addEventListener('touchend', (e) => {
+    if (e.touches.length) return;
+    const now = Date.now();
+    if (now - lastTap < 300) window.__resetFov();
+    lastTap = now;
+  }, { passive: true });
 
   // Desktop: the wheel does the same thing.
   window.addEventListener('wheel', (e) => {
     if (document.body.dataset.view !== 'room') return;
     if (document.getElementById('modal')?.classList.contains('in')) return;
-    camera.fov = Math.max(24, Math.min(75, camera.fov + Math.sign(e.deltaY) * 2));
-    camera.updateProjectionMatrix();
+    setFov(camera.fov + Math.sign(e.deltaY) * 2);
   }, { passive: true });
 }
 
