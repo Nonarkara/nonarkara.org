@@ -3059,7 +3059,10 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
        The stick sits bottom-left because that is where a left thumb
        already rests when a phone is held in two hands. */
     .walk-btn.on { color: var(--amber); border-color: var(--amber); }
-    body.walking { cursor: none; }
+    /* Hide the cursor only when the pointer is actually locked. Walking
+       with the keyboard alone must not take the mouse away from you —
+       you still need it to click a TV. */
+    body.walking.pointer-locked { cursor: none; }
 
     .walk-stick {
       position: fixed;

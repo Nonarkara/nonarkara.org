@@ -64,7 +64,7 @@ export class Walk {
   _onKeyDown(e) {
     if (this._typing(e)) return;
     const k = e.key.toLowerCase();
-    if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'shift'].includes(k)) {
+    if (['w', 'a', 's', 'd', 'q', 'e', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'shift'].includes(k)) {
       // Arrow keys scroll the page underneath; WASD must not be swallowed
       // by anything else either once you are walking.
       if (k !== 'shift') e.preventDefault();
@@ -97,8 +97,14 @@ export class Walk {
     let fwd = 0, str = 0;
     if (k.has('w') || k.has('arrowup')) fwd += 1;
     if (k.has('s') || k.has('arrowdown')) fwd -= 1;
-    if (k.has('a') || k.has('arrowleft')) str -= 1;
-    if (k.has('d') || k.has('arrowright')) str += 1;
+    // A/D strafe. Left/Right arrows do NOT — they turn you, which is
+    // handled by the yaw owner in app.js. Without a mouse, arrows that
+    // strafe leave you unable to change direction at all: you slide
+    // sideways forever facing the same wall.
+    if (k.has('a')) str -= 1;
+    if (k.has('d')) str += 1;
+    if (k.has('q')) str -= 1;
+    if (k.has('e')) str += 1;
     if (this.stick) { fwd += -this.stick.dy; str += this.stick.dx; }
 
     const mag = Math.hypot(fwd, str);
@@ -137,6 +143,18 @@ export class Walk {
     const bob = Math.sin(this.bobT * Math.PI * 2) * BOB_M * Math.min(1, speed / SPEED);
 
     this.camera.position.set(this.pos.x, EYE + bob, this.pos.z);
+  }
+
+  /**
+   * Turn intent from the keyboard, -1..1. Read by whoever owns the
+   * camera yaw — this controller deliberately does not, so gyro, drag,
+   * the sky and the dolly keep working exactly as they did.
+   */
+  turnInput() {
+    let t = 0;
+    if (this.keys.has('arrowleft')) t += 1;
+    if (this.keys.has('arrowright')) t -= 1;
+    return t;
   }
 
   teleport(x, z) {

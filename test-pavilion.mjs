@@ -135,4 +135,40 @@ const step = (w, yaw, n = 60, dt = 1 / 60) => { for (let i = 0; i < n; i++) w.up
   assert(!w._blocked(PLAN.spawn.x, PLAN.spawn.z), 'you spawn inside the pool');
 }
 
+
+// ── Keyboard semantics ────────────────────────────────────────
+// Arrows that strafe leave a keyboard-only visitor unable to change
+// direction at all: sliding sideways forever, facing the same wall.
+{
+  const w = mkWalk([], { x: 0, z: 0 });
+
+  // Left/Right must TURN, not move.
+  w.keys.add('arrowleft');
+  assert.equal(w.turnInput(), 1, 'ArrowLeft must turn left');
+  step(w, 0, 60);
+  assert(Math.hypot(w.vel.x, w.vel.z) < 0.01, 'ArrowLeft must not translate you');
+  w.keys.clear();
+
+  w.keys.add('arrowright');
+  assert.equal(w.turnInput(), -1, 'ArrowRight must turn right');
+  w.keys.clear();
+
+  // Both held cancels rather than compounding.
+  w.keys.add('arrowleft'); w.keys.add('arrowright');
+  assert.equal(w.turnInput(), 0, 'both arrows held should cancel');
+  w.keys.clear();
+
+  // Up/Down still walk.
+  w.keys.add('arrowup'); step(w, 0, 60);
+  assert(Math.hypot(w.vel.x, w.vel.z) > 1, 'ArrowUp must walk forward');
+  w.keys.clear();
+
+  // A/D and Q/E still strafe, and strafing is sideways to the gaze.
+  const s2 = mkWalk([], { x: 0, z: 0 });
+  s2.keys.add('d'); step(s2, 0, 60);
+  assert(Math.abs(s2.vel.x) > 1 && Math.abs(s2.vel.z) < 0.2,
+    `D at yaw 0 must strafe along X, got vx=${s2.vel.x.toFixed(2)} vz=${s2.vel.z.toFixed(2)}`);
+  assert.equal(s2.turnInput(), 0, 'strafing must not also turn you');
+}
+
 console.log(`pavilion: all checks passed · ${PLAN.walls.length} walls · ${PLAN.columnRows.length * PLAN.columnXs.length} columns · ${PLAN.podium.w}×${PLAN.podium.d}m podium`);

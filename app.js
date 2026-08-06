@@ -43,6 +43,10 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.2 (2026-08-06) the keyboard actually works — arrows turn instead of
+//                    strafing, any movement key starts the walk, and
+//                    turning is time-based so it is the same speed on a
+//                    120Hz laptop as a 60Hz one.
 //   4.0 (2026-08-06) the whole estate, at a glance — 17 systems from the
 //                    Axiom page that were built and shipped but never
 //                    monitored are now on the board (43 live), pipeline
@@ -114,7 +118,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.1';
+const NON_VERSION = '4.2';
 window.NON_VERSION = NON_VERSION;
 // Stamp the build into the room HUD as early as possible — this element
 // is the answer to "am I actually seeing the new version?".
@@ -6464,6 +6468,7 @@ document.addEventListener('mousemove', (e) => {
 }, { passive: true });
 
 document.addEventListener('pointerlockchange', () => {
+  document.body.classList.toggle('pointer-locked', !!document.pointerLockElement);
   // Esc releases the lock; walk mode should follow it out rather than
   // leaving you moving with an invisible cursor loose on screen.
   if (WALK.enabled && !document.pointerLockElement && !IS_TOUCH) setWalk(false);
@@ -6477,6 +6482,26 @@ window.addEventListener('keydown', (e) => {
   if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
   // Same key that starts a walk in most games.
   if ((e.key === 'v' || e.key === 'V') && document.body.dataset.view === 'room') setWalk(!WALK.enabled);
+
+  // Pressing a movement key IS the request to move. Requiring you to
+  // find the WALK chip first is a mode you have to discover before the
+  // controls do anything — press an arrow, nothing happens, conclude the
+  // keyboard is not wired up. Pointer lock is deliberately NOT grabbed
+  // here: the keyboard alone should not steal the cursor. Press V or the
+  // chip when you want mouse-look too.
+  if (document.body.dataset.view !== 'room' || WALK.enabled) return;
+  if (document.getElementById('modal')?.classList.contains('in')) return;
+  if (document.getElementById('drawer')?.classList.contains('in')) return;
+  const k = e.key.toLowerCase();
+  if (['w', 'a', 's', 'd', 'q', 'e',
+       'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) {
+    WALK.enabled = true;
+    WALK.teleport(camera.position.x, camera.position.z);
+    document.body.classList.add('walking');
+    const btn = document.getElementById('walk-btn');
+    if (btn) { btn.classList.add('on'); btn.setAttribute('aria-pressed', 'true'); }
+    try { window.__discover?.('walk'); } catch (_) {}
+  }
 });
 
 // ════════════════════════════════════════════════════════
@@ -6517,11 +6542,26 @@ window.addEventListener('keydown', (e) => {
        () => { WALK.stick = null; });
 
   // Turning is a held rotation, not a jump — a 90° snap loses you.
-  let turn = 0;
-  hold(document.getElementById('nav-left'),  () => { turn = 1; },  () => { turn = 0; });
-  hold(document.getElementById('nav-right'), () => { turn = -1; }, () => { turn = 0; });
-  (function spin() {
-    if (turn) target.y += turn * 0.028;
+  // Turning is shared by the on-screen arrows and the keyboard arrows,
+  // and it is time-based rather than per-frame: at 0.028 rad/frame a
+  // 120Hz laptop turned twice as fast as a 60Hz one, which is exactly
+  // the kind of thing that feels "not synchronised" without being
+  // nameable. 1.9 rad/s is a brisk but controllable turn — a full
+  // circle in about 3.3 seconds.
+  let padTurn = 0;
+  const TURN_RATE = 1.9;
+  hold(document.getElementById('nav-left'),  () => { padTurn = 1; },  () => { padTurn = 0; });
+  hold(document.getElementById('nav-right'), () => { padTurn = -1; }, () => { padTurn = 0; });
+
+  let lastSpin = performance.now();
+  (function spin(now) {
+    now = now || performance.now();
+    const dt = Math.min((now - lastSpin) / 1000, 0.05);
+    lastSpin = now;
+    // Keyboard arrows and the pad add together, then clamp — holding
+    // both should not turn you twice as fast.
+    const t = Math.max(-1, Math.min(1, padTurn + WALK.turnInput()));
+    if (t) target.y += t * TURN_RATE * dt;
     requestAnimationFrame(spin);
   })();
 
