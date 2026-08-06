@@ -36,6 +36,8 @@ Default for `data-mode="guest"`. Must load fast on any phone. WebGL fallback →
 
 v3.0–v3.1 shipped real backend organs (fleet history, braind, Worker capture queue, BRAIN tile). Those matter. They are mostly invisible on first glance. The room geometry was still the May 2026 wireframe CAD — that is why the site "looked the same." Visible surface work is the open debt. Backend is not thrown out.
 
+**v3.2 scar (2026-08-06):** shipped dual-surface routing + discovery + "architectural mass" at `#0a0e14` on black. Deploy was real (`PAVILION` HUD label). Look was not. Dr Non could not tell the difference from May. Rule: if a visual change needs a hex debugger to prove, it did not ship. v3.3 lights the TV wall, paints charcoal fills, and puts the discovery chip where you cannot miss it.
+
 ## Conservation law
 
 `visitor experience = host OS XOR guest Pavilion` on first entry; both remain reachable by toggle. Host never loses the all-day OS. Guest never lands in a private dashboard that isn't for them.

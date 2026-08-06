@@ -36,11 +36,13 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
-//   3.2 (2026-08-06) drawing board — two surfaces made honest: host lands
-//                    in NON OS (all-day), guest lands in the Pavilion;
-//                    room gets architectural mass (not CAD-only wireframe);
-//                    quiet discovery counter + more eggs. Baby kept:
-//                    braind, fleet, sky, ground, aphorisms, furniture.
+//   3.3 (2026-08-06) Pavilion that you can actually see — charcoal walls,
+//                    gallery board behind the TVs, screens lit at ~80%
+//                    (were ghosted at 45%), solid furniture fills, discovery
+//                    chip impossible to miss. 3.2's "mass" was near-black
+//                    on black: shipped, real, and invisible. Fixed.
+//   3.2 (2026-08-06) dual-surface law + discovery counter + product law.
+//                    Routing/host-OS kept; room look was not enough.
 //   3.1 (2026-08-05) the second brain gets a body — braind pulses on the
 //                    M5 every 15 min (transfer online / compute offline),
 //                    BRAIN tile shows its vital signs; captures now queue
@@ -66,7 +68,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '3.2';
+const NON_VERSION = '3.3';
 window.NON_VERSION = NON_VERSION;
 
 // Discovery layer — wired once the HUD nodes exist (see boot below).
@@ -651,42 +653,70 @@ const placeAt = (obj, x, y, z) => { obj.position.set(x, y, z); return obj; };
   scene.add(wire);
 });
 
-// ── Pavilion mass (v3.2) ─────────────────────────────────
-// Wireframe alone reads as a 2019 CAD demo. Add dark architectural
-// planes so the room has volume; keep the edge lines as the signature.
-// MeshBasicMaterial — no lights, no shadows, cheap on mid-range phones.
+// ── Pavilion mass (v3.3) ─────────────────────────────────
+// v3.2 used #0a0e14 on black — mathematically present, optically nothing.
+// These fills must read at a glance: charcoal walls, lit gallery board,
+// amber crown. MeshBasicMaterial only — phone-cheap, no shadows.
+const PAV_MATS = { floor: null, wall: null, gallery: null };
 if (WEBGL_OK) {
-  const massMat = new THREE.MeshBasicMaterial({
-    color: 0x0a0e14, transparent: true, opacity: 0.88, side: THREE.DoubleSide, depthWrite: false,
+  PAV_MATS.floor = new THREE.MeshBasicMaterial({
+    color: 0x121820, side: THREE.DoubleSide,
   });
-  const floorMass = new THREE.Mesh(new THREE.PlaneGeometry(36, 36), massMat);
+  const floorMass = new THREE.Mesh(new THREE.PlaneGeometry(36, 36), PAV_MATS.floor);
   floorMass.rotation.x = -Math.PI / 2;
   floorMass.position.y = 0.002;
   scene.add(floorMass);
 
-  const wallMat = new THREE.MeshBasicMaterial({
-    color: 0x0a0e14, transparent: true, opacity: 0.72, side: THREE.DoubleSide, depthWrite: false,
+  PAV_MATS.wall = new THREE.MeshBasicMaterial({
+    color: 0x1a222e, side: THREE.DoubleSide,
   });
-  const backWall = new THREE.Mesh(new THREE.PlaneGeometry(20, 6.2), wallMat);
+  const backWall = new THREE.Mesh(new THREE.PlaneGeometry(20, 6.2), PAV_MATS.wall);
   backWall.position.set(0, 3.1, -10.04);
   scene.add(backWall);
-  const frontWall = new THREE.Mesh(new THREE.PlaneGeometry(20, 6.2), wallMat);
+  const frontWall = new THREE.Mesh(new THREE.PlaneGeometry(20, 6.2), PAV_MATS.wall);
   frontWall.position.set(0, 3.1, 9.54);
   scene.add(frontWall);
   [-9.54, 9.54].forEach(x => {
-    const side = new THREE.Mesh(new THREE.PlaneGeometry(40, 6.2), wallMat);
+    const side = new THREE.Mesh(new THREE.PlaneGeometry(40, 6.2), PAV_MATS.wall);
     side.position.set(x, 3.1, -0.5);
     side.rotation.y = Math.PI / 2;
     scene.add(side);
   });
 
-  // Amber key wash — a single soft plane as "window light", not a second accent.
-  const wash = new THREE.Mesh(
-    new THREE.PlaneGeometry(8, 0.08),
-    new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.14, depthWrite: false })
+  // Gallery board — the TV wall sits on a real surface, not void.
+  PAV_MATS.gallery = new THREE.MeshBasicMaterial({
+    color: 0x243041, side: THREE.DoubleSide,
+  });
+  const gallery = new THREE.Mesh(new THREE.PlaneGeometry(9.4, 4.6), PAV_MATS.gallery);
+  gallery.position.set(0, 2.55, -10.06);
+  scene.add(gallery);
+  const galFrame = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(9.55, 4.75, 0.04)),
+    matHover
   );
-  wash.position.set(0, 5.6, -9.9);
+  galFrame.position.set(0, 2.55, -10.05);
+  scene.add(galFrame);
+
+  // Amber crown — thick enough to read as architecture, not a 1px hair.
+  const wash = new THREE.Mesh(
+    new THREE.PlaneGeometry(9.4, 0.18),
+    new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.55, depthWrite: false })
+  );
+  wash.position.set(0, 5.05, -10.02);
   scene.add(wash);
+
+  _themeRedrawHooks.push(() => {
+    if (!PAV_MATS.floor) return;
+    if (CURRENT_THEME === 'dark') {
+      PAV_MATS.floor.color.setHex(0x121820);
+      PAV_MATS.wall.color.setHex(0x1a222e);
+      PAV_MATS.gallery.color.setHex(0x243041);
+    } else {
+      PAV_MATS.floor.color.setHex(0xe6e2d8);
+      PAV_MATS.wall.color.setHex(0xd8d3c8);
+      PAV_MATS.gallery.color.setHex(0xcfc9bb);
+    }
+  });
 }
 
 // ── Interactables registry ───────────────────────────────
@@ -714,6 +744,11 @@ function makeClickableGroup(kind, key, hitW, hitH, hitD, x, y, z) {
 {
   // Hit volume sits BELOW the cup's hit volume — table top at y=0.42, hit y range 0.0–0.45
   const { group, lines } = makeClickableGroup('furniture', 'coffee', 2.0, 0.45, 1.0, 0, 0.225, 1.5);
+  const topFill = new THREE.Mesh(
+    new THREE.BoxGeometry(2.0, 0.04, 1.0),
+    new THREE.MeshBasicMaterial({ color: 0x1a222e })
+  );
+  topFill.position.set(0, 0.02, 0); group.add(topFill);
   const top = new THREE.LineSegments(
     new THREE.EdgesGeometry(new THREE.BoxGeometry(2.0, 0.05, 1.0)), matFurni);
   top.position.set(0, 0.02, 0); group.add(top); lines.push(top);
@@ -756,6 +791,11 @@ function makeClickableGroup(kind, key, hitW, hitH, hitD, x, y, z) {
 // ── Furniture: pedestal + globe → LINKEDIN ───────────────
 {
   const { group, lines } = makeClickableGroup('furniture', 'pedestal', 0.9, 2.5, 0.9, 4.0, 1.0, -2);
+  const boxFill = new THREE.Mesh(
+    new THREE.BoxGeometry(0.38, 1.48, 0.38),
+    new THREE.MeshBasicMaterial({ color: 0x1a222e })
+  );
+  boxFill.position.set(0, -0.25, 0); group.add(boxFill);
   const box = new THREE.LineSegments(
     new THREE.EdgesGeometry(new THREE.BoxGeometry(0.4, 1.5, 0.4)), matFurni);
   box.position.set(0, -0.25, 0); group.add(box); lines.push(box);
@@ -767,6 +807,11 @@ function makeClickableGroup(kind, key, hitW, hitH, hitD, x, y, z) {
 // ── Furniture: bookshelf → CV ────────────────────────────
 {
   const { group, lines } = makeClickableGroup('furniture', 'bookshelf', 0.8, 3.4, 1.8, -7.0, 1.6, -2.2);
+  const shellFill = new THREE.Mesh(
+    new THREE.BoxGeometry(0.42, 3.15, 1.55),
+    new THREE.MeshBasicMaterial({ color: 0x151c28 })
+  );
+  group.add(shellFill);
   const shell = new THREE.LineSegments(
     new THREE.EdgesGeometry(new THREE.BoxGeometry(0.45, 3.2, 1.6)), matFurni);
   group.add(shell); lines.push(shell);
@@ -1643,6 +1688,14 @@ PROJECTS.forEach((p, i) => {
   const grp = new THREE.Group();
   grp.position.set(cx, cy, cz);
 
+  // Solid bezel behind the wire — screens read as objects, not empty frames.
+  const bezel = new THREE.Mesh(
+    new THREE.BoxGeometry(TV_W, TV_H, 0.04),
+    new THREE.MeshBasicMaterial({ color: 0x0a0e14 })
+  );
+  bezel.position.z = 0.01;
+  grp.add(bezel);
+
   const frame = new THREE.LineSegments(
     new THREE.EdgesGeometry(new THREE.BoxGeometry(TV_W, TV_H, 0.06)),
     matBright
@@ -1675,7 +1728,8 @@ PROJECTS.forEach((p, i) => {
     kind: 'tv',
     project: p,
     frame, screen, dot, dotMat, hit,
-    screenTargetOpacity: 0.45,
+    // v3.3: lit by default. 0.45 was a ghost wall — looked empty for years.
+    screenTargetOpacity: 0.82,
     baseMaterial: matBright,
   };
   scene.add(grp);
@@ -4807,7 +4861,7 @@ function animate() {
       const ud = hovered.userData;
       if (ud.kind === 'tv') {
         ud.frame.material = matBright;
-        ud.screenTargetOpacity = 0.45;
+        ud.screenTargetOpacity = 0.82;
       } else {
         ud.lines.forEach(l => l.material = ud.baseMaterial);
       }
@@ -4818,7 +4872,7 @@ function animate() {
       const ud = hovered.userData;
       if (ud.kind === 'tv') {
         ud.frame.material = matHover;
-        ud.screenTargetOpacity = 0.85;
+        ud.screenTargetOpacity = 1.0;
         tip.innerHTML = `${ud.project.code}<span class="url">${ud.project.title.toLowerCase()}</span>`;
       } else if (ud.kind === 'furniture') {
         ud.lines.forEach(l => l.material = matHover);

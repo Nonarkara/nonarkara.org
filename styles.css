@@ -1738,14 +1738,26 @@
     .hud-chip:active { background: rgba(245, 158, 11, 0.06); }
     .hud-chip-glyph { font-size: 11px; color: var(--amber); }
 
-    /* Discovery counter sits left of FOCUS so both chips share the top-right. */
+    /* Discovery chip — bottom center, amber, can't miss it.
+       Top-right twin to FOCUS was easy to overlook; this is the game. */
     #discover-chip {
-      right: calc(18px + var(--sar) + 108px);
+      top: auto;
+      right: auto;
+      left: 50%;
+      bottom: calc(72px + var(--sab));
+      transform: translateX(-50%);
+      border-color: var(--amber);
+      color: var(--amber);
+      min-width: 148px;
+      justify-content: center;
+      background: rgba(10, 14, 20, 0.92);
     }
+    #discover-chip .hud-chip-glyph { color: var(--amber); }
     .discover-toast {
       position: fixed;
-      top: calc(60px + var(--sat));
-      right: calc(18px + var(--sar));
+      bottom: calc(124px + var(--sab));
+      left: 50%;
+      transform: translateX(-50%) translateY(4px);
       z-index: 31;
       pointer-events: none;
       font-family: 'JetBrains Mono', monospace;
@@ -1753,18 +1765,17 @@
       letter-spacing: 0.18em;
       text-transform: uppercase;
       color: var(--amber);
-      background: var(--bg);
+      background: rgba(10, 14, 20, 0.96);
       border: 1px solid var(--amber);
-      padding: 10px 14px;
+      padding: 10px 16px;
       min-height: 44px;
       display: flex; align-items: center;
       opacity: 0;
-      transform: translateY(-4px);
       transition: opacity 180ms ease-out, transform 180ms ease-out;
     }
     .discover-toast.in {
       opacity: 1;
-      transform: translateY(0);
+      transform: translateX(-50%) translateY(0);
     }
 
     @media (max-width: 600px) {
@@ -1776,10 +1787,14 @@
         font-size: 9px;
       }
       #discover-chip {
-        right: calc(14px + var(--sar) + 96px);
+        top: auto;
+        right: auto;
+        left: 50%;
+        bottom: calc(64px + var(--sab));
+        min-width: 132px;
       }
       .discover-toast {
-        right: calc(14px + var(--sar));
+        bottom: calc(112px + var(--sab));
         font-size: 10px;
         min-height: 40px;
       }
