@@ -14,10 +14,21 @@
 
 import * as THREE from 'three';
 
+// OpenStreetMap raster tiles. Satellite imagery shows you what is
+// there; a street map shows you where you ARE — road names, the shape
+// of your own block, the lane you walked in on. That is the difference
+// between a photograph of the ground and knowing your position on it,
+// and it is what was asked for.
+//
+// OSM's tile policy is generous but not unlimited: attribution is
+// required and must be visible, and bulk downloading is not allowed. A
+// personal site pulling sixteen tiles when someone looks down is well
+// inside it. If this ever gets real traffic, move to a paid tile host
+// rather than leaning harder on a volunteer-funded one.
 const TILE_URL = (z, x, y) =>
-  `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+  `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
 
-export const ATTRIBUTION = 'ESRI · MAXAR · EARTHSTAR GEOGRAPHICS';
+export const ATTRIBUTION = '© OPENSTREETMAP CONTRIBUTORS';
 
 export const ZOOM = 16;          // ~600 m per tile at this latitude
 const GRID = 4;                  // 4×4 tiles ≈ 2.4 km across
@@ -145,6 +156,9 @@ export function buildGround(lineColor = 0xe6edf3, amber = 0xf59e0b, maxAnisotrop
 
   const scaleLabel = (lat) => {
     const m = Math.round(metresPerPixel(lat, ZOOM) * 256 * GRID);
+    // Attribution is appended by the caller, which already shows
+    // ATTRIBUTION alongside this label — adding it here too printed it
+    // twice.
     return m >= 1000 ? `${(m / 1000).toFixed(1)} KM ACROSS` : `${m} M ACROSS`;
   };
 

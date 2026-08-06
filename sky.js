@@ -442,6 +442,22 @@ export function buildSky(themeColor = 0xf5f5f0, amber = 0xf59e0b) {
 export const fadeTargets = (sky) =>
   [...sky.points, sky.figures, sky.sun, sky.moon, sky.follyRing, sky.horizon];
 
+// Which figure a star belongs to, if any. Built once from FIGURES so it
+// cannot drift from the lines actually drawn on the dome.
+let _figureOfStar = null;
+export function figureOfStar(name) {
+  if (!_figureOfStar) {
+    _figureOfStar = new Map();
+    for (const [fig, idxPairs] of Object.entries(FIGURES)) {
+      for (const i of idxPairs) {
+        const s = STARS[i];
+        if (s && !_figureOfStar.has(s[3])) _figureOfStar.set(s[3], fig);
+      }
+    }
+  }
+  return _figureOfStar.get(name) || null;
+}
+
 // Which star is nearest a given direction — for tapping a star.
 export function nearestStar(dir, site, date, maxDeg = 4) {
   let best = null, bestDot = Math.cos(maxDeg * D2R);

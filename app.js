@@ -4,6 +4,7 @@ import { buildPavilion, PLAN } from './pavilion.js';
 import { Walk, attachStick } from './walk.js';
 import { sunAltitude, paletteFor, fetchWeather, makeRain } from './daylight.js';
 import { poemForDate } from './poems.js';
+import * as STARLORE_MOD from './starlore.js';
 
 // ── Visitor tracker — fire-and-forget, one ping per session ──────────────────
 (function () {
@@ -40,6 +41,11 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   3.9 (2026-08-06) the sky teaches — tap a star and get how to find
+//                    its constellation, who drew it and why, and one true
+//                    fact with a number. The ground is OpenStreetMap now:
+//                    a photograph shows what is there, a street map shows
+//                    where you are.
 //   3.8 (2026-08-06) look up / look down stop scrambling — far plane was
 //                    100 with the star dome at 400, fog was tuned for a
 //                    20m box, the camera teleported to the origin on every
@@ -99,7 +105,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '3.8';
+const NON_VERSION = '3.9';
 window.NON_VERSION = NON_VERSION;
 // Stamp the build into the room HUD as early as possible — this element
 // is the answer to "am I actually seeing the new version?".
@@ -188,6 +194,7 @@ const I18N = {
     sky_here:        'here',
     sky_mag:         'mag',
     sky_folly:       'the one overhead',
+    sky_ly:          'light years',
     nav_walk:        'hold',
     walk:            'walk',
     os_brain:        'brain',
@@ -271,6 +278,7 @@ const I18N = {
     sky_here:        'ตรงนี้',
     sky_mag:         'ความสว่าง',
     sky_folly:       'ดวงที่อยู่เหนือหัว',
+    sky_ly:          'ปีแสง',
     nav_walk:        'กดค้าง',
     walk:            'เดิน',
     os_brain:        'สมอง',
@@ -354,6 +362,7 @@ const I18N = {
     sky_here:        '此处',
     sky_mag:         '星等',
     sky_folly:       '正上方的那一颗',
+    sky_ly:          '光年',
     nav_walk:        '按住',
     walk:            '漫步',
     os_brain:        '大脑',
@@ -5797,6 +5806,7 @@ function skyTap(clientX, clientY) {
   raycaster.setFromCamera(ndc, camera);
   const hit = SKY.mod.nearestStar(raycaster.ray.direction.clone().normalize(), SKY_SITE, new Date(), 5);
   const el = document.getElementById('sky-star');
+  const panel = document.getElementById('sky-lore');
   if (el) {
     el.textContent = hit
       ? `${hit.name.toUpperCase()} · ${t('sky_mag')} ${hit.mag.toFixed(2)}`
@@ -5804,6 +5814,30 @@ function skyTap(clientX, clientY) {
     if (hit && hit.name === SKY.mod.FOLLY.name) {
       el.textContent += ` · ${t('sky_folly')}`;
     }
+  }
+
+  // The teaching layer. A named dot is trivia; the point is what the
+  // shape meant to the people who drew it and one true thing about the
+  // object itself. Tapping empty sky clears it — silence is a state.
+  if (panel) {
+    if (!hit) { panel.classList.remove('in'); panel.innerHTML = ''; return true; }
+    const fig = SKY.mod.figureOfStar(hit.name);
+    const lore = fig ? STARLORE_MOD.loreFor(fig) : null;
+    const star = STARLORE_MOD.starNote(hit.name);
+    const esc = (x) => String(x).replace(/</g, '&lt;');
+    const rows = [];
+    if (star) {
+      rows.push(`<div class="lore-star">${esc(hit.name.toUpperCase())} · ${star.distance} ${t('sky_ly')}</div>`);
+      rows.push(`<div class="lore-note">${esc(star.note)}</div>`);
+    }
+    if (lore) {
+      rows.push(`<div class="lore-fig">${esc(fig.toUpperCase())}${lore.zh ? ` · ${esc(lore.zh)}` : ''}</div>`);
+      rows.push(`<div class="lore-see">${esc(lore.see)}</div>`);
+      rows.push(`<div class="lore-story">${esc(lore.story)}</div>`);
+      rows.push(`<div class="lore-fact">${esc(lore.fact)}</div>`);
+    }
+    if (rows.length) { panel.innerHTML = rows.join(''); panel.classList.add('in'); }
+    else { panel.classList.remove('in'); panel.innerHTML = ''; }
   }
   return true;
 }

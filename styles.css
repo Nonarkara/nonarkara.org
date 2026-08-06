@@ -3249,3 +3249,47 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
     body[data-ground="on"] .ground-hud * { color: #e6edf3; }
     body[data-sky="on"] .sky-exit,
     body[data-ground="on"] .sky-exit { border-color: rgba(230, 237, 243, 0.3); }
+
+    /* ── Star lore ────────────────────────────────────────────────
+       Reading matter, so it gets a readable measure and real leading —
+       not the mono-uppercase treatment the rest of the sky HUD uses.
+       Sits low so it never covers what you just pointed at. */
+    .sky-lore {
+      position: fixed;
+      left: 50%; transform: translateX(-50%) translateY(8px);
+      bottom: 96px;
+      width: min(520px, calc(100vw - 40px));
+      max-height: 42vh; overflow-y: auto;
+      padding: 14px 16px;
+      background: rgba(5, 7, 11, 0.82);
+      border: 1px solid rgba(230, 237, 243, 0.18);
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.25s ease-out, transform 0.25s ease-out;
+      z-index: 62;
+    }
+    .sky-lore.in { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
+    .sky-lore .lore-star {
+      font-size: 11px; letter-spacing: 0.2em; color: var(--amber);
+      margin-bottom: 4px;
+    }
+    .sky-lore .lore-fig {
+      font-size: 9px; letter-spacing: 0.28em; text-transform: uppercase;
+      color: rgba(230, 237, 243, 0.5);
+      margin: 12px 0 6px;
+    }
+    .sky-lore .lore-note,
+    .sky-lore .lore-see,
+    .sky-lore .lore-story,
+    .sky-lore .lore-fact {
+      font-size: 13px; line-height: 1.6;
+      color: rgba(230, 237, 243, 0.9);
+      margin-bottom: 7px;
+    }
+    /* "How to find it" is the sentence a friend would say first. */
+    .sky-lore .lore-see { color: #e6edf3; }
+    .sky-lore .lore-story { color: rgba(230, 237, 243, 0.72); }
+    @media (max-width: 640px) {
+      .sky-lore { bottom: 118px; max-height: 34vh; padding: 12px 14px; }
+      .sky-lore .lore-note, .sky-lore .lore-see,
+      .sky-lore .lore-story, .sky-lore .lore-fact { font-size: 12px; }
+    }
