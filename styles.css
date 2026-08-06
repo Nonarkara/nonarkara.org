@@ -3008,3 +3008,33 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
       opacity: 0.75;
       font-variant-numeric: tabular-nums;
     }
+
+    /* WALK — mode switch and the phone thumbstick.
+       The stick sits bottom-left because that is where a left thumb
+       already rests when a phone is held in two hands. */
+    .walk-btn.on { color: var(--amber); border-color: var(--amber); }
+    body.walking { cursor: none; }
+
+    .walk-stick {
+      position: fixed;
+      left: 22px; bottom: 90px;
+      z-index: 60;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.18s ease-out;
+    }
+    .walk-stick.in { opacity: 1; pointer-events: auto; }
+    .walk-stick-base {
+      width: 116px; height: 116px;
+      border: 1px solid var(--line);
+      border-radius: 50%;              /* a true circle — the one shape allowed to round */
+      display: flex; align-items: center; justify-content: center;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .walk-stick-knob {
+      width: 42px; height: 42px;
+      border: 1px solid var(--amber);
+      border-radius: 50%;
+      transition: transform 0.06s linear;
+    }
+    @media (min-width: 900px) { .walk-stick { display: none; } }

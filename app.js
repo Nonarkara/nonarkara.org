@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { createDiscovery } from './discover.js';
+import { buildPavilion, PLAN } from './pavilion.js';
+import { Walk, attachStick } from './walk.js';
 
 // ── Visitor tracker — fire-and-forget, one ping per session ──────────────────
 (function () {
@@ -36,6 +38,12 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   3.6 (2026-08-06) the actual Barcelona plan, at real scale — 54×24m
+//                    travertine podium, 3.1m clear height, eight chrome
+//                    cruciform columns, onyx dorado as the one amber,
+//                    large pool east and enclosed water court west. And
+//                    you can walk it: WASD + pointer lock, thumbstick on
+//                    phone, per-axis collision so you slide along walls.
 //   3.5 (2026-08-06) you can finally SEE which build you are running —
 //                    version stamp in the room HUD (the plan view has had
 //                    one for months; the room never did). Plus self-heal:
@@ -79,7 +87,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '3.5';
+const NON_VERSION = '3.6';
 window.NON_VERSION = NON_VERSION;
 // Stamp the build into the room HUD as early as possible — this element
 // is the answer to "am I actually seeing the new version?".
@@ -168,6 +176,7 @@ const I18N = {
     sky_here:        'here',
     sky_mag:         'mag',
     sky_folly:       'the one overhead',
+    walk:            'walk',
     os_brain:        'brain',
     brain_asleep:    'asleep',
     os_brief:        'brief',
@@ -249,6 +258,7 @@ const I18N = {
     sky_here:        'ตรงนี้',
     sky_mag:         'ความสว่าง',
     sky_folly:       'ดวงที่อยู่เหนือหัว',
+    walk:            'เดิน',
     os_brain:        'สมอง',
     brain_asleep:    'หลับอยู่',
     os_brief:        'สรุปเช้า',
@@ -330,6 +340,7 @@ const I18N = {
     sky_here:        '此处',
     sky_mag:         '星等',
     sky_folly:       '正上方的那一颗',
+    walk:            '漫步',
     os_brain:        '大脑',
     brain_asleep:    '沉睡中',
     os_brief:        '简报',
@@ -651,108 +662,41 @@ const wirebox = (w, h, d, mat = matFurni) =>
 const placeAt = (obj, x, y, z) => { obj.position.set(x, y, z); return obj; };
 
 // ── THE PAVILION ─────────────────────────────────────────
-// Mies, Barcelona, 1929. The move that makes it that building and not
-// a room: the roof floats on free-standing planes that never meet, so
-// space runs past them and out. A box with walls is a box. This is the
-// opposite of a box.
-//
-// v3.2/v3.3 got this backwards — they added four solid walls to the old
-// enclosure and kept the six-metre ceiling and the 140-unit grid plain,
-// which is why the room still read as the room from four months ago.
-// The enclosure is gone here. What is left is a plinth, a low floating
-// roof, and five planes standing free of each other.
-const PAV = {
-  W: 30, D: 18,        // plinth
-  ROOF_Y: 3.6,         // low. Domestic. You can feel the ceiling.
-  ROOF_W: 26, ROOF_D: 15,
-};
-const PAV_MATS = { floor: null, wall: null, gallery: null, roof: null };
-
-{
-  // Plinth grid — 30×18 at 1.5m, not 140 units at 2m. A defined ground
-  // you stand on, not an infinite plain you float above.
-  const grid = new THREE.GridHelper(PAV.W, Math.round(PAV.W / 1.5), 0xf5f5f0, 0xf5f5f0);
-  grid.material = matDim;
-  grid.scale.z = PAV.D / PAV.W;
-  scene.add(grid);
-
-  // The plinth edge. Mies' podium reads because it ends somewhere.
-  const edge = new THREE.LineSegments(
-    new THREE.EdgesGeometry(new THREE.BoxGeometry(PAV.W, 0.12, PAV.D)), matFurni);
-  edge.position.y = -0.06;
-  scene.add(edge);
-}
-
+// The plan now lives in pavilion.js — real Barcelona geometry at real
+// scale, 54×24m podium, 3.1m clear height, eight cruciform columns,
+// walls that never touch. Built from the same numbers the walk
+// controller collides against, so there can be no invisible wall and no
+// wall you can walk through.
+let PAVILION = null;
 if (WEBGL_OK) {
-  PAV_MATS.floor = new THREE.MeshBasicMaterial({ color: 0x121820, side: THREE.DoubleSide });
-  const floorMass = new THREE.Mesh(new THREE.PlaneGeometry(PAV.W, PAV.D), PAV_MATS.floor);
-  floorMass.rotation.x = -Math.PI / 2;
-  floorMass.position.y = 0.002;
-  scene.add(floorMass);
-
-  // The floating roof. Finite, so you see void past its edge — that is
-  // what makes it float instead of enclose.
-  PAV_MATS.roof = new THREE.MeshBasicMaterial({ color: 0x0d131b, side: THREE.DoubleSide });
-  const roof = new THREE.Mesh(new THREE.PlaneGeometry(PAV.ROOF_W, PAV.ROOF_D), PAV_MATS.roof);
-  roof.rotation.x = -Math.PI / 2;
-  roof.position.y = PAV.ROOF_Y;
-  scene.add(roof);
-  const roofEdge = new THREE.LineSegments(
-    new THREE.EdgesGeometry(new THREE.BoxGeometry(PAV.ROOF_W, 0.1, PAV.ROOF_D)), matFurni);
-  roofEdge.position.y = PAV.ROOF_Y;
-  scene.add(roofEdge);
-
-  // Five free-standing planes. None touches another; every gap is a way
-  // through. Offsets are deliberate — a pinwheel, not a perimeter.
-  //        x      z     rotY          w     h    role
-  const PLANES = [
-    [  0.0, -9.6,  0,            11.0, 3.2, 'gallery'],   // behind the work wall
-    [ -8.2, -3.0,  Math.PI / 2,   7.0, 3.2, 'west'],      // credentials side
-    [  8.6,  0.5,  Math.PI / 2,   9.0, 3.2, 'east'],      // voice / portrait side
-    [ -8.6,  4.2,  Math.PI / 2,   6.0, 2.4, 'south-w'],   // left flank, low — parallel to the sightline
-    [  6.8,  8.6,  0,             5.0, 3.2, 'south-e'],   // behind your shoulder — found by turning
-  ];
-  PAV_MATS.wall = new THREE.MeshBasicMaterial({ color: 0x1a222e, side: THREE.DoubleSide });
-  for (const [x, z, ry, w, h, role] of PLANES) {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
-      role === 'gallery' ? (PAV_MATS.gallery = new THREE.MeshBasicMaterial({
-        color: 0x243041, side: THREE.DoubleSide })) : PAV_MATS.wall);
-    m.position.set(x, h / 2, z);
-    m.rotation.y = ry;
-    scene.add(m);
-    // Hairline edge — the plane has to end visibly or it reads as fog.
-    const e = new THREE.LineSegments(
-      new THREE.EdgesGeometry(new THREE.PlaneGeometry(w, h)), matFurni);
-    e.position.copy(m.position);
-    e.rotation.y = ry;
-    scene.add(e);
-  }
-
-  // The one amber line: a floor seam running the length of the plinth,
-  // past the planes and out. Law 2 — the grid holds, one move breaks it.
-  const seam = new THREE.Mesh(
-    new THREE.PlaneGeometry(PAV.W, 0.05),
-    new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.5, depthWrite: false })
-  );
-  seam.rotation.x = -Math.PI / 2;
-  seam.position.set(0, 0.006, 1.2);
-  scene.add(seam);
-
+  PAVILION = buildPavilion(THREE, scene, { dark: CURRENT_THEME !== 'light' });
   _themeRedrawHooks.push(() => {
-    if (!PAV_MATS.floor) return;
-    if (CURRENT_THEME === 'dark') {
-      PAV_MATS.floor.color.setHex(0x121820);
-      PAV_MATS.wall.color.setHex(0x1a222e);
-      PAV_MATS.gallery.color.setHex(0x243041);
-      PAV_MATS.roof.color.setHex(0x0d131b);
-    } else {
-      PAV_MATS.floor.color.setHex(0xe6e2d8);
-      PAV_MATS.wall.color.setHex(0xd8d3c8);
-      PAV_MATS.gallery.color.setHex(0xcfc9bb);
-      PAV_MATS.roof.color.setHex(0xeeeae0);
-    }
+    // Rebuild materials in place rather than the whole building.
+    const dark = CURRENT_THEME !== 'light';
+    const M = PAVILION.materials;
+    M.travertine.color.setHex(dark ? 0x2a2b28 : 0xd8d2c4);
+    M.green.color.setHex(dark ? 0x14201a : 0x5d7a68);
+    M.chrome.color.setHex(dark ? 0x8e9aa6 : 0xaab4bd);
+    M.water.color.setHex(dark ? 0x080d12 : 0xc4cdd4);
+    M.podium.color.setHex(dark ? 0x1c1e1c : 0xe6e1d5);
+    M.roof.color.setHex(dark ? 0x121413 : 0xeae5db);
+    M.glass.color.setHex(dark ? 0x223040 : 0xbcc8d2);
+    // onyx stays amber in both themes — it is the one accent.
   });
 }
+
+// You arrive on the podium, not floating in the middle of the room.
+camera.position.set(PLAN.spawn.x, PLAN.spawn.y, PLAN.spawn.z);
+camera.lookAt(PLAN.spawn.lookAt.x, PLAN.spawn.lookAt.y, PLAN.spawn.lookAt.z);
+// baseRot was sampled from the camera before this line ran, so without
+// this the render loop would ease straight back to facing -Z and throw
+// away the arrival view.
+baseRotX = camera.rotation.x;
+baseRotY = camera.rotation.y;
+
+const WALK = new Walk(camera, PAVILION ? PAVILION.colliders : [], PLAN.spawn);
+WALK.attach();
+window.__walk = WALK;
 
 // ── Interactables registry ───────────────────────────────
 const INTERACTABLES = [];
@@ -974,10 +918,10 @@ let CHAND_GROUP = null;
   group.add(outer);
   group.add(inner);
 
-  // Rod from cube top up to the roof (PAV.ROOF_Y)
+  // Rod from cube top up to the roof slab
   const rodG = new THREE.BufferGeometry().setFromPoints([
     new THREE.Vector3(X, Y + 0.21, Z),
-    new THREE.Vector3(X, PAV.ROOF_Y, Z),
+    new THREE.Vector3(X, PLAN.roof.y, Z),
   ]);
   scene.add(new THREE.Line(rodG, matDim));
 
@@ -1437,8 +1381,10 @@ function createTicker(side, y, scrollSpeed) {
     side: THREE.FrontSide, depthWrite: false
   });
   const plane = new THREE.Mesh(new THREE.PlaneGeometry(14, 0.34), mat);
-  plane.position.set(side === 'left' ? -9.45 : 9.45, y, -1);
-  plane.rotation.y = side === 'left' ? Math.PI / 2 : -Math.PI / 2;
+  // Out at the podium edge, flat to the long axis — a band you read on
+  // the way in, not a wall wrapping the room.
+  plane.position.set(side === 'left' ? -18 : 16, y, side === 'left' ? -11.6 : 11.6);
+  plane.rotation.y = side === 'left' ? 0 : Math.PI;
   scene.add(plane);
 
   const tckr = { plane, mat, tex, ctx, cv, scrollSpeed, side };
@@ -1463,13 +1409,16 @@ function setTickerText(t, text) {
   t.tex.needsUpdate = true;
 }
 
-// Spawn six tickers — three rows per wall
-const tckrFx      = createTicker('left',  1.85, 0.00018);  // FX (medium)
-const tckrCrypto  = createTicker('left',  2.65, 0.00012);  // Crypto (slow, top)
-const tckrWx      = createTicker('left',  1.05, 0.00024);  // Weather/local (fast)
-const tckrNews    = createTicker('right', 2.65, 0.00012);  // Headlines (slow, top)
-const tckrCommits = createTicker('right', 1.85, 0.00018);  // Git activity (medium)
-const tckrStats   = createTicker('right', 1.05, 0.00024);  // Ops stats (fast)
+// Two tickers, not six. Six 14m ribbons wrapped the walls of the old
+// box; the Pavilion has no continuous wall to wrap and they read as the
+// enclosure returning. All six data feeds still exist — they share the
+// two surfaces via setTickerText, so nothing was lost but the clutter.
+const tckrFx      = createTicker('left',  2.65, 0.00018);  // FX + crypto + weather
+const tckrCrypto  = tckrFx;
+const tckrWx      = tckrFx;
+const tckrNews    = createTicker('right', 2.65, 0.00012);  // headlines + ops
+const tckrCommits = tckrNews;
+const tckrStats   = tckrNews;
 
 // Initial placeholder text so the walls aren't blank during first fetch
 setTickerText(tckrFx,      ' • • •  USD/THB  •  EUR/THB  •  GBP/THB  •  JPY/THB  • • •  ');
@@ -1722,9 +1671,11 @@ WALL_TVS.forEach((p, i) => {
   const col = i % COLS;
   const row = Math.floor(i / COLS);
   const colsThisRow = (row === ROWS - 1) ? LAST_ROW_COUNT : COLS;
-  const cx = (col - (colsThisRow - 1) / 2) * (TV_W + GAP_X);
-  const cy = 1.75 + ((ROWS - 1) / 2 - row) * (TV_H + GAP_Y);
-  const cz = -9.5;
+  const cx = -5.5 + (col - (colsThisRow - 1) / 2) * (TV_W + GAP_X);
+  // Hung on the long travertine wall (PLAN wall 'north', z=-6.9,
+  // 0.28 thick → face at -6.75). Centre of the wall run, at eye height.
+  const cy = 1.60 + ((ROWS - 1) / 2 - row) * (TV_H + GAP_Y);
+  const cz = -6.74;
 
   const grp = new THREE.Group();
   grp.position.set(cx, cy, cz);
@@ -1981,7 +1932,10 @@ WALL_TVS.forEach((p, i) => {
 
   // 100-inch projection screen — bigger than the in-room TVs put
   // together. Sits centered on the front wall.
-  const APH_W = 14, APH_H = 2.8;
+  // Sized to the onyx wall it now lives on (6m run, 3.1m tall). His
+  // voice on the only lit stone in the building — the reason the onyx
+  // is the one amber.
+  const APH_W = 5.6, APH_H = 1.5;
   const aphCanvas = document.createElement('canvas');
   aphCanvas.width = 2400; aphCanvas.height = 380;
   const actx = aphCanvas.getContext('2d');
@@ -2306,7 +2260,7 @@ WALL_TVS.forEach((p, i) => {
     // Suspension line from ceiling to badge top
     const chainGeom = new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(0,  BADGE_R + 0.02, 0),
-      new THREE.Vector3(0,  PAV.ROOF_Y - BADGE_Y, 0),
+      new THREE.Vector3(0,  PLAN.roof.y - BADGE_Y, 0),
     ]);
     const chain = new THREE.Line(chainGeom, matFurni);
     group.add(chain); lines.push(chain);
@@ -4976,7 +4930,19 @@ function animate() {
   const wantX = (drivenX + baseRotX) * (1 - b) + skyPitch * b;
   camera.rotation.y += (wantY - camera.rotation.y) * 0.05;
   camera.rotation.x += (wantX - camera.rotation.x) * 0.05;
-  camera.position.y = 1.7 + Math.sin(t * 0.4) * 0.015;
+
+  // Walking owns the camera's position when it is on; otherwise the room
+  // keeps its slow idle float. Movement is relative to where you are
+  // looking, so it reads the yaw the line above just settled.
+  if (WALK.enabled) {
+    const now = performance.now();
+    const dt = Math.min((now - (window.__lastWalkT || now)) / 1000, 0.05);
+    window.__lastWalkT = now;
+    WALK.update(dt, camera.rotation.y);
+  } else {
+    window.__lastWalkT = performance.now();
+    camera.position.y = 1.7 + Math.sin(t * 0.4) * 0.015;
+  }
 
   // Ambient particles
   if (particles.visible) {
@@ -6158,3 +6124,77 @@ document.getElementById('os-brain')?.addEventListener('click', () => {
 
 loadBrainStatus();
 setInterval(loadBrainStatus, 5 * 60_000);
+
+// ════════════════════════════════════════════════════════
+// WALK MODE — explore the Pavilion on foot
+//
+// A mode with a visible switch rather than a click-to-lock, because
+// clicking already means "open this thing" and a control that means two
+// things depending on what is under the cursor is a Norman door.
+//
+// Desktop: pointer lock, mouse looks, WASD moves, Esc leaves.
+// Phone:   a thumbstick appears bottom-left; drag anywhere to look,
+//          which is the gesture the room already used.
+// ════════════════════════════════════════════════════════
+
+// Coarse pointer, not screen width: a small window on a desktop still
+// wants pointer lock, and a large tablet still wants the thumbstick.
+const IS_TOUCH = window.matchMedia?.('(pointer: coarse)').matches
+  ?? ('ontouchstart' in window);
+
+let stickEl = null;
+
+function setWalk(on) {
+  if (on === WALK.enabled) return;
+  WALK.enabled = on;
+  document.body.classList.toggle('walking', on);
+
+  const btn = document.getElementById('walk-btn');
+  if (btn) {
+    btn.classList.toggle('on', on);
+    btn.setAttribute('aria-pressed', String(on));
+  }
+
+  if (on) {
+    // Start from wherever the camera already is, so entering walk mode
+    // never teleports you.
+    WALK.teleport(camera.position.x, camera.position.z);
+    const cvs = renderer.domElement;
+    if (!IS_TOUCH && cvs.requestPointerLock) {
+      try { cvs.requestPointerLock(); } catch (_) {}
+    }
+    if (IS_TOUCH && !stickEl) stickEl = attachStick(WALK);
+    if (stickEl) stickEl.classList.add('in');
+    try { window.__discover?.('walk'); } catch (_) {}
+  } else {
+    WALK.stick = null;
+    if (stickEl) stickEl.classList.remove('in');
+    if (document.pointerLockElement) document.exitPointerLock();
+  }
+}
+window.__setWalk = setWalk;
+
+// Full mouse-look while the pointer is locked. Without the lock the
+// existing gentle parallax stays exactly as it was.
+document.addEventListener('mousemove', (e) => {
+  if (!WALK.enabled || !document.pointerLockElement) return;
+  target.y -= e.movementX * 0.0022;
+  target.x -= e.movementY * 0.0018;
+  target.x = Math.max(-0.85, Math.min(0.85, target.x));
+}, { passive: true });
+
+document.addEventListener('pointerlockchange', () => {
+  // Esc releases the lock; walk mode should follow it out rather than
+  // leaving you moving with an invisible cursor loose on screen.
+  if (WALK.enabled && !document.pointerLockElement && !IS_TOUCH) setWalk(false);
+});
+
+document.getElementById('walk-btn')?.addEventListener('click', () => setWalk(!WALK.enabled));
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && WALK.enabled) setWalk(false);
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  // Same key that starts a walk in most games.
+  if ((e.key === 'v' || e.key === 'V') && document.body.dataset.view === 'room') setWalk(!WALK.enabled);
+});

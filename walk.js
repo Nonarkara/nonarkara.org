@@ -1,0 +1,184 @@
+/**
+ * WALKING — first-person movement through the Pavilion.
+ *
+ * Counter-Strike controls, because everyone already knows them: WASD to
+ * move, mouse to look, shift to walk slowly, pointer lock so the cursor
+ * does not run off the screen. On a phone: a thumb stick on the left,
+ * drag anywhere on the right to look.
+ *
+ * Three things make movement feel right rather than technically correct:
+ *
+ *   - Acceleration and friction, not on/off velocity. Instant start and
+ *     stop reads as a camera being teleported, not a person walking.
+ *   - Collision resolved per-axis. Slide along a wall instead of
+ *     stopping dead on it — the single biggest difference between
+ *     movement that feels good and movement that feels broken.
+ *   - Head bob, tiny. 3cm at 1.9Hz. You do not notice it; you notice its
+ *     absence, which reads as floating.
+ *
+ * The controller owns position only. Look direction stays with the
+ * existing camera code so gyro, drag, the sky and the dolly keep working
+ * exactly as they did.
+ */
+
+const EYE = 1.65;          // eye height, metres
+const RADIUS = 0.34;       // how fat you are, for collision
+const ACCEL = 42;          // m/s²
+const FRICTION = 11;
+const SPEED = 4.2;         // m/s — a brisk indoor walk
+const SPEED_SLOW = 1.7;
+const BOB_HZ = 1.9;
+const BOB_M = 0.03;
+
+export class Walk {
+  constructor(camera, colliders, spawn) {
+    this.camera = camera;
+    this.colliders = colliders || [];
+    this.pos = { x: spawn.x, z: spawn.z };
+    this.vel = { x: 0, z: 0 };
+    this.keys = new Set();
+    this.stick = null;        // {dx, dy} from the touch thumbstick
+    this.enabled = false;
+    this.bobT = 0;
+    this.moved = false;       // has the user ever actually walked?
+    this._onKeyDown = this._onKeyDown.bind(this);
+    this._onKeyUp = this._onKeyUp.bind(this);
+  }
+
+  attach() {
+    window.addEventListener('keydown', this._onKeyDown);
+    window.addEventListener('keyup', this._onKeyUp);
+  }
+
+  detach() {
+    window.removeEventListener('keydown', this._onKeyDown);
+    window.removeEventListener('keyup', this._onKeyUp);
+    this.keys.clear();
+  }
+
+  _typing(e) {
+    const t = e.target;
+    return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+  }
+
+  _onKeyDown(e) {
+    if (this._typing(e)) return;
+    const k = e.key.toLowerCase();
+    if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'shift'].includes(k)) {
+      // Arrow keys scroll the page underneath; WASD must not be swallowed
+      // by anything else either once you are walking.
+      if (k !== 'shift') e.preventDefault();
+      this.keys.add(k);
+    }
+  }
+
+  _onKeyUp(e) {
+    this.keys.delete(e.key.toLowerCase());
+  }
+
+  /** Axis-aligned box test with the player treated as a circle-ish box. */
+  _blocked(x, z) {
+    for (const c of this.colliders) {
+      if (x > c.minX - RADIUS && x < c.maxX + RADIUS &&
+          z > c.minZ - RADIUS && z < c.maxZ + RADIUS) return true;
+    }
+    return false;
+  }
+
+  /**
+   * @param dt      seconds since last frame
+   * @param yaw     camera yaw in radians — movement is relative to gaze
+   */
+  update(dt, yaw) {
+    if (!this.enabled) return;
+    dt = Math.min(dt, 0.05);   // a backgrounded tab must not teleport you
+
+    const k = this.keys;
+    let fwd = 0, str = 0;
+    if (k.has('w') || k.has('arrowup')) fwd += 1;
+    if (k.has('s') || k.has('arrowdown')) fwd -= 1;
+    if (k.has('a') || k.has('arrowleft')) str -= 1;
+    if (k.has('d') || k.has('arrowright')) str += 1;
+    if (this.stick) { fwd += -this.stick.dy; str += this.stick.dx; }
+
+    const mag = Math.hypot(fwd, str);
+    if (mag > 1) { fwd /= mag; str /= mag; }
+
+    const top = k.has('shift') ? SPEED_SLOW : SPEED;
+
+    // Camera yaw: -Z is forward in three.js, so forward is (-sin, -cos).
+    const sin = Math.sin(yaw), cos = Math.cos(yaw);
+    const wishX = (-sin * fwd) + (cos * str);
+    const wishZ = (-cos * fwd) - (sin * str);
+
+    if (mag > 0.01) {
+      this.vel.x += wishX * ACCEL * dt;
+      this.vel.z += wishZ * ACCEL * dt;
+      const sp = Math.hypot(this.vel.x, this.vel.z);
+      if (sp > top) { this.vel.x = (this.vel.x / sp) * top; this.vel.z = (this.vel.z / sp) * top; }
+      this.moved = true;
+    } else {
+      const drop = Math.max(0, 1 - FRICTION * dt);
+      this.vel.x *= drop;
+      this.vel.z *= drop;
+      if (Math.abs(this.vel.x) < 0.001) this.vel.x = 0;
+      if (Math.abs(this.vel.z) < 0.001) this.vel.z = 0;
+    }
+
+    // Per-axis resolution — this is what lets you slide along a wall
+    // instead of sticking to it.
+    const nx = this.pos.x + this.vel.x * dt;
+    if (!this._blocked(nx, this.pos.z)) this.pos.x = nx; else this.vel.x = 0;
+    const nz = this.pos.z + this.vel.z * dt;
+    if (!this._blocked(this.pos.x, nz)) this.pos.z = nz; else this.vel.z = 0;
+
+    const speed = Math.hypot(this.vel.x, this.vel.z);
+    this.bobT += dt * speed * BOB_HZ;
+    const bob = Math.sin(this.bobT * Math.PI * 2) * BOB_M * Math.min(1, speed / SPEED);
+
+    this.camera.position.set(this.pos.x, EYE + bob, this.pos.z);
+  }
+
+  teleport(x, z) {
+    this.pos.x = x; this.pos.z = z;
+    this.vel.x = 0; this.vel.z = 0;
+  }
+}
+
+/**
+ * The on-screen thumbstick. Phones have no WASD, and a d-pad of buttons
+ * is miserable — a stick you can put your thumb anywhere on the left
+ * half and drag is the only control that works one-handed.
+ */
+export function attachStick(walk, root = document.body) {
+  const el = document.createElement('div');
+  el.className = 'walk-stick';
+  el.innerHTML = '<div class="walk-stick-base"><div class="walk-stick-knob"></div></div>';
+  root.appendChild(el);
+  const base = el.querySelector('.walk-stick-base');
+  const knob = el.querySelector('.walk-stick-knob');
+  const R = 46;
+  let id = null;
+
+  const set = (dx, dy) => {
+    knob.style.transform = `translate(${dx * R}px, ${dy * R}px)`;
+    walk.stick = (dx || dy) ? { dx, dy } : null;
+  };
+
+  base.addEventListener('pointerdown', (e) => {
+    id = e.pointerId; base.setPointerCapture(id); e.preventDefault();
+  });
+  base.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== id) return;
+    const r = base.getBoundingClientRect();
+    let dx = (e.clientX - (r.left + r.width / 2)) / R;
+    let dy = (e.clientY - (r.top + r.height / 2)) / R;
+    const m = Math.hypot(dx, dy);
+    if (m > 1) { dx /= m; dy /= m; }
+    set(dx, dy);
+  });
+  const end = (e) => { if (e.pointerId === id) { id = null; set(0, 0); } };
+  base.addEventListener('pointerup', end);
+  base.addEventListener('pointercancel', end);
+  return el;
+}
