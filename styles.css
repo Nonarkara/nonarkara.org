@@ -3038,3 +3038,170 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
       transition: transform 0.06s linear;
     }
     @media (min-width: 900px) { .walk-stick { display: none; } }
+
+    /* WALKING CONTROLS — always present in the room, not a mode you have
+       to discover. Hold the big one to walk; the arrows turn you on the
+       spot; drag anywhere still looks around. 44px minimum everywhere. */
+    /* 44px is the Apple HIG floor and also the ceiling here — the pad is
+       a control, not furniture. It must not own the view it exists to
+       let you move through. */
+    .nav-pad {
+      position: fixed;
+      left: 50%; transform: translateX(-50%);
+      bottom: 96px;
+      z-index: 58;
+      display: grid;
+      grid-template-columns: 44px 66px 44px;
+      grid-template-rows: 44px 26px;
+      grid-template-areas: "l f r" ". b .";
+      gap: 6px;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.22s ease-out;
+    }
+    body[data-view="room"] .nav-pad { opacity: 1; pointer-events: auto; }
+    .nav-pad button {
+      background: rgba(10, 14, 20, 0.4);
+      border: 1px solid var(--line);
+      color: var(--fg);
+      font-family: inherit;
+      cursor: pointer;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 2px;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: border-color 0.12s, color 0.12s;
+    }
+    .nav-pad button:active,
+    .nav-pad button.held { border-color: var(--amber); color: var(--amber); }
+    .nav-left  { grid-area: l; } .nav-fwd { grid-area: f; }
+    .nav-right { grid-area: r; } .nav-back { grid-area: b; }
+    #nav-left  { grid-area: l; font-size: 15px; }
+    #nav-right { grid-area: r; font-size: 15px; }
+    #nav-fwd   { grid-area: f; }
+    #nav-back  { grid-area: b; font-size: 9px; }
+    .nav-fwd-label {
+      font-size: 7px; letter-spacing: 0.16em; color: var(--dim);
+    }
+    #nav-fwd.held .nav-fwd-label { color: var(--amber); }
+    /* Out of the way of the sky/ground affordances on short screens. */
+    @media (max-height: 620px) { .nav-pad { bottom: 74px; } }
+
+    /* ── Room HUD layout, resolved ────────────────────────────────
+       Adding the nav pad exposed three overlaps that were already
+       marginal: the brand sat on the status line, and LOOK DOWN and the
+       discovery chip both wanted the bottom centre the pad now needs.
+       Corners for persistent chrome, bottom centre for the thing your
+       thumb uses, and nothing stacked on anything. */
+
+    /* Brand clears the status cluster instead of sharing its line. */
+    body[data-view="room"] .brand { top: 58px; }
+    body[data-view="room"] .caption { top: 92px; }
+
+    /* Look up / look down move to the left rail, stacked, out of the
+       pad's way. They are glances, not primary controls. */
+    body[data-view="room"] .sky-hint {
+      left: 20px; right: auto;
+      bottom: auto; top: 50%;
+      transform: translateY(-58px);
+    }
+    body[data-view="room"] .ground-hint {
+      left: 20px; right: auto;
+      bottom: auto; top: 50%;
+      transform: translateY(6px);
+    }
+
+    /* Discovery count goes to the left rail too, under the glances. */
+    body[data-view="room"] .discover-chip {
+      left: 20px; right: auto;
+      bottom: 30px; top: auto;
+      transform: none;
+    }
+
+    /* On a phone the rail would crowd the thumb — put the glances top
+       right, under FOCUS, and keep only the pad at the bottom. */
+    @media (max-width: 640px) {
+      body[data-view="room"] .sky-hint,
+      body[data-view="room"] .ground-hint {
+        left: auto; right: 14px; top: auto;
+        transform: none;
+      }
+      body[data-view="room"] .sky-hint { bottom: 188px; }
+      body[data-view="room"] .ground-hint { bottom: 142px; }
+      body[data-view="room"] .discover-chip { left: 14px; bottom: 24px; }
+      .nav-pad { bottom: 78px; }
+    }
+
+    /* Time-of-day / weather state, same treatment as the build stamp. */
+    .hud-phase {
+      font-size: 9px; letter-spacing: 0.18em;
+      color: var(--dim);
+    }
+
+    /* ── Bright room, dark ink ────────────────────────────────────
+       When the daylight palette makes the podium pale, the white HUD
+       disappears into it. Everything overlaid on the 3D view flips to
+       dark; the amber stays amber because it reads on both. */
+    body[data-room-light="1"] .brand,
+    body[data-room-light="1"] .caption,
+    body[data-room-light="1"] .hint,
+    body[data-room-light="1"] .meta,
+    body[data-room-light="1"] .meta a,
+    body[data-room-light="1"] .hud-eyebrow,
+    body[data-room-light="1"] .hud-clock,
+    body[data-room-light="1"] .hud-sep,
+    body[data-room-light="1"] .hud-phase,
+    body[data-room-light="1"] .lang button,
+    body[data-room-light="1"] .sky-hint,
+    body[data-room-light="1"] .ground-hint,
+    body[data-room-light="1"] .nav-pad button {
+      color: #14181d;
+    }
+    body[data-room-light="1"] .caption,
+    body[data-room-light="1"] .hint,
+    body[data-room-light="1"] .meta,
+    body[data-room-light="1"] .hud-sep { opacity: 0.72; }
+
+    /* Panels and outlines need a light-ground version too, or they read
+       as smudges rather than as edges. */
+    body[data-room-light="1"] .nav-pad button {
+      background: rgba(250, 248, 243, 0.62);
+      border-color: rgba(20, 24, 29, 0.28);
+    }
+    body[data-room-light="1"] .sky-hint,
+    body[data-room-light="1"] .ground-hint,
+    body[data-room-light="1"] .hud-chip {
+      background: rgba(250, 248, 243, 0.62);
+      border-color: rgba(20, 24, 29, 0.28);
+    }
+    body[data-room-light="1"] .discover-chip { color: #14181d; }
+    /* Amber survives both grounds — it is the one thing that never flips. */
+    body[data-room-light="1"] .hud-status,
+    body[data-room-light="1"] .hud-build,
+    body[data-room-light="1"] .nav-pad button.held,
+    body[data-room-light="1"] .lang button.on { color: var(--amber); }
+
+    /* The brand carries an id, so it outranks the class-level flip above.
+       Named explicitly rather than reaching for !important. */
+    body[data-room-light="1"] #brand,
+    body[data-room-light="1"] #caption,
+    body[data-room-light="1"] #hint,
+    body[data-room-light="1"] #meta,
+    body[data-room-light="1"] #meta a,
+    body[data-room-light="1"] #contact-link { color: #14181d; }
+
+    /* Chips carry their own text nodes, so the flip has to reach inside
+       them too — FOCUS was rendering pale-on-pale in daylight. */
+    body[data-room-light="1"] .hud-chip,
+    body[data-room-light="1"] .hud-chip *,
+    body[data-room-light="1"] #room-hud-focus,
+    body[data-room-light="1"] #room-hud-focus *,
+    body[data-room-light="1"] .hud-chip-label,
+    body[data-room-light="1"] .hud-chip-glyph { color: #14181d; }
+    body[data-room-light="1"] .lang button { color: rgba(20, 24, 29, 0.55); }
+    body[data-room-light="1"] .lang button.on,
+    body[data-room-light="1"] .hud-chip.on,
+    body[data-room-light="1"] .hud-chip.on * { color: var(--amber); }
+    /* The build stamp is amber on dark; on cream it needs the deeper
+       amber or it disappears into the travertine. */
+    body[data-room-light="1"] .hud-build { color: #b45309; }

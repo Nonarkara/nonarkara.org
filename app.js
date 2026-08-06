@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { createDiscovery } from './discover.js';
 import { buildPavilion, PLAN } from './pavilion.js';
 import { Walk, attachStick } from './walk.js';
+import { sunAltitude, paletteFor, fetchWeather, makeRain } from './daylight.js';
+import { poemForDate } from './poems.js';
 
 // ── Visitor tracker — fire-and-forget, one ping per session ──────────────────
 (function () {
@@ -38,6 +40,11 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   3.7 (2026-08-06) the room knows where and when it is — sun altitude
+//                    at the visitor's latitude drives night/dawn/day/dusk,
+//                    rain falls only where there is no roof, and the
+//                    matrix rain that was 'retired' two versions ago is
+//                    actually gone. Nav pad for thumbs; a poem a day.
 //   3.6 (2026-08-06) the actual Barcelona plan, at real scale — 54×24m
 //                    travertine podium, 3.1m clear height, eight chrome
 //                    cruciform columns, onyx dorado as the one amber,
@@ -87,7 +94,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '3.6';
+const NON_VERSION = '3.7';
 window.NON_VERSION = NON_VERSION;
 // Stamp the build into the room HUD as early as possible — this element
 // is the answer to "am I actually seeing the new version?".
@@ -176,6 +183,7 @@ const I18N = {
     sky_here:        'here',
     sky_mag:         'mag',
     sky_folly:       'the one overhead',
+    nav_walk:        'hold',
     walk:            'walk',
     os_brain:        'brain',
     brain_asleep:    'asleep',
@@ -258,6 +266,7 @@ const I18N = {
     sky_here:        'ตรงนี้',
     sky_mag:         'ความสว่าง',
     sky_folly:       'ดวงที่อยู่เหนือหัว',
+    nav_walk:        'กดค้าง',
     walk:            'เดิน',
     os_brain:        'สมอง',
     brain_asleep:    'หลับอยู่',
@@ -340,6 +349,7 @@ const I18N = {
     sky_here:        '此处',
     sky_mag:         '星等',
     sky_folly:       '正上方的那一颗',
+    nav_walk:        '按住',
     walk:            '漫步',
     os_brain:        '大脑',
     brain_asleep:    '沉睡中',
@@ -1304,52 +1314,17 @@ function drawClock() {
   window.__pomoBtnPlane = btnPlane;
 }
 
-// ════════════════════════════════════════════════════════
-// Matrix rain — sits behind the TV grid, very faint, trilingual
-// (Latin · Katakana · Thai · CJK — a memory palace can dream)
-// ════════════════════════════════════════════════════════
-const RAIN_W = 18, RAIN_H = 6;
-const rainCanvasTex = document.createElement('canvas');
-rainCanvasTex.width = 1024;
-rainCanvasTex.height = 384;
-const rainCtx = rainCanvasTex.getContext('2d');
-const rainTex = new THREE.CanvasTexture(rainCanvasTex);
-rainTex.colorSpace = THREE.SRGBColorSpace;
-const rainMat = new THREE.MeshBasicMaterial({
-  map: rainTex, transparent: true, opacity: 0,
-  side: THREE.FrontSide, depthWrite: false
-});
-const rainPlane = new THREE.Mesh(
-  new THREE.PlaneGeometry(RAIN_W, RAIN_H), rainMat
-);
-rainPlane.position.set(0, 3.0, -10.4);  // slightly behind TV grid (TVs at z=-10)
-scene.add(rainPlane);
-
-const RAIN_COLS = Math.floor(rainCanvasTex.width / 16);
-const rainDrops = new Array(RAIN_COLS).fill(0).map(() => Math.random() * 30);
-const RAIN_CHARS =
-  'アァカサタナハマヤラワガザダバパイィキシチニヒミリヰギジヂビピウヴクスツヌフムユルグズヅブプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨロヲゴゾドボポヴッン' +
-  '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ' +
-  'กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรลวศษสหฬอฮ' +
-  '中道智慧记忆宫殿东京上海曼谷火光';
-
-function drawRain() {
-  // Trail fade — color matches the theme bg so older glyphs dissolve into it
-  const trailRgb = CURRENT_THEME === 'dark' ? '0,0,0' : '245,245,240';
-  const headRgb  = CURRENT_THEME === 'dark' ? '245,245,240' : '26,26,26';
-  rainCtx.fillStyle = `rgba(${trailRgb}, 0.06)`;
-  rainCtx.fillRect(0, 0, rainCanvasTex.width, rainCanvasTex.height);
-  rainCtx.font = '14px "JetBrains Mono", "IBM Plex Sans Thai", monospace';
-  for (let i = 0; i < rainDrops.length; i++) {
-    const ch = RAIN_CHARS[Math.floor(Math.random() * RAIN_CHARS.length)];
-    const x = i * 16, y = rainDrops[i] * 16;
-    rainCtx.fillStyle = `rgba(${headRgb}, 0.9)`;
-    rainCtx.fillText(ch, x, y);
-    if (y > rainCanvasTex.height && Math.random() > 0.97) rainDrops[i] = 0;
-    rainDrops[i] += 0.4 + Math.random() * 0.3;
-  }
-  rainTex.needsUpdate = true;
-}
+// Matrix rain: removed.
+//
+// It was an 18×6m plane of falling katakana behind the work wall, and
+// it was approved for retirement two versions ago — I said it was gone
+// and it never was, which is why it is still the loudest thing on
+// screen in a building whose entire argument is restraint. A wall of
+// scrolling glyphs is the opposite of Mies, it repainted a large canvas
+// every single frame on a phone, and it belongs to a different room.
+// drawRain() is kept as a no-op so the animate loop needs no surgery.
+function drawRain() {}
+const rainMat = { opacity: 0 };
 
 // ════════════════════════════════════════════════════════
 // Command-room ticker walls (live data, perspective-projected)
@@ -4943,6 +4918,7 @@ function animate() {
     window.__lastWalkT = performance.now();
     camera.position.y = 1.7 + Math.sin(t * 0.4) * 0.015;
   }
+  if (window.__tickWeather) window.__tickWeather();
 
   // Ambient particles
   if (particles.visible) {
@@ -6198,3 +6174,169 @@ window.addEventListener('keydown', (e) => {
   // Same key that starts a walk in most games.
   if ((e.key === 'v' || e.key === 'V') && document.body.dataset.view === 'room') setWalk(!WALK.enabled);
 });
+
+// ════════════════════════════════════════════════════════
+// NAV PAD — walking without a keyboard
+//
+// The Pavilion is 54m long. On a phone that is unreachable unless there
+// is something to hold, so walking is no longer a mode you switch into:
+// the pad is simply there whenever you are in the room. Hold the big
+// button to move, tap the arrows to turn on the spot, pinch to zoom.
+// Dragging anywhere still looks around exactly as it always did.
+//
+// Walk mode turns itself on the first time you touch any of these, and
+// the WALK chip / V key stay as the pointer-lock path for desktop.
+// ════════════════════════════════════════════════════════
+{
+  const hold = (el, onDown, onUp) => {
+    if (!el) return;
+    const down = (e) => {
+      e.preventDefault();
+      el.classList.add('held');
+      if (!WALK.enabled) { WALK.enabled = true; WALK.teleport(camera.position.x, camera.position.z); }
+      onDown();
+    };
+    const up = () => { el.classList.remove('held'); onUp(); };
+    el.addEventListener('pointerdown', down);
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
+    el.addEventListener('pointerleave', up);
+  };
+
+  // Forward / back drive the same stick the thumbstick uses, so there is
+  // one movement path and it already has acceleration and collision.
+  hold(document.getElementById('nav-fwd'),
+       () => { WALK.stick = { dx: 0, dy: -1 }; },
+       () => { WALK.stick = null; });
+  hold(document.getElementById('nav-back'),
+       () => { WALK.stick = { dx: 0, dy: 0.7 }; },
+       () => { WALK.stick = null; });
+
+  // Turning is a held rotation, not a jump — a 90° snap loses you.
+  let turn = 0;
+  hold(document.getElementById('nav-left'),  () => { turn = 1; },  () => { turn = 0; });
+  hold(document.getElementById('nav-right'), () => { turn = -1; }, () => { turn = 0; });
+  (function spin() {
+    if (turn) target.y += turn * 0.028;
+    requestAnimationFrame(spin);
+  })();
+
+  // Pinch to zoom the field of view. Narrowing the FOV is how you look
+  // closely at something across the room without walking to it.
+  let pinch0 = null, fov0 = camera.fov;
+  window.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 2) return;
+    pinch0 = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY);
+    fov0 = camera.fov;
+  }, { passive: true });
+  window.addEventListener('touchmove', (e) => {
+    if (e.touches.length !== 2 || !pinch0) return;
+    const d = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY);
+    camera.fov = Math.max(24, Math.min(75, fov0 * (pinch0 / d)));
+    camera.updateProjectionMatrix();
+  }, { passive: true });
+  window.addEventListener('touchend', (e) => { if (e.touches.length < 2) pinch0 = null; }, { passive: true });
+
+  // Desktop: the wheel does the same thing.
+  window.addEventListener('wheel', (e) => {
+    if (document.body.dataset.view !== 'room') return;
+    if (document.getElementById('modal')?.classList.contains('in')) return;
+    camera.fov = Math.max(24, Math.min(75, camera.fov + Math.sign(e.deltaY) * 2));
+    camera.updateProjectionMatrix();
+  }, { passive: true });
+}
+
+// ════════════════════════════════════════════════════════
+// THE ROOM KNOWS WHAT TIME IT IS
+//
+// The Pavilion roofs half its podium and leaves the rest open, which is
+// why weather belongs in it. Light follows the sun's actual altitude at
+// the visitor's latitude — not the clock, because 18:30 is dusk in
+// Bangkok and midnight in Tromsø. Rain falls only where there is no
+// roof; stand under the slab and you stay dry.
+//
+// Everything here degrades to "night in Bangkok, dry" without a
+// network or a location, which is a perfectly good room.
+// ════════════════════════════════════════════════════════
+if (WEBGL_OK && PAVILION) {
+  const SITE = { lat: 13.7563, lon: 100.5018, name: 'BANGKOK' };
+  let weather = null;
+  let RAIN = makeRain(THREE, PLAN);
+  scene.add(RAIN.points);
+
+  const applyPalette = (p) => {
+    const M = PAVILION.materials;
+    M.travertine.color.setHex(p.travertine);
+    M.green.color.setHex(p.green);
+    M.chrome.color.setHex(p.chrome);
+    M.water.color.setHex(p.water);
+    M.podium.color.setHex(p.podium);
+    M.roof.color.setHex(p.roof);
+    if (scene.background) scene.background.setHex(p.bg);
+    else scene.background = new THREE.Color(p.bg);
+    // The HUD is white-on-dark by default. In the day and twilight
+    // palettes the ground goes pale and every label vanishes into it —
+    // §11.10, unreadable is shipped broken. Flip the overlay to dark ink
+    // whenever the room itself is bright. Rec-601 luma, because that is
+    // what the eye does, not the average of three channels.
+    const R = (p.bg >> 16) & 255, Gc = (p.bg >> 8) & 255, B = p.bg & 255;
+    const luma = (0.299 * R + 0.587 * Gc + 0.114 * B) / 255;
+    document.body.dataset.roomLight = luma > 0.42 ? '1' : '0';
+
+    // The onyx never changes. It is lit stone, and it is the one amber.
+    const el = document.getElementById('hud-phase');
+    if (el) {
+      el.textContent = p.label + (weather?.raining ? ' · RAIN' : '');
+    }
+  };
+
+  const refresh = () => {
+    const now = new Date();
+    const alt = sunAltitude(now, SITE.lat, SITE.lon);
+    // Rising or setting: compare with ten minutes ago. Cheaper and more
+    // honest than hard-coding sunrise tables per latitude.
+    const before = sunAltitude(new Date(now.getTime() - 600000), SITE.lat, SITE.lon);
+    applyPalette(paletteFor(alt, alt > before));
+  };
+
+  refresh();
+  setInterval(refresh, 60_000);
+
+  // Where the visitor actually is, if they will say. The sky and ground
+  // already ask; this reuses whatever they were given.
+  navigator.geolocation?.getCurrentPosition(
+    (p) => {
+      SITE.lat = p.coords.latitude;
+      SITE.lon = p.coords.longitude;
+      refresh();
+      fetchWeather(SITE.lat, SITE.lon).then(w => { weather = w; refresh(); });
+    },
+    () => { fetchWeather(SITE.lat, SITE.lon).then(w => { weather = w; refresh(); }); },
+    { timeout: 8000, maximumAge: 600000 }
+  );
+  setInterval(() => {
+    fetchWeather(SITE.lat, SITE.lon).then(w => { weather = w; refresh(); });
+  }, 15 * 60_000);
+
+  let _rainT = performance.now();
+  window.__tickWeather = () => {
+    const now = performance.now();
+    const dt = Math.min((now - _rainT) / 1000, 0.05);
+    _rainT = now;
+    RAIN.tick(dt, !!weather?.raining);
+  };
+}
+
+// ════════════════════════════════════════════════════════
+// THE POEM — one a day, on the onyx
+//
+// The aphorism wall used to rotate one-liners from the blog. It now
+// carries a poem, because a stranger who has never heard of him should
+// meet the writing before the CV. Same wall, same amber stone, longer
+// breath. Deterministic by date, so it is the same poem all day.
+// ════════════════════════════════════════════════════════
+window.__poemToday = () => poemForDate(new Date());
