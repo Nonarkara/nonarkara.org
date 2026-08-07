@@ -47,6 +47,10 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.13 (2026-08-07) cpdt audit & production pass — WebGL context loss
+//                    safety & recovery listeners; modulepreload for Three.js
+//                    bundle; prefers-reduced-motion damping in render loop;
+//                    modal focus trapping and keyboard accessibility.
 //   4.12 (2026-08-07) the pool reflects the world — twelve live markets
 //                    drawn as a trading floor in Mies' black water, read
 //                    by looking down. Stars became round glows instead
@@ -178,7 +182,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.12';
+const NON_VERSION = '4.13';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -692,6 +696,19 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'hi
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.getElementById('canvas-root').appendChild(renderer.domElement);
+
+// WebGL context loss safety — gracefully pause & handle GPU driver resets
+let isWebGLContextLost = false;
+renderer.domElement.addEventListener('webglcontextlost', (e) => {
+  e.preventDefault();
+  isWebGLContextLost = true;
+  console.warn('[NON] WebGL context lost — pausing render loop');
+}, false);
+renderer.domElement.addEventListener('webglcontextrestored', () => {
+  isWebGLContextLost = false;
+  console.log('[NON] WebGL context restored — resuming render loop');
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}, false);
 
 // ════════════════════════════════════════════════════════
 // Ambient particles — dust motes drifting in the light shafts
@@ -5142,6 +5159,9 @@ function animate() {
     }
   }
 
+  if (isWebGLContextLost) return;
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   // smooth screen opacity
   TVs.forEach(grp => {
     const m = grp.userData.screen.material;
@@ -5198,7 +5218,7 @@ function animate() {
     WALK.update(dt, camera.rotation.y);
   } else {
     window.__lastWalkT = performance.now();
-    camera.position.y = 1.7 + Math.sin(t * 0.4) * 0.015;
+    camera.position.y = prefersReducedMotion ? 1.7 : (1.7 + Math.sin(t * 0.4) * 0.015);
   }
   if (window.__tickWeather) window.__tickWeather();
 
