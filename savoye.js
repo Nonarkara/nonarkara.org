@@ -29,13 +29,18 @@
  * The curve on the ground floor is not a shape. It is the turning
  * radius of the car that had to come in under the house, put someone
  * down at the door, and get back out. The plan is drawn around a
- * Voisin, which is the least romantic and most Corbusian fact about it.
+ * car — here a Traction Avant silhouette parked under the pilotis,
+ * the composition every photograph of the house already knows.
  *
  * On colour. One amber per site, given to whatever each building is an
  * argument for — the onyx in the Pavilion, the brick cylinder in the
  * Glass House, the RAMP here. Everything else is white render, pale
  * columns, and a ground floor kept in its own shadow, which is the job
  * the dark-painted service floor does in life.
+ *
+ * Walk: the ramp is a floor, not a wall. walk.js samples floor patches
+ * (including stacked flights) and lifts the eye. Living-floor walls
+ * carry minY so they do not block the grass under the box.
  *
  * Same return shape as buildPavilion.
  */
@@ -94,10 +99,25 @@ export const PLAN = {
   // Sits over the roofed half, which is the southern one.
   solarium: { x: 3.2, z: 3.4, r: 6.2, a0: 2.2, a1: 4.8, h: 1.9 },
 
+  // Citroën Traction Avant under the pilotis — off the door axis so the
+  // promenade stays clear, in the driveway the ground-floor curve drew.
+  car: {
+    x: 4.4, z: 7.4, yaw: -0.55,
+    body: { l: 4.6, w: 1.72, h: 0.72 },
+    cabin: { l: 2.2, w: 1.55, h: 0.55, z: -0.15 },
+    wheel: { r: 0.32, t: 0.18, axle: 1.45, track: 0.72 },
+  },
+
   // Travel drops you on the grass in front, far enough back to see the
   // box floating, which is the only view that explains the building.
   spawn: { x: 0, y: 1.65, z: 16.0, lookAt: { x: 0, y: 2.4, z: 0 } },
 };
+
+/** Ramp flight stop heights: grass → half → living → half → roof. */
+export function rampStops(plan = PLAN) {
+  const L = plan.levels;
+  return [0, L.first / 2, L.first, (L.first + L.roof) / 2, L.roof];
+}
 
 /**
  * The ground-floor enclosure as a list of [x0,z0,x1,z1] segments —
@@ -134,12 +154,97 @@ export function groundWall(plan = PLAN) {
 }
 
 /**
+ * Walkable floor patches in LOCAL coordinates. Each exposes heightAt(x,z).
+ * Stacked ramp flights share one footprint; walk.js sticks to one flight
+ * and switches at the landings. Flat pads past each end catch the jog
+ * overshoot so you turn on a deck instead of falling onto the living floor.
+ */
+export function floorPatches(plan = PLAN) {
+  const L = plan.levels;
+  const rp = plan.ramp;
+  const hw = plan.box.w / 2, hd = plan.box.d / 2;
+  const span = rp.z1 - rp.z0;
+  const halfW = rp.w / 2;
+  const stops = rampStops(plan);
+  // Long enough to catch a jog overshoot at the switchback (~2m), so the
+  // walker turns on a deck instead of dropping onto the living floor.
+  const LAND = 2.4;
+  const out = [];
+
+  const onRamp = (x, z) =>
+    x >= rp.x - halfW && x <= rp.x + halfW && z >= rp.z0 && z <= rp.z1;
+
+  // Ramp well including landings — living/roof must not fill this void.
+  const inWell = (x, z) =>
+    x >= rp.x - halfW && x <= rp.x + halfW
+    && z >= rp.z0 - LAND && z <= rp.z1 + LAND;
+
+  for (let i = 0; i < rp.flights; i++) {
+    const y0 = stops[i], y1 = stops[i + 1];
+    const dir = i % 2 === 0 ? 1 : -1;
+    out.push({
+      kind: 'ramp',
+      flight: i,
+      heightAt(x, z) {
+        if (!onRamp(x, z)) return null;
+        const t = (z - rp.z0) / span;
+        // dir=+1: low at +z (t=1), high at −z (t=0)
+        return dir === 1
+          ? y0 + (y1 - y0) * (1 - t)
+          : y0 + (y1 - y0) * t;
+      },
+    });
+  }
+
+  // Flat landings past each end only (not overlapping the ramp strip),
+  // so stepping back onto the ramp releases the sticky landing and
+  // picks the next flight.
+  const pad = (z0, z1, y) => ({
+    kind: 'landing',
+    y,
+    heightAt(x, z) {
+      if (Math.abs(x - rp.x) > halfW) return null;
+      if (z < z0 || z > z1) return null;
+      return y;
+    },
+  });
+  for (const y of [stops[1], stops[3]]) out.push(pad(rp.z0 - LAND, rp.z0, y));
+  for (const y of [stops[0], stops[2], stops[4]]) out.push(pad(rp.z1, rp.z1 + LAND, y));
+
+  // Living floor / north terrace — whole box, hole cut for the ramp well.
+  out.push({
+    kind: 'living',
+    heightAt(x, z) {
+      if (Math.abs(x) > hw - 0.05 || Math.abs(z) > hd - 0.05) return null;
+      if (inWell(x, z)) return null;
+      return L.first;
+    },
+  });
+
+  // Roof garden — slab and open north strip, ramp well left to the flights.
+  out.push({
+    kind: 'roof',
+    heightAt(x, z) {
+      if (Math.abs(x) > hw - 0.05 || Math.abs(z) > hd - 0.05) return null;
+      if (inWell(x, z)) return null;
+      return L.roof;
+    },
+  });
+
+  return out;
+}
+
+/**
  * Collision boxes in LOCAL coordinates — one source of truth shared by
- * the geometry and the test.
+ * the geometry and the test. Optional minY/maxY: living walls must not
+ * fence off the grass under the pilotis.
  */
 export function colliderBoxes(plan = PLAN) {
   const out = [];
   const T = plan.ground.t;
+  const L = plan.levels;
+  const B = plan.box;
+  const hw = B.w / 2, hd = B.d / 2;
 
   // ponytail: walk.js takes AABBs, so each wall segment becomes the
   // bounding box of its chord. On the two curved shoulders that leaves
@@ -149,6 +254,7 @@ export function colliderBoxes(plan = PLAN) {
     out.push({
       minX: Math.min(x0, x1) - T, maxX: Math.max(x0, x1) + T,
       minZ: Math.min(z0, z1) - T, maxZ: Math.max(z0, z1) + T,
+      maxY: L.first - 0.1,
     });
   }
 
@@ -161,13 +267,61 @@ export function colliderBoxes(plan = PLAN) {
     }
   }
 
-  // The ramp. Its lowest flight never rises past 1.75m, so the whole
-  // footprint is solid to a walker — you go round it, not under it.
+  // Ramp side rails — enter only from the open ends, never the flanks.
   const rp = plan.ramp;
+  const rail = rp.t + 0.04;
+  const halfW = rp.w / 2;
+  const LAND = 2.4; // keep in sync with floorPatches landings
+  for (const s of [-1, 1]) {
+    const x0 = rp.x + s * (rp.w / 2);
+    out.push({
+      minX: Math.min(x0, x0 + s * rail) - 0.02,
+      maxX: Math.max(x0, x0 + s * rail) + 0.02,
+      minZ: rp.z0 - LAND, maxZ: rp.z1 + 0.2,
+    });
+  }
+  // North end-stop on the landing — the switchback turns here; without
+  // it a jog runs off the pad onto the living floor 2m below.
   out.push({
-    minX: rp.x - rp.w / 2 - rp.t, maxX: rp.x + rp.w / 2 + rp.t,
-    minZ: rp.z0, maxZ: rp.z1,
+    minX: rp.x - halfW, maxX: rp.x + halfW,
+    minZ: rp.z0 - LAND - 0.12, maxZ: rp.z0 - LAND + 0.08,
+    minY: 0.5,
   });
+
+  // Living-floor perimeter. North keeps a low parapet only (terrace).
+  // minY keeps these from blocking the walk under the cantilever.
+  const wt = 0.22;
+  const liveLo = L.first - 0.15;
+  const liveHi = L.firstTop + 0.2;
+  // South, east, west — full storey
+  out.push({ minX: -hw, maxX: hw, minZ: hd - wt, maxZ: hd + wt, minY: liveLo, maxY: liveHi });
+  out.push({ minX: -hw - wt, maxX: -hw + wt, minZ: -hd, maxZ: hd, minY: liveLo, maxY: liveHi });
+  out.push({ minX: hw - wt, maxX: hw + wt, minZ: -hd, maxZ: hd, minY: liveLo, maxY: liveHi });
+  // North terrace parapet — low rail, open to the sky above
+  out.push({
+    minX: -hw, maxX: hw, minZ: -hd - wt, maxZ: -hd + wt,
+    minY: liveLo, maxY: L.first + L.sill + 0.15,
+  });
+
+  // Roof parapets (three sides; north is the open terrace edge below)
+  const pLo = L.roof - 0.15, pHi = L.roof + L.parapet + 0.1;
+  out.push({ minX: -hw, maxX: hw, minZ: hd - wt, maxZ: hd + wt, minY: pLo, maxY: pHi });
+  out.push({ minX: -hw - wt, maxX: -hw + wt, minZ: -hd, maxZ: hd, minY: pLo, maxY: pHi });
+  out.push({ minX: hw - wt, maxX: hw + wt, minZ: -hd, maxZ: hd, minY: pLo, maxY: pHi });
+
+  // The car under the pilotis — solid enough to walk around, not through.
+  {
+    const c = plan.car, b = c.body;
+    const ca = Math.cos(c.yaw), sa = Math.sin(c.yaw);
+    // Axis-aligned bounds of the rotated footprint (ponytail AABB).
+    const hx = (Math.abs(ca) * b.l + Math.abs(sa) * b.w) / 2;
+    const hz = (Math.abs(sa) * b.l + Math.abs(ca) * b.w) / 2;
+    out.push({
+      minX: c.x - hx, maxX: c.x + hx,
+      minZ: c.z - hz, maxZ: c.z + hz,
+      maxY: 1.6,
+    });
+  }
 
   return out;
 }
@@ -186,12 +340,14 @@ export function paint(M, p) {
   // The service floor keeps its own shadow in every light.
   M.base.color.setHex(mix(p.bg, p.travertine, 0.22));
   M.slab.color.setHex(p.roof);
+  if (M.car) M.car.color.setHex(mix(p.bg, 0x1a1c1e, 0.55));
   // The ramp never changes. It is the one amber.
 }
 
 // Same reasoning as the Glass House brick: the ramp is a dark deck
 // with an amber edge, not a lit strip.
 const RAMP = 0x2a1c08;
+const CAR = 0x141618;
 
 export function buildSavoye(THREE, scene, opts = {}) {
   const dark = opts.dark !== false;
@@ -214,11 +370,12 @@ export function buildSavoye(THREE, scene, opts = {}) {
     render: mat(dark ? 0x484f4f : 0xc9c9c3),
     piloti: mat(dark ? 0x8e9aa6 : 0xaab4bd),
     // 0.3, not 0.14: below that the ribbon window stops reading as a
-// dark slot cut in a white box and becomes a hole in a ring.
-  glass:  mat(dark ? 0x080d12 : 0xa8bcc8, 0.3),
+    // dark slot cut in a white box and becomes a hole in a ring.
+    glass:  mat(dark ? 0x080d12 : 0xa8bcc8, 0.3),
     base:   mat(dark ? 0x0d1013 : 0x8f9490),
     slab:   mat(dark ? 0x121413 : 0xc9c4b8),
     ramp:   mat(RAMP),
+    car:    mat(dark ? CAR : 0x2a2e32),
   };
 
   const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
@@ -229,6 +386,7 @@ export function buildSavoye(THREE, scene, opts = {}) {
   const B = PLAN.box, L = PLAN.levels;
   const hw = B.w / 2, hd = B.d / 2;
   const ph = L.first - L.slab;             // clear height under the box
+  const rp = PLAN.ramp;
 
   // ── The grass it stands on ──────────────────────────────
   // A quiet apron, so the box floats above something rather than
@@ -266,11 +424,79 @@ export function buildSavoye(THREE, scene, opts = {}) {
       }
       G.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), line));
     }
+    // Door reveals — two thin jambs so the opening reads as an entrance.
+    const g = PLAN.ground;
+    for (const s of [-1, 1]) {
+      at(box(0.12, ph, 0.14, MATS.render), s * g.door, ph / 2, g.chordZ);
+    }
   }
 
-  // ── First-floor slab, cantilevered past the columns ─────
-  at(box(B.w, L.slab, B.d, MATS.slab), 0, L.first - L.slab / 2, 0);
-  at(edges(B.w, L.slab, B.d), 0, L.first - L.slab / 2, 0);
+  // ── Traction Avant under the pilotis ────────────────────
+  // Low long hood, short cabin, four wheels. Not a mesh library car —
+  // the silhouette the photographs remember, parked in the driveway
+  // the ground-floor curve was drawn around.
+  {
+    const c = PLAN.car, b = c.body, cab = c.cabin, w = c.wheel;
+    const car = new THREE.Group();
+    car.position.set(c.x, 0, c.z);
+    car.rotation.y = c.yaw;
+    G.add(car);
+
+    const body = new THREE.Mesh(new THREE.BoxGeometry(b.w, b.h, b.l), MATS.car);
+    body.position.y = w.r + b.h / 2;
+    car.add(body);
+    const bodyEdges = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(b.w, b.h, b.l)), line);
+    bodyEdges.position.copy(body.position);
+    car.add(bodyEdges);
+
+    const cabin = new THREE.Mesh(
+      new THREE.BoxGeometry(cab.w, cab.h, cab.l), MATS.glass);
+    cabin.position.set(0, w.r + b.h + cab.h / 2 - 0.02, cab.z);
+    car.add(cabin);
+
+    // Hood crease — one amber hairline, the car's only accent nod to
+    // the ramp (chrome catch light, not a second brand colour).
+    const hood = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, w.r + b.h + 0.01, b.l / 2 - 0.1),
+        new THREE.Vector3(0, w.r + b.h + 0.01, 0.3),
+      ]), amber);
+    car.add(hood);
+
+    for (const zx of [-w.axle, w.axle]) {
+      for (const s of [-1, 1]) {
+        const wheel = new THREE.Mesh(
+          new THREE.CylinderGeometry(w.r, w.r, w.t, 10), MATS.car);
+        wheel.rotation.z = Math.PI / 2;
+        wheel.position.set(s * w.track, w.r, zx);
+        car.add(wheel);
+      }
+    }
+  }
+
+  // ── First-floor slab, cantilevered, with a ramp well ────
+  {
+    const well = rp.w + 0.35;
+    const leftW = hw - well / 2;
+    // Two side trays + a north and south cap so the well reads as a
+    // cut, not a missing floor.
+    at(box(leftW, L.slab, B.d, MATS.slab), -(well / 2 + leftW / 2), L.first - L.slab / 2, 0);
+    at(box(leftW, L.slab, B.d, MATS.slab), +(well / 2 + leftW / 2), L.first - L.slab / 2, 0);
+    const capD = (B.d - (rp.z1 - rp.z0)) / 2;
+    if (capD > 0.4) {
+      at(box(well, L.slab, capD, MATS.slab), 0, L.first - L.slab / 2, hd - capD / 2);
+      at(box(well, L.slab, capD, MATS.slab), 0, L.first - L.slab / 2, -hd + capD / 2);
+    }
+    at(edges(B.w, L.slab, B.d), 0, L.first - L.slab / 2, 0);
+
+    // Living floor wash — so the storey reads as a place, not a void
+    // between two slabs once you are up the ramp.
+    const live = new THREE.Mesh(
+      new THREE.PlaneGeometry(B.w - 0.4, B.d - 0.4), MATS.slab);
+    live.rotation.x = -Math.PI / 2;
+    at(live, 0, L.first + 0.01, 0);
+  }
 
   // ── The living floor: two render bands and a ribbon ─────
   // The window runs the whole way round and does not stop at a corner.
@@ -306,6 +532,15 @@ export function buildSavoye(THREE, scene, opts = {}) {
       const gw = name === 'south' ? B.w : 0.12;
       const gd = name === 'south' ? 0.12 : B.d;
       at(box(gw, headY - sillY, gd, MATS.glass), x, (sillY + headY) / 2, z);
+      // Mullions — light vertical ticks so the ribbon reads as glazing
+      // rather than a painted stripe. Every bay, not every metre.
+      const along = name === 'south' ? B.w : B.d;
+      const n = Math.round(along / PLAN.bay);
+      for (let i = 1; i < n; i++) {
+        const u = -along / 2 + (along * i) / n;
+        if (name === 'south') at(box(0.06, headY - sillY, 0.1, MATS.render), u, (sillY + headY) / 2, z);
+        else at(box(0.1, headY - sillY, 0.06, MATS.render), x, (sillY + headY) / 2, u);
+      }
     }
   }
 
@@ -315,6 +550,11 @@ export function buildSavoye(THREE, scene, opts = {}) {
     const rd = B.d * 0.72, rz = B.d * 0.14;
     at(box(B.w, L.slab, rd, MATS.slab), 0, L.roof - L.slab / 2, rz);
     at(edges(B.w, L.slab, rd), 0, L.roof - L.slab / 2, rz);
+
+    // Roof deck you can stand on
+    const deck = new THREE.Mesh(new THREE.PlaneGeometry(B.w - 0.5, rd - 0.3), MATS.slab);
+    deck.rotation.x = -Math.PI / 2;
+    at(deck, 0, L.roof + 0.01, rz);
 
     const p = L.parapet, t = 0.2, y = L.roof + p / 2;
     at(box(B.w, p, t, MATS.render), 0, y, hd);
@@ -366,23 +606,38 @@ export function buildSavoye(THREE, scene, opts = {}) {
     };
     // Alternating: each flight starts where the last one stopped, at
     // the other end of the hall. dir=+1 puts the low end at +z.
-    const stops = [0, L.first / 2, L.first, (L.first + L.roof) / 2, L.roof];
+    const stops = rampStops(PLAN);
     for (let i = 0; i < PLAN.ramp.flights; i++) {
       flight(stops[i], stops[i + 1], i % 2 === 0 ? 1 : -1);
     }
   }
 
-  // ── Colliders, moved onto the ground plane ──────────────
+  // ── Colliders + floors, moved onto the ground plane ─────
   const o = PLAN.origin;
   const colliders = colliderBoxes(PLAN).map(b => ({
     minX: b.minX + o.x, maxX: b.maxX + o.x,
     minZ: b.minZ + o.z, maxZ: b.maxZ + o.z,
+    minY: b.minY, maxY: b.maxY,
+  }));
+
+  const floors = floorPatches(PLAN).map(f => ({
+    kind: f.kind,
+    flight: f.flight,
+    heightAt: (x, z) => f.heightAt(x - o.x, z - o.z),
   }));
 
   const surfaces = {
     ramp:  { center: { x: o.x, y: L.first / 2, z: o.z }, kind: 'ramp' },
     entry: { center: { x: o.x, y: 1.5, z: o.z + PLAN.ground.chordZ }, kind: 'glass' },
+    car:   { center: { x: o.x + PLAN.car.x, y: 0.6, z: o.z + PLAN.car.z }, kind: 'car' },
+    terrace: {
+      center: { x: o.x, y: L.first + EYE_HINT, z: o.z - hd + 1.5 },
+      kind: 'terrace',
+    },
   };
 
-  return { group: G, colliders, surfaces, materials: MATS, plan: PLAN };
+  return { group: G, colliders, floors, surfaces, materials: MATS, plan: PLAN };
 }
+
+// Hint only for surface registry — walk.js owns the real eye height.
+const EYE_HINT = 1.65;

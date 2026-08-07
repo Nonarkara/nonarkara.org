@@ -57,6 +57,7 @@ export class Walk {
     this.floors = floors || [];
     this.pos = { x: spawn.x, z: spawn.z };
     this.floorY = spawn.floorY || 0;
+    this._floorPatch = null; // sticky surface — see floorAt()
     this.vel = { x: 0, z: 0 };
     this.keys = new Set();
     this.stick = null;        // {dx, dy} from the touch thumbstick
@@ -102,27 +103,66 @@ export class Walk {
   }
 
   /**
-   * Highest continuous floor under (x,z). Overlapping patches (stacked
-   * ramp flights) resolve by proximity to the current floorY so a climb
-   * stays on one flight instead of snapping to the roof.
+   * Floor under (x,z). Stacked surfaces that share a footprint (Savoye's
+   * ramp flights) cannot be resolved by "highest" or "nearest" alone —
+   * both pick the wrong flight at a switchback. Stick to the current
+   * patch while it stays continuous; if that patch starts descending and
+   * another patch at the same height is level or rising, take the switch
+   * (the landing turn). Otherwise a real descent stays on the patch.
    */
   floorAt(x, z) {
     if (!this.floors.length) return 0;
     const cur = this.floorY;
-    let best = null;
-    let bestDist = Infinity;
-    let below = 0;
-    for (const f of this.floors) {
+
+    const sample = (f) => {
       const fy = f.heightAt(x, z);
-      if (fy == null || Number.isNaN(fy)) continue;
-      if (fy <= cur + 0.05 && fy > below) below = fy;
-      const d = Math.abs(fy - cur);
-      if (d <= FLOOR_STEP && d < bestDist) {
-        bestDist = d;
-        best = fy;
+      return fy == null || Number.isNaN(fy) ? null : fy;
+    };
+
+    if (this._floorPatch) {
+      const fy = sample(this._floorPatch);
+      if (fy != null && Math.abs(fy - cur) <= FLOOR_STEP) {
+        // Rising or flat: stay. A real frame of ramp descent is ~8mm at
+        // walk speed — anything lower than that is a drop, and at a
+        // switchback another flight will still be at `cur`.
+        if (fy >= cur - 1e-4) return fy;
+        for (const f of this.floors) {
+          if (f === this._floorPatch) continue;
+          const ay = sample(f);
+          if (ay != null && ay >= cur - 1e-4 && Math.abs(ay - cur) <= FLOOR_STEP) {
+            this._floorPatch = f;
+            return ay;
+          }
+        }
+        return fy;
       }
     }
-    if (best != null) return best;
+
+    let best = null;
+    let bestFy = null;
+    let bestScore = Infinity;
+    let below = 0;
+    for (const f of this.floors) {
+      const fy = sample(f);
+      if (fy == null) continue;
+      if (fy <= cur + 0.05 && fy > below) below = fy;
+      const d = Math.abs(fy - cur);
+      if (d > FLOOR_STEP) continue;
+      // Near a switchback two flights sit at the same height. Prefer the
+      // one that is not already below you — that is the flight that
+      // continues the promenade up rather than sending you back down.
+      const score = d + (fy < cur - 1e-3 ? 0.25 : 0);
+      if (score < bestScore) {
+        bestScore = score;
+        best = f;
+        bestFy = fy;
+      }
+    }
+    if (best) {
+      this._floorPatch = best;
+      return bestFy;
+    }
+    this._floorPatch = null;
     return below;
   }
 
@@ -223,6 +263,7 @@ export class Walk {
   teleport(x, z, floorY) {
     this.pos.x = x; this.pos.z = z;
     this.vel.x = 0; this.vel.z = 0;
+    this._floorPatch = null;
     if (floorY != null) this.floorY = floorY;
     else this.floorY = this.floorAt(x, z);
   }

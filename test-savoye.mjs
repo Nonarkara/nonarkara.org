@@ -4,14 +4,16 @@
 // Mirrors test-pavilion.mjs. What these catch: a ground floor that has
 // crept out to the edge of the box (which kills the pilotis), a ramp
 // that has stopped running through the middle (which kills the
-// promenade), a front door you cannot get through, and glass you can.
+// promenade), a front door you cannot get through, a car missing from
+// under the house, and a ramp that no longer lifts you to the terrace.
 import assert from 'node:assert';
-import { PLAN, groundWall, colliderBoxes } from './savoye.js';
+import { PLAN, groundWall, colliderBoxes, floorPatches, rampStops } from './savoye.js';
 import { PLAN as GLASS } from './glasshouse.js';
 import { PLAN as PAVILION } from './pavilion.js';
 import { Walk } from './walk.js';
 
 const RADIUS = 0.34;   // must match walk.js
+const EYE = 1.65;
 
 // ── Real dimensions ───────────────────────────────────────
 assert.equal(PLAN.box.w, 21.5, 'the box is 21.5m');
@@ -35,14 +37,19 @@ assert.equal(PLAN.levels.firstTop - PLAN.levels.first, 3.0,
 }
 
 // ── The promenade owns the axis ───────────────────────────
-// No column stands in the middle line, and the ramp runs the depth of
-// the house through it. Lose either and it stops being Savoye.
+// No column stands in the middle line. Ramp rails may sit on the
+// centre strip; the solid slab-blocker that used to fill the whole
+// ramp footprint must not return — that killed the walk up.
 {
   for (const b of colliderBoxes(PLAN)) {
-    const isRamp = b.maxZ === PLAN.ramp.z1 && b.minZ === PLAN.ramp.z0;
-    if (isRamp) continue;
-    assert(!(b.minX < 0 && b.maxX > 0 && b.minZ > PLAN.ground.back && b.maxZ < PLAN.ground.chordZ),
-      `something solid sits on the centre line at z=${b.minZ}`);
+    const isRampRail = b.minZ === PLAN.ramp.z0 && b.maxZ === PLAN.ramp.z1
+      && (b.maxX - b.minX) < PLAN.ramp.w * 0.5;
+    if (isRampRail) continue;
+    if (b.maxY != null && b.maxY <= 1.7) continue; // car / ground walls
+    assert(!(b.minX < -0.5 && b.maxX > 0.5
+        && b.minZ > PLAN.ground.back && b.maxZ < PLAN.ground.chordZ
+        && b.minY == null),
+      `something solid fills the centre line at z=${b.minZ}`);
   }
   assert.equal(PLAN.ramp.x, 0, 'the ramp must be on the axis');
   const span = PLAN.ramp.z1 - PLAN.ramp.z0;
@@ -53,8 +60,6 @@ assert.equal(PLAN.levels.firstTop - PLAN.levels.first, 3.0,
 }
 
 // ── You arrive at the complete elevation ──────────────────
-// The terrace is a quadrant cut out of the box. Put it on the side the
-// visitor walks up to and the house loses its face.
 {
   const arriveSide = PLAN.spawn.z > 0 ? 'south' : 'north';
   assert.notEqual(PLAN.terrace, arriveSide,
@@ -62,8 +67,6 @@ assert.equal(PLAN.levels.firstTop - PLAN.levels.first, 3.0,
 }
 
 // ── The set-back: the ground floor is inside the columns ──
-// This is what makes the house float. If any ground-floor wall reaches
-// the outer column line, the pilotis are decoration.
 {
   const outer = Math.max(...PLAN.cols);
   for (const [x0, z0, x1, z1] of groundWall(PLAN)) {
@@ -81,9 +84,23 @@ assert.equal(PLAN.levels.firstTop - PLAN.levels.first, 3.0,
     `a ${r}m radius is not a car's turning circle — the curve loses its reason`);
 }
 
+// ── The Traction Avant sits under the box ─────────────────
+{
+  const c = PLAN.car;
+  const outer = PLAN.box.w / 2;
+  assert(Math.abs(c.x) + c.body.l / 2 < outer,
+    'the car sticks out past the cantilever');
+  assert(c.z > PLAN.ramp.z1, 'the car blocks the ramp entrance');
+  assert(c.z < PLAN.spawn.z, 'the car is not under the house — it is on the lawn');
+  assert(Math.abs(c.x) > PLAN.ground.door + 0.8,
+    'the car is parked in the doorway');
+  // Collider present near the car.
+  const hit = colliderBoxes(PLAN).some(b =>
+    b.minX <= c.x && b.maxX >= c.x && b.minZ <= c.z && b.maxZ >= c.z && (b.maxY ?? 99) <= 2);
+  assert(hit, 'no collider under the car — you can walk through it');
+}
+
 // ── The wall closes: every segment meets the next ─────────
-// The ground floor is an enclosure, unlike the Pavilion's free planes.
-// A gap here is a hole you fall out of.
 {
   const segs = groundWall(PLAN);
   const ends = segs.flatMap(([x0, z0, x1, z1]) => [[x0, z0], [x1, z1]]);
@@ -95,6 +112,29 @@ assert.equal(PLAN.levels.firstTop - PLAN.levels.first, 3.0,
   }
 }
 
+// ── Floor patches: ramp climbs, living and roof exist ─────
+{
+  const patches = floorPatches(PLAN);
+  assert(patches.some(p => p.kind === 'ramp'), 'no ramp floor patches');
+  assert(patches.some(p => p.kind === 'living'), 'no living floor patch');
+  assert(patches.some(p => p.kind === 'roof'), 'no roof floor patch');
+  const stops = rampStops(PLAN);
+  assert.equal(stops.length, PLAN.ramp.flights + 1);
+  // South end of ramp: ground and living landings.
+  const ramps = patches.filter(p => p.kind === 'ramp');
+  const atEntry = ramps.map(p => p.heightAt(0, PLAN.ramp.z1)).filter(y => y != null);
+  assert(atEntry.some(y => Math.abs(y) < 0.05), 'ramp does not meet the grass at +z');
+  assert(atEntry.some(y => Math.abs(y - PLAN.levels.first) < 0.05),
+    'ramp does not meet the living floor at +z');
+  // Living floor beside the ramp, not inside the well.
+  const living = patches.find(p => p.kind === 'living');
+  assert.equal(living.heightAt(3, 0), PLAN.levels.first, 'living floor missing beside the ramp');
+  assert.equal(living.heightAt(0, 0), null, 'living floor fills the ramp well');
+  // North terrace — open to the sky (beside the ramp well, not in it).
+  assert.equal(living.heightAt(3.5, -PLAN.box.d / 2 + 1.2), PLAN.levels.first,
+    'north terrace is not walkable');
+}
+
 // ── The triangle: generous walking distance, all three ─────
 {
   const O = { PAVILION: { x: 0, z: 0 }, GLASS: GLASS.origin, SAVOYE: PLAN.origin };
@@ -103,7 +143,6 @@ assert.equal(PLAN.levels.firstTop - PLAN.levels.first, 3.0,
     const m = d(O[a], O[b]);
     assert(m > 90 && m < 140, `${a}→${b} is ${m.toFixed(0)}m — the walk must be a real walk`);
   }
-  // And no two footprints overlap on the shared ground plane.
   const reach = { PAVILION: PAVILION.podium.w / 2, GLASS: GLASS.podium.d / 2, SAVOYE: PLAN.box.d / 2 };
   for (const [a, b] of [['PAVILION', 'GLASS'], ['PAVILION', 'SAVOYE'], ['GLASS', 'SAVOYE']]) {
     assert(d(O[a], O[b]) > reach[a] + reach[b], `${a} and ${b} overlap on the ground plane`);
@@ -112,13 +151,14 @@ assert.equal(PLAN.levels.firstTop - PLAN.levels.first, 3.0,
 
 // ── Walking ───────────────────────────────────────────────
 const camera = { position: { x: 0, y: 0, z: 0, set(x, y, z) { this.x = x; this.y = y; this.z = z; } } };
-const mkWalk = (colliders, spawn) => {
-  const w = new Walk(camera, colliders, spawn);
+const BOXES = colliderBoxes(PLAN);
+const FLOORS = floorPatches(PLAN);
+const mkWalk = (colliders, spawn, floors = FLOORS) => {
+  const w = new Walk(camera, colliders, spawn, floors);
   w.enabled = true;
   return w;
 };
 const step = (w, yaw, n = 60, dt = 1 / 60) => { for (let i = 0; i < n; i++) w.update(dt, yaw); };
-const BOXES = colliderBoxes(PLAN);
 
 // The spawn must be on the grass, not inside a column or the glass.
 {
@@ -126,23 +166,69 @@ const BOXES = colliderBoxes(PLAN);
   assert(!w._blocked(PLAN.spawn.x, PLAN.spawn.z), 'you arrive standing inside the house');
 }
 
-// You walk in under the box, through the front door, and stop at the
-// ramp — which is exactly what the building does to you.
+// You walk in under the box, through the front door, onto the ramp.
 {
   const w = mkWalk(BOXES, PLAN.spawn);
   w.keys.add('w');                                  // yaw 0 → forward is -z
-  step(w, 0, 420);
+  step(w, 0, 480);
   assert(w.pos.z < PLAN.ground.chordZ,
     `stopped at z=${w.pos.z.toFixed(2)} — could not get through the front door`);
-  assert(w.pos.z > PLAN.ramp.z1,
-    `ended at z=${w.pos.z.toFixed(2)} — walked straight through the ramp`);
+  assert(w.pos.z <= PLAN.ramp.z1 + 0.2,
+    `ended at z=${w.pos.z.toFixed(2)} — never reached the ramp`);
+}
+
+// Climb the ramp to the living floor, then to the north terrace.
+{
+  const w = mkWalk(BOXES, { x: 0, z: PLAN.ramp.z1 + 0.15, floorY: 0 });
+  const go = (yaw, n = 700) => {
+    w.vel.x = 0; w.vel.z = 0;
+    w.keys.clear();
+    w.keys.add('w');
+    step(w, yaw, n);
+  };
+  go(0);                      // flight 0 toward −z
+  assert(w.floorY > 1.2,
+    `after first flight floorY=${w.floorY.toFixed(2)} — ramp is not lifting the eye`);
+  go(Math.PI);                // flight 1 toward +z → living
+  assert(w.floorY >= PLAN.levels.first - 0.15,
+    `living landing floorY=${w.floorY.toFixed(2)} — did not reach the second floor`);
+  assert(camera.position.y >= PLAN.levels.first + EYE - 0.3,
+    `camera y=${camera.position.y.toFixed(2)} — eye did not rise with the floor`);
+
+  // Step off the ramp onto the living floor, walk to the north terrace.
+  w.teleport(3.0, 0, PLAN.levels.first);
+  go(0, 500);                 // face −z → north balcony
+  assert(w.pos.z < -PLAN.box.d / 2 + 3.5,
+    `terrace z=${w.pos.z.toFixed(2)} — could not reach the north balcony`);
+  assert(Math.abs(w.floorY - PLAN.levels.first) < 0.2,
+    `on terrace floorY=${w.floorY.toFixed(2)} — fell through the living floor`);
+  // From here, looking up (pitch) is sky — the terrace has no head band.
+  assert.equal(PLAN.terrace, 'north', 'terrace must stay on the north for sky view');
+}
+
+// Continue to the roof garden via the upper flights.
+{
+  const w = mkWalk(BOXES, { x: 0, z: PLAN.ramp.z1 - 0.15, floorY: PLAN.levels.first });
+  w.floorY = w.floorAt(w.pos.x, w.pos.z);
+  const go = (yaw, n = 700) => {
+    w.vel.x = 0; w.vel.z = 0;
+    w.keys.clear();
+    w.keys.add('w');
+    step(w, yaw, n);
+  };
+  go(0);                      // flight 2 toward −z
+  assert(w.floorY > PLAN.levels.first + 0.8,
+    `after third flight floorY=${w.floorY.toFixed(2)} — upper ramp stuck`);
+  go(Math.PI);                // flight 3 toward +z → roof
+  assert(w.floorY >= PLAN.levels.roof - 0.25,
+    `roof floorY=${w.floorY.toFixed(2)} — promenade does not reach the garden`);
 }
 
 // The doorway is wide enough for a person and nothing else is.
 {
   const clear = PLAN.ground.door * 2 - RADIUS * 2;
   assert(clear > 0.9, `a ${(PLAN.ground.door * 2).toFixed(2)}m door leaves only ${clear.toFixed(2)}m clear`);
-  const w = mkWalk(BOXES, { x: 4.0, z: 10.0 });     // off the axis, at the glass
+  const w = mkWalk(BOXES, { x: 4.0, z: 10.0 });
   w.keys.add('w');
   step(w, 0, 300);
   assert(w.pos.z > PLAN.ground.back,
@@ -157,7 +243,18 @@ const BOXES = colliderBoxes(PLAN);
   assert(w.pos.z > 9.5, `walked through a piloti — ended at z=${w.pos.z.toFixed(2)}`);
 }
 
+// Living-floor walls must not block the grass under the cantilever.
+{
+  const w = mkWalk(BOXES, { x: 0, z: 12.0, floorY: 0 });
+  assert(!w._blocked(0, PLAN.box.d / 2),
+    'south living wall blocks the grass under the box');
+  w.floorY = PLAN.levels.first;
+  assert(w._blocked(0, PLAN.box.d / 2),
+    'south living wall is missing once you are upstairs');
+}
+
 console.log(
   `savoye: all checks passed · ${PLAN.box.w}×${PLAN.box.d}m on ${PLAN.bay}m bays · ` +
-  `${PLAN.ramp.flights}-flight ramp · ${BOXES.length} colliders · at ${PLAN.origin.x},${PLAN.origin.z}`
+  `${PLAN.ramp.flights}-flight ramp · car@${PLAN.car.x},${PLAN.car.z} · ` +
+  `${BOXES.length} colliders · ${FLOORS.length} floors · at ${PLAN.origin.x},${PLAN.origin.z}`
 );

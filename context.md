@@ -40,6 +40,8 @@ v3.0–v3.1 shipped real backend organs (fleet history, braind, Worker capture q
 
 **v4.4→4.5 scar (2026-08-06):** `S` both walked backwards and toggled the sky. WASD enabled walk without pointer-lock, so the mouse could not look. Keyboard felt broken; sky/ground felt "missing." Fix: U/J for sky/ground, setWalk on WASD (pointer-lock), turn on baseRotY, pitch-to-enter.
 
+**v4.10 Savoye promenade (2026-08-07):** Villa Savoye is no longer a façade you walk up to. Traction Avant under the pilotis; central ramp is a floor (not a wall); walk.js lifts the eye via sticky floor patches so stacked flights do not teleport you to the roof. Living terrace (north) and roof garden are reachable — look up for sky. Farnsworth still sits on the y≈0 well trick until someone raises its tray.
+
 **Architizer / SketchUp icons (2026-08-07):** No local `.skp` files found on this machine. Estate icons are procedural plans from the same numbers the walk collides against — never Warehouse megabyte meshes. Farnsworth (Plano 1951) is the fourth building; next candidates from the Architizer free list if asked: Church of the Light, Fallingwater, Ronchamp.
 
 ## Conservation law

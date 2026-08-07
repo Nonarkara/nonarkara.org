@@ -45,6 +45,12 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.10 (2026-08-07) Villa Savoye promenade — Traction Avant parked
+//                     under the pilotis, walkable central ramp lifts
+//                     the eye to the living terrace and roof garden so
+//                     you can look at the sky from the second floor.
+//                     walk.js gains floor patches + height-scoped
+//                     colliders (living walls no longer fence the grass).
 //   4.9 (2026-08-07) Farnsworth House joins the estate — Mies's glass
 //                    tray south of the Pavilion, facing Johnson's Glass
 //                    House across the plain. Procedural plan at real
@@ -160,7 +166,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.9';
+const NON_VERSION = '4.10';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -872,8 +878,14 @@ LOOK.yaw = camera.rotation.y;
 LOOK.pitch = camera.rotation.x;
 
 // The walk collides against the union of every building. One list,
-// built from the same plans the geometry came from.
-const WALK = new Walk(camera, SITE.flatMap(b => b.build.colliders), PLAN.spawn);
+// built from the same plans the geometry came from. Floors (Savoye's
+// ramp, living terrace, roof) lift the eye when present.
+const WALK = new Walk(
+  camera,
+  SITE.flatMap(b => b.build.colliders),
+  PLAN.spawn,
+  SITE.flatMap(b => b.build.floors || []),
+);
 WALK.attach();
 window.__walk = WALK;
 
@@ -6556,6 +6568,7 @@ if (WEBGL_OK && SITE.length > 1) {
     WALK.teleport(
       TRAVEL.from.x + (TRAVEL.to.x - TRAVEL.from.x) * e,
       TRAVEL.from.z + (TRAVEL.to.z - TRAVEL.from.z) * e,
+      0, // travel is across the plain — never carry a ramp height with you
     );
     camera.position.set(WALK.pos.x, 1.65, WALK.pos.z);
     if (t >= 1) { TRAVEL = null; document.body.classList.remove('travelling'); }
