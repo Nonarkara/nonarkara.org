@@ -135,11 +135,10 @@ export function buildPool(THREE, plan, opts = {}) {
     const bright = 'rgba(226,238,248,';
     const amberCss = 'rgba(245,158,11,';
 
-    // ── Scoreboard: 2 columns × 6 rows ────────────────────────
-    // Three columns of smaller cells. At two columns the price type came
-    // out about 40cm tall in world space — legible, but it read as a wall
-    // of numbers rather than something glimpsed in water. Denser and
-    // finer is both more trading-floor and more like a reflection.
+    // ── Scoreboard: 3 columns × 4 rows ────────────────────────
+    // Denser and finer than a wall of numbers. A reflection glimpsed in
+    // water has many small cells, not a few large ones — and the
+    // smaller type reads as something you are looking *down into*.
     const cols = 3, rows = Math.ceil(ROWS.length / cols);
     const padX = 34, padY = 92;
     const cw = (W - padX * 2) / cols, chh = 104;

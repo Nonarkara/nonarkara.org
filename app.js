@@ -1687,8 +1687,7 @@ async function fetchDailyBrief() {
   try {
     const r = await fetch('https://api.nonarkara.org/daily-brief', { cache: 'no-cache' });
     const d = await r.json();
-    const p = (key) => d[key] ? { price: d[key].price, change: d[key].change ?? 0 } : null;
-    // The pool reads the same payload the brief does.
+    // The pool reads the same payload the brief does, in the same shape.
     try { POOL?.setData(d); } catch (_) {}
 
     // FX — supplement open.er-api with Worker values if available
