@@ -43,6 +43,9 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.7 (2026-08-07) fix: camera rotation order YXZ & angle normalization —
+//                    prevents gimbal lock roll inversion (buildings upside down)
+//                    and normalizes yaw lerps across PI boundary (no 360° flip glitches).
 //   4.6 (2026-08-06) keyboard walk + sky/ground — sustained movement
 //                    builds into a jog so 120m between buildings is not
 //                    forty seconds of holding a button, and the compass
@@ -138,7 +141,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.6';
+const NON_VERSION = '4.7';
 window.NON_VERSION = NON_VERSION;
 // Stamp the build into the room HUD as early as possible — this element
 // is the answer to "am I actually seeing the new version?".
@@ -612,6 +615,7 @@ scene.fog = new THREE.Fog(0x000000, 30, 460);
 // At the old far = 100 the sky was entirely behind the far plane, which
 // is most of why looking up produced nonsense rather than stars.
 const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 1200);
+camera.rotation.order = 'YXZ';
 camera.position.set(0, 1.7, 7.5);
 camera.lookAt(0, 2.0, -10);
 let baseRotX = camera.rotation.x;
@@ -632,6 +636,7 @@ function applyCameraFraming() {
 }
 applyCameraFraming();
 // Initial pose. The spawn point overrides this once the plan is built.
+camera.rotation.order = 'YXZ';
 camera.position.set(0, 1.7, 7.5);
 camera.lookAt(0, 2.0, -10);
 baseRotX = camera.rotation.x;
@@ -4693,6 +4698,10 @@ function updateDolly() {
   lookTarget.y += 0.5;
   camera.lookAt(lookTarget);
   if (t >= 1) {
+    baseRotX = camera.rotation.x;
+    baseRotY = camera.rotation.y;
+    target.x = 0;
+    target.y = 0;
     endDolly();
     return true;
   }
@@ -5043,8 +5052,20 @@ function animate() {
   const skyPitch = window.__sky ? window.__sky.pitch : 0;
   const wantY = (drivenY + baseRotY) * (1 - b) + skyYaw * b;
   const wantX = (drivenX + baseRotX) * (1 - b) + skyPitch * b;
-  camera.rotation.y += (wantY - camera.rotation.y) * 0.05;
-  camera.rotation.x += (wantX - camera.rotation.x) * 0.05;
+
+  // Enforce YXZ rotation order to eliminate pitch/yaw gimbal roll (upside-down view)
+  camera.rotation.order = 'YXZ';
+
+  // Normalize angle differences to [-PI, PI] to prevent 360-degree flip glitching
+  let diffY = wantY - camera.rotation.y;
+  diffY = Math.atan2(Math.sin(diffY), Math.cos(diffY));
+  camera.rotation.y += diffY * 0.05;
+
+  const clampedX = Math.max(-1.42, Math.min(1.42, wantX));
+  let diffX = clampedX - camera.rotation.x;
+  diffX = Math.atan2(Math.sin(diffX), Math.cos(diffX));
+  camera.rotation.x += diffX * 0.05;
+  camera.rotation.z = 0;
 
   // Walking owns the camera's position when it is on; otherwise the room
   // keeps its slow idle float. Movement is relative to where you are
