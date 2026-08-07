@@ -60,13 +60,16 @@ function makePinch() {
     `a full-width drag should turn 45–90°, not ${deg.toFixed(0)}°`);
 }
 
-// You must be able to look up far enough to see a roof and reach the sky.
+// You must be able to look up far enough to reach the full sky. The
+// clamp lives in look.js now (±89°) — pitch to the top must yield full
+// overhead blend, or the stars are unreachable by hand.
 {
-  const CLAMP = 1.1;                                // radians
-  const deg = CLAMP * 180 / Math.PI;
-  assert(deg > 55, `pitch clamp must allow looking well up, got ${deg.toFixed(0)}°`);
-  // And the drag gain must actually reach the clamp within one screen.
-  assert(1.05 >= CLAMP * 0.9, 'one full drag should reach most of the pitch range');
+  const { Look, overheadBlend } = await import('./look.js');
+  const l = new Look();
+  l.addDelta(0, 99);
+  assert(overheadBlend(l.pitch) === 1, 'pitching fully up must reach full sky');
+  l.addDelta(0, -199);
+  assert(overheadBlend(-l.pitch) === 1, 'and fully down, the full map');
 }
 
 console.log('touch: all checks passed · pinch reversible, wobble-proof, always resettable');

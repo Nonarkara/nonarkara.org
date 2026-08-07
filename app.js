@@ -4,6 +4,7 @@ import { buildPavilion, PLAN } from './pavilion.js';
 import { buildGlassHouse, PLAN as GLASS_PLAN, paint as paintGlass } from './glasshouse.js';
 import { buildSavoye, PLAN as SAVOYE_PLAN, paint as paintSavoye } from './savoye.js';
 import { Walk, attachStick } from './walk.js';
+import { Look, overheadBlend, underfootBlend } from './look.js';
 import { sunAltitude, paletteFor, fetchWeather, makeRain } from './daylight.js';
 import { poemForDate } from './poems.js';
 import * as STARLORE_MOD from './starlore.js';
@@ -43,6 +44,12 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.7 (2026-08-07) navigation rebuilt on the Doom model — look.js is
+//                    the single owner of the camera; inputs ADD, nothing
+//                    SETS. 1:1 same-frame response, mouse parallax gone,
+//                    sky and ground are pitch-driven places, not modes.
+//                    The inverted tilt gesture that sent an upward look
+//                    to the ground is deleted along with the gesture.
 //   4.7 (2026-08-07) fix: camera rotation order YXZ & angle normalization —
 //                    prevents gimbal lock roll inversion (buildings upside down)
 //                    and normalizes yaw lerps across PI boundary (no 360° flip glitches).
@@ -616,10 +623,12 @@ scene.fog = new THREE.Fog(0x000000, 30, 460);
 // is most of why looking up produced nonsense rather than stars.
 const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 1200);
 camera.rotation.order = 'YXZ';
-camera.position.set(0, 1.7, 7.5);
-camera.lookAt(0, 2.0, -10);
-let baseRotX = camera.rotation.x;
-let baseRotY = camera.rotation.y;
+// THE look integrator — the only thing allowed to write camera.rotation.
+// See look.js for why: four systems used to fight over it, and the
+// result was a view that lagged, snapped back, and hijacked itself.
+const LOOK = new Look();
+window.__look = LOOK;
+camera.rotation.order = 'YXZ';
 
 // Camera framing adapts to portrait phones — pull back, widen FOV,
 // tilt slightly down so the TV grid centers in the screen.
@@ -639,8 +648,8 @@ applyCameraFraming();
 camera.rotation.order = 'YXZ';
 camera.position.set(0, 1.7, 7.5);
 camera.lookAt(0, 2.0, -10);
-baseRotX = camera.rotation.x;
-baseRotY = camera.rotation.y;
+LOOK.yaw = camera.rotation.y;
+LOOK.pitch = camera.rotation.x;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -832,11 +841,8 @@ if (WEBGL_OK) {
 // You arrive on the podium, not floating in the middle of the room.
 camera.position.set(PLAN.spawn.x, PLAN.spawn.y, PLAN.spawn.z);
 camera.lookAt(PLAN.spawn.lookAt.x, PLAN.spawn.lookAt.y, PLAN.spawn.lookAt.z);
-// baseRot was sampled from the camera before this line ran, so without
-// this the render loop would ease straight back to facing -Z and throw
-// away the arrival view.
-baseRotX = camera.rotation.x;
-baseRotY = camera.rotation.y;
+LOOK.yaw = camera.rotation.y;
+LOOK.pitch = camera.rotation.x;
 
 // The walk collides against the union of all three buildings. One list,
 // built from the same plans the geometry came from.
@@ -2669,7 +2675,10 @@ function onDeviceOrientation(e) {
   if (gyroBetaZero === null) gyroBetaZero = beta;
   const betaRel = beta - gyroBetaZero;
   const rawX = clamp(gamma / 35, -1, 1);     // ±35° fills the range
-  const rawY = clamp(betaRel / 30, -0.7, 0.7);
+  // Radians, 1:1: tilt the phone up 40° and the view pitches up 40°.
+  // The old ±21°-max normalised form is why holding the phone up read
+  // as nothing happening.
+  const rawY = clamp(betaRel * Math.PI / 180, -1.35, 1.35);
   // Exponential moving average — kills hand tremor.
   gyroSmoothX += (rawX - gyroSmoothX) * 0.18;
   gyroSmoothY += (rawY - gyroSmoothY) * 0.18;
@@ -2698,12 +2707,37 @@ function disableGyro() {
 function onMouseMove(e) {
   mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-  target.y = -mouse.x * 0.06;
-  target.x =  mouse.y * 0.04;
+  // The parallax that used to live here SET the look direction on every
+  // mouse move — so any turn you had made snapped back the instant the
+  // mouse twitched. On a laptop that made navigation literally
+  // impossible. The mouse now only feeds the raycaster; looking is
+  // click-drag or pointer lock, like every viewer since Doom.
   const tip = document.getElementById('tip');
   if (hovered) { tip.style.left = e.clientX + 'px'; tip.style.top = e.clientY + 'px'; }
 }
 window.addEventListener('mousemove', onMouseMove, { passive: true });
+
+// Click-drag to look, desktop, no pointer lock needed. Grab-the-world
+// direction (drag right, world moves right) to match touch. A drag that
+// moved suppresses the click so letting go never opens a TV you were
+// merely turning past.
+let mouseDrag = null;
+window.__mouseDragMoved = false;
+window.addEventListener('mousedown', (e) => {
+  if (e.button !== 0 || document.pointerLockElement) return;
+  if (document.body.dataset.view !== 'room') return;
+  if (e.target.closest('button, a, input, textarea, select, .modal, .drawer, .nav-pad, .hud-chip')) return;
+  mouseDrag = { x: e.clientX, y: e.clientY };
+  window.__mouseDragMoved = false;
+});
+window.addEventListener('mousemove', (e) => {
+  if (!mouseDrag || document.pointerLockElement) return;
+  const dx = e.clientX - mouseDrag.x, dy = e.clientY - mouseDrag.y;
+  if (Math.abs(dx) + Math.abs(dy) > 3) window.__mouseDragMoved = true;
+  LOOK.addDelta(-(dx / window.innerWidth) * 2.4, (dy / window.innerHeight) * 1.8);
+  mouseDrag = { x: e.clientX, y: e.clientY };
+}, { passive: true });
+window.addEventListener('mouseup', () => { mouseDrag = null; });
 
 // ── Touch: drag-to-rotate camera + tap detection
 // (a "tap" is a touchend with very little drag, handled by onClick)
@@ -2713,10 +2747,7 @@ let touchStartTs = 0;
 function onTouchStart(e) {
   if (e.touches.length !== 1) return;
   const t = e.touches[0];
-  touchAnchor = {
-    x: t.clientX, y: t.clientY,
-    targetX: target.x, targetY: target.y,
-  };
+  touchAnchor = { x: t.clientX, y: t.clientY, lastX: t.clientX, lastY: t.clientY };
   touchMoved = false;
   touchStartTs = Date.now();
   // Update mouse for any potential immediate raycast
@@ -2726,20 +2757,17 @@ function onTouchStart(e) {
 function onTouchMove(e) {
   if (!touchAnchor || e.touches.length !== 1) return;
   const t = e.touches[0];
-  const dx = (t.clientX - touchAnchor.x) / window.innerWidth;
-  const dy = (t.clientY - touchAnchor.y) / window.innerHeight;
-  if (Math.abs(dx) > 0.015 || Math.abs(dy) > 0.015) touchMoved = true;
-  // Drag-to-rotate: 360° on the horizontal (you can spin all the way
-  // around to see the aphorism wall behind you), gentle pitch clamp
-  // on the vertical so you don't end up looking at your own feet.
-  // A full-width drag used to spin you 180°, which is unaimable on a
-  // phone — you overshoot whatever you were trying to look at. Now ~70°,
-  // slow enough to land on a thing.
-  target.y = touchAnchor.targetY - dx * 1.22;
-  // And the pitch was clamped to ±31°, so you literally could not drag
-  // far enough up to see the roof, let alone the sky. ±63° now.
-  target.x = touchAnchor.targetX + dy * 1.05;
-  target.x = Math.max(-1.1, Math.min(1.1, target.x));
+  // Deltas, 1:1 with the finger, applied the same frame. The old
+  // anchor-and-set form went through an easing lerp that trailed a
+  // third of a second behind the finger — technically responsive,
+  // physically seasick. Full-width drag ≈ 70°.
+  if (Math.abs(t.clientX - touchAnchor.x) / window.innerWidth  > 0.015 ||
+      Math.abs(t.clientY - touchAnchor.y) / window.innerHeight > 0.015) touchMoved = true;
+  const ddx = t.clientX - touchAnchor.lastX;
+  const ddy = t.clientY - touchAnchor.lastY;
+  touchAnchor.lastX = t.clientX;
+  touchAnchor.lastY = t.clientY;
+  LOOK.addDelta(-(ddx / window.innerWidth) * 1.22, (ddy / window.innerHeight) * 1.05);
   // Update mouse for ongoing raycast (so the city/tv they're sliding over highlights)
   mouse.x = (t.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(t.clientY / window.innerHeight) * 2 + 1;
@@ -2755,6 +2783,7 @@ window.addEventListener('touchcancel',onTouchEnd,   { passive: true });
 function onClick(e) {
   // If this came from a touchend that involved a drag, treat as rotate-only
   if (e && e.type === 'touchend' && touchMoved) return;
+  if (window.__mouseDragMoved) { window.__mouseDragMoved = false; return; }
   if (document.getElementById('modal').classList.contains('in')) return;
   if (document.getElementById('drawer').classList.contains('in')) return;
   if (document.getElementById('pomodoro').classList.contains('in')) return;
@@ -4679,6 +4708,11 @@ function startDollyTo(targetPoint) {
   dollyTarget = targetPoint.clone();
   dollyProgress = 0;
   document.body.classList.add('camera-dollying');
+  // Aim through the integrator rather than lookAt-ing behind its back —
+  // two rotation authorities is exactly the disease this rewrite cures.
+  const d = targetPoint.clone().sub(camera.position);
+  const flat = Math.hypot(d.x, d.z);
+  LOOK.aimAt(Math.atan2(-d.x, -d.z), Math.atan2(d.y + 0.5, flat), 0.09);
 }
 function endDolly() {
   dollyTarget = null;
@@ -4691,17 +4725,10 @@ function updateDolly() {
   const t = Math.min(1, dollyProgress / DOLLY_DURATION);
   // Ease in-out cubic
   const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-  // Move camera closer to target
+  // Move camera closer to target; LOOK handles the turn via the aim
+  // set in startDollyTo.
   camera.position.lerpVectors(dollyOriginPos, dollyTarget, ease * 0.4);
-  // Look at target
-  const lookTarget = dollyTarget.clone();
-  lookTarget.y += 0.5;
-  camera.lookAt(lookTarget);
   if (t >= 1) {
-    baseRotX = camera.rotation.x;
-    baseRotY = camera.rotation.y;
-    target.x = 0;
-    target.y = 0;
     endDolly();
     return true;
   }
@@ -5037,35 +5064,35 @@ function animate() {
   // so it doesn't fight the finger; on release, gyro eases back in.
   const gyroTarget = touchAnchor ? 0 : 1;
   window.__gyroBlend = (window.__gyroBlend ?? 0) + ((gyroTarget - (window.__gyroBlend ?? 0)) * 0.06);
-  const gyroY = gyroEnabled ? -gyroSmoothX * 0.45 * window.__gyroBlend : 0;
-  // Was 0.30, which over a ±30° hold range moved the view by about 9° —
-  // indistinguishable from nothing, so lifting the phone appeared dead.
-  // 1.15 makes the room respond like the window it is meant to be, and
-  // it still rides on top of the finger rather than fighting it.
-  const gyroX = gyroEnabled ? -gyroSmoothY * 1.15 * window.__gyroBlend : 0;
-  const drivenY = target.y + gyroY;
-  const drivenX = target.x + gyroX;
-  // Blend between where the room wants the camera and where the sky
-  // wants it. One expression, so the two can never fight for ownership.
-  const b = window.__sky ? window.__sky.blend : 0;
-  const skyYaw = window.__sky ? window.__sky.yaw : 0;
-  const skyPitch = window.__sky ? window.__sky.pitch : 0;
-  const wantY = (drivenY + baseRotY) * (1 - b) + skyYaw * b;
-  const wantX = (drivenX + baseRotX) * (1 - b) + skyPitch * b;
+  // Doom rule: the camera is SET from the look state, same frame, no
+  // easing. The old 5%/frame lerp meant the view trailed a third of a
+  // second behind every input — the "swimming". Gyro rides on top as an
+  // additive offset that fades while the finger is down.
+  LOOK.gyroYaw   = gyroEnabled ? -gyroSmoothX * 0.45 * window.__gyroBlend : 0;
+  LOOK.gyroPitch = gyroEnabled ? -gyroSmoothY * window.__gyroBlend : 0;
 
-  // Enforce YXZ rotation order to eliminate pitch/yaw gimbal roll (upside-down view)
-  camera.rotation.order = 'YXZ';
+  // In the sky with a compass: ease yaw toward the real heading so the
+  // stars sit where the sky sits. Gentle, so a jittery compass reads
+  // calm and the finger can still win an argument.
+  // window.*, not the module lets: animate's first frame runs during
+  // module evaluation, before those declarations exist — reading them
+  // here is a TDZ ReferenceError that kills the whole module.
+  if (window.__skyHasMotion && window.__skyHeading != null && (window.__skyBlend || 0) > 0.25) {
+    const wantYaw = -window.__skyHeading * Math.PI / 180;
+    LOOK.yaw += Math.atan2(Math.sin(wantYaw - LOOK.yaw), Math.cos(wantYaw - LOOK.yaw)) * 0.08;
+  }
 
-  // Normalize angle differences to [-PI, PI] to prevent 360-degree flip glitching
-  let diffY = wantY - camera.rotation.y;
-  diffY = Math.atan2(Math.sin(diffY), Math.cos(diffY));
-  camera.rotation.y += diffY * 0.05;
+  const nowLook = performance.now();
+  const dtLook = Math.min((nowLook - (window.__lastLookT || nowLook)) / 1000, 0.05);
+  window.__lastLookT = nowLook;
+  const eff = LOOK.tick(dtLook);
+  camera.rotation.set(eff.pitch, eff.yaw, 0);
 
-  const clampedX = Math.max(-1.42, Math.min(1.42, wantX));
-  let diffX = clampedX - camera.rotation.x;
-  diffX = Math.atan2(Math.sin(diffX), Math.cos(diffX));
-  camera.rotation.x += diffX * 0.05;
-  camera.rotation.z = 0;
+  // The sky and the ground are places, not modes: how much of each you
+  // see comes from nothing but where you are looking. Look up — stars.
+  // Look down — the map of where you stand. Look back — the room.
+  window.__skyBlend = overheadBlend(eff.pitch);
+  window.__groundBlend = underfootBlend(eff.pitch);
 
   // Walking owns the camera's position when it is on; otherwise the room
   // keeps its slow idle float. Movement is relative to where you are
@@ -5861,29 +5888,60 @@ function askForLocation() {
   );
 }
 
+// The buttons and keys are conveniences now, not doorways: they simply
+// aim the view up or down through the same integrator the finger uses.
+// The sky appears because you are looking at it — same as walking.
 function enterSky() {
-  if (!skyAvailable() || CAMERA_MODE === 'sky') return;
-  CAMERA_MODE = 'sky';
-  SKY.group.visible = true;
-  SKY_YAW = camera.rotation.y;
+  if (!skyAvailable()) return;
+  LOOK.aimAt(LOOK.yaw, 1.15, 0.10);
   askForLocation();
-  recalcSky(true);
-  document.body.dataset.sky = 'on';
-  if (skyHud) skyHud.setAttribute('aria-hidden', 'false');
   try { enableGyro(); } catch (_) {}
-  try { window.__discover?.('sky'); } catch (_) {}
 }
 
-function exitSky() {
-  if (CAMERA_MODE !== 'sky') return;
-  CAMERA_MODE = 'room';
-  document.body.dataset.sky = 'off';
-  if (skyHud) skyHud.setAttribute('aria-hidden', 'true');
-  const el = document.getElementById('sky-star');
-  if (el) el.textContent = '';
-}
+function exitSky() { LOOK.aimAt(LOOK.yaw, 0, 0.10); }
 
 function toggleSky() { CAMERA_MODE === 'sky' ? exitSky() : enterSky(); }
+
+// HUD bookkeeping follows the blends — it never leads them. One place
+// decides what "in the sky" means (you are mostly looking at it), and
+// every side-effect hangs off the transition.
+function syncOverheadHud() {
+  const sb = window.__skyBlend || 0, gb = window.__groundBlend || 0;
+  const mode = sb > 0.45 ? 'sky' : gb > 0.45 ? 'ground' : 'room';
+  if (mode === CAMERA_MODE) return;
+
+  if (mode === 'sky') {
+    askForLocation();
+    recalcSky(true);
+    document.body.dataset.sky = 'on';
+    if (skyHud) skyHud.setAttribute('aria-hidden', 'false');
+    try { window.__discover?.('sky'); } catch (_) {}
+  } else if (CAMERA_MODE === 'sky') {
+    document.body.dataset.sky = 'off';
+    if (skyHud) skyHud.setAttribute('aria-hidden', 'true');
+    const el = document.getElementById('sky-star');
+    if (el) el.textContent = '';
+    const lore = document.getElementById('sky-lore');
+    if (lore) { lore.classList.remove('in'); lore.innerHTML = ''; }
+  }
+
+  if (mode === 'ground') {
+    askForLocation();
+    if (GROUND) {
+      GROUND.load(SKY_SITE);
+      const cap = document.getElementById('ground-cap');
+      if (cap) cap.textContent = `${GROUND.scaleLabel(SKY_SITE.lat)} · ${GROUND.mod.ATTRIBUTION}`;
+      const place = document.getElementById('ground-place');
+      if (place) place.textContent = `${SKY_SITE.lat.toFixed(4)}°, ${SKY_SITE.lon.toFixed(4)}°`;
+    }
+    document.body.dataset.ground = 'on';
+    try { window.__discover?.('ground'); } catch (_) {}
+  } else if (CAMERA_MODE === 'ground') {
+    document.body.dataset.ground = 'off';
+  }
+
+  CAMERA_MODE = mode;
+}
 
 // ── THE GROUND — the sky's mirror ───────────────────────────
 // Same position, same compass, opposite direction. The floor goes to
@@ -5911,30 +5969,13 @@ async function initGround() {
 }
 
 function enterGround() {
-  if (!GROUND || CAMERA_MODE === 'ground') return;
-  if (CAMERA_MODE === 'sky') exitSky();
-  CAMERA_MODE = 'ground';
-  GROUND.group.visible = true;
+  if (!GROUND) return;
+  LOOK.aimAt(LOOK.yaw, -1.15, 0.10);
   askForLocation();
-  GROUND.load(SKY_SITE);
-  document.body.dataset.ground = 'on';
-  const cap = document.getElementById('ground-cap');
-  if (cap) {
-    cap.textContent = `${GROUND.scaleLabel(SKY_SITE.lat)} · ${GROUND.mod.ATTRIBUTION}`;
-  }
-  const place = document.getElementById('ground-place');
-  if (place) {
-    place.textContent = `${SKY_SITE.lat.toFixed(4)}°, ${SKY_SITE.lon.toFixed(4)}°`;
-  }
   try { enableGyro(); } catch (_) {}
-  try { window.__discover?.('ground'); } catch (_) {}
 }
 
-function exitGround() {
-  if (CAMERA_MODE !== 'ground') return;
-  CAMERA_MODE = 'room';
-  document.body.dataset.ground = 'off';
-}
+function exitGround() { LOOK.aimAt(LOOK.yaw, 0, 0.10); }
 
 function toggleGround() { CAMERA_MODE === 'ground' ? exitGround() : enterGround(); }
 document.getElementById('ground-hint')?.addEventListener('click', enterGround);
@@ -5980,59 +6021,26 @@ function onCompass(e) {
     SKY_HAS_MOTION = true;
     DEVICE_PITCH = pitchFromBeta(e.beta, e.gamma || 0);
   }
+  window.__skyHasMotion = SKY_HAS_MOTION;
   let h = null;
   if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading;
   else if (e.absolute && typeof e.alpha === 'number') h = 360 - e.alpha;
   if (h == null || Number.isNaN(h)) return;
   const screenAngle = (screen.orientation && screen.orientation.angle) || 0;
   SKY_HEADING = ((h + screenAngle) % 360 + 360) % 360;
+  window.__skyHeading = SKY_HEADING;
 }
 window.addEventListener('deviceorientation', onCompass, true);
 if ('ondeviceorientationabsolute' in window) {
   window.addEventListener('deviceorientationabsolute', onCompass, true);
 }
 
-// The gesture. Pointing the phone at the sky is the whole affordance —
-// no button to find, you just do the thing you would do outdoors. On
-// desktop the same idea: pitch the view far enough (mouse-look or
-// PageUp / PageDown) and the room yields. Both thresholds have
-// hysteresis so a wobble at the boundary can't flap.
-let skyGestureSince = 0;
-function tickSkyGesture() {
-  if (!skyAvailable() && !GROUND) return;
-  if (document.body.dataset.view !== 'room') return;
-  const now = performance.now();
-  // Phone tilt when we have it; otherwise the camera pitch itself.
-  let up = 0;
-  if (gyroEnabled && SKY_HAS_MOTION) {
-    up = gyroSmoothY;                            // +1 is fully tilted back
-  } else if (CAMERA_MODE === 'room') {
-    // target.x is the look pitch offset; ~1.0 is nearly ceiling.
-    up = (target.x + baseRotX) / 1.05;
-  } else {
-    // In sky/ground, level the view to come back — use sky blend pitch
-    // only via gyro; without gyro, Esc / U / J / the exit button exit.
-    return;
-  }
-  if (CAMERA_MODE === 'room') {
-    if (up > 0.72 || up < -0.72) {
-      if (!skyGestureSince) skyGestureSince = now;
-      else if (now - skyGestureSince > 450) {
-        skyGestureSince = 0;
-        up > 0 ? enterSky() : enterGround();
-      }
-    } else skyGestureSince = 0;
-  } else if (gyroEnabled && SKY_HAS_MOTION) {
-    // Coming back to level exits whichever direction you went.
-    if (Math.abs(up) < 0.30) {
-      if (!skyGestureSince) skyGestureSince = now;
-      else if (now - skyGestureSince > 600) {
-        skyGestureSince = 0;
-        CAMERA_MODE === 'sky' ? exitSky() : exitGround();
-      }
-    } else skyGestureSince = 0;
-  }
-}
+// The old sky-entry gesture lived here: hold the phone tilted past a
+// threshold for 450ms and a MODE switched. It also read its tilt with
+// the sign inverted, so lifting the phone to the sky could enter the
+// ground — "I look up and I'm lying on the floor". There is no gesture
+// and no mode any more: the sky is up, the ground is down, and the
+// blend comes from nothing but where you are looking (look.js).
 
 // Tap a star for its name. Reuses the room's tooltip element so there is
 // one thing on screen that names what you are pointing at, not two.
@@ -6085,21 +6093,11 @@ function skyTap(clientX, clientY) {
 // Compass steers the yaw when the phone knows which way it faces;
 // otherwise the finger does, exactly as in the room. Sky and ground
 // share it — pointing north means the same thing in both directions.
-function tickYaw() {
-  if (SKY_HEADING != null) {
-    const wantYaw = -SKY_HEADING * Math.PI / 180;
-    let delta = ((wantYaw - SKY_YAW + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
-    SKY_YAW += delta * 0.12;                   // ease, so a jittery compass reads calm
-  } else {
-    SKY_YAW = target.y + baseRotY;
-  }
-}
 
 function tickSky() {
-  tickSkyGesture();
-  if (CAMERA_MODE !== 'room') tickYaw();
+  syncOverheadHud();
   const roomLeftByGround = tickGround();
-  const want = CAMERA_MODE === 'sky' ? 1 : 0;
+  const want = window.__skyBlend || 0;
   SKY_BLEND += (want - SKY_BLEND) * 0.055;
   if (SKY_BLEND < 0.002 && want === 0) {
     SKY_BLEND = 0;
@@ -6126,7 +6124,7 @@ function tickSky() {
 // The ground fades the room the same way the sky does, and eases the
 // scene toward the deep blue of an image seen from very high up.
 function tickGround() {
-  const want = CAMERA_MODE === 'ground' ? 1 : 0;
+  const want = window.__groundBlend || 0;
   GROUND_BLEND += (want - GROUND_BLEND) * 0.055;
   if (GROUND_BLEND < 0.002) {
     GROUND_BLEND = 0;
@@ -6514,13 +6512,9 @@ if (WEBGL_OK && SITE.length > 1) {
   const travelTo = (b) => {
     if (TRAVEL) return;
     const to = doorstep(b);
-    // Face the building on arrival. Forward is (-sin y, -cos y), so the
-    // yaw that looks along (dx,dz) is atan2(-dx,-dz). Setting the base
-    // rotation lets the render loop's own easing turn the head, which
-    // is why the turn and the travel finish together.
-    baseRotY = Math.atan2(-(to.lookX - to.x), -(to.lookZ - to.z));
-    baseRotX = 0;
-    target.x = 0; target.y = 0;
+    // Face the building on arrival: aim the head through the same
+    // integrator every other input uses, eased to land as the feet do.
+    LOOK.aimAt(Math.atan2(-(to.lookX - to.x), -(to.lookZ - to.z)), 0, 0.055);
     // Pointer lock has to be asked for inside the tap, not 1.6s later.
     setWalk(true);
     TRAVEL = { from: { ...WALK.pos }, to, t0: performance.now(), ms: 1600 };
@@ -6571,9 +6565,7 @@ if (WEBGL_OK && SITE.length > 1) {
 // existing gentle parallax stays exactly as it was.
 document.addEventListener('mousemove', (e) => {
   if (!WALK.enabled || !document.pointerLockElement) return;
-  target.y -= e.movementX * 0.0022;
-  target.x -= e.movementY * 0.0018;
-  target.x = Math.max(-0.85, Math.min(0.85, target.x));
+  LOOK.addDelta(-e.movementX * 0.0022, -e.movementY * 0.0018);
 }, { passive: true });
 
 document.addEventListener('pointerlockchange', () => {
@@ -6678,15 +6670,10 @@ window.addEventListener('keydown', (e) => {
     now = now || performance.now();
     const dt = Math.min((now - lastSpin) / 1000, 0.05);
     lastSpin = now;
-    // Apply to baseRotY, not target.y. The camera eases toward
-    // (target + base) at 5%/frame — putting the turn on target made
-    // every keypress feel like steering a boat.
     const t = Math.max(-1, Math.min(1, padTurn + WALK.turnInput()));
-    if (t) baseRotY += t * TURN_RATE * dt;
+    LOOK.setTurnRate(t * TURN_RATE);
     const p = WALK.pitchInput();
-    if (p) {
-      target.x = Math.max(-1.1, Math.min(1.1, target.x + p * PITCH_RATE * dt));
-    }
+    if (p) LOOK.addDelta(0, p * PITCH_RATE * dt);
     requestAnimationFrame(spin);
   })();
 
