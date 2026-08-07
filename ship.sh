@@ -67,6 +67,20 @@ for i in $(seq 1 12); do
     echo "  live build ${LIVE} matches HEAD"
     HTTP=$(curl -s -o /dev/null -w '%{http_code}' "$DOMAIN")
     echo "  ${DOMAIN} → ${HTTP}"
+    # The fifth stale layer: zone Browser Cache TTL on the custom domain
+    # can rewrite _headers no-cache back to max-age=14400. Content can
+    # still be correct (this loop proved the hash). Warn loudly so the
+    # next agent does not call Cache-Control "fixed" from pages.dev alone.
+    CC=$(curl -sI "${DOMAIN}/app.js?cb=$RANDOM" | tr -d '\r' | grep -i '^cache-control:' | head -1)
+    echo "  ${CC:-cache-control: (missing)}"
+    case "${CC}" in
+      *no-cache*|*no-store*|*max-age=0*) ;;
+      *)
+        echo "  WARN: custom domain is not honouring _headers no-cache."
+        echo "  pages.dev does; the zone Browser Cache TTL is the fifth layer."
+        echo "  Self-heal uses /heal (Clear-Site-Data) until the zone is set to Respect Existing Headers."
+        ;;
+    esac
     say "shipped v${LOCAL_VERSION}"
     exit 0
   fi

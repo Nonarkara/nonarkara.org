@@ -6,7 +6,7 @@
  * for same-origin, so a stale version means users keep the old shell.
  */
 
-const CACHE_VERSION = 'non-2026-08-07-v4.10';
+const CACHE_VERSION = 'non-2026-08-07-v4.11';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 // The app's own code. These are always revalidated when online so a
@@ -19,6 +19,7 @@ const CODE = new Set([
   // Must be network-first or the staleness check reads a stale answer
   // about staleness, which is a very good way to never fix anything.
   '/version.json',
+  '/heal',
 ]);
 
 const SHELL = [

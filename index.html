@@ -28,16 +28,24 @@
   <link rel="icon" type="image/svg+xml" href="icon.svg"/>
   <link rel="apple-touch-icon" href="apple-touch-icon.png"/>
 
-  <!-- Service worker — manual nuke path: /?reset -->
+  <!-- Service worker — manual nuke path: /?reset (no wait) -->
   <script>
+    // Drop every cache layer we can reach. Cache API + SW unregister
+    // are not enough on the custom domain: the zone rewrites JS/CSS
+    // Cache-Control to max-age=14400, so location.reload() can keep
+    // serving disk-cached app.js. /heal answers with Clear-Site-Data.
+    async function __nonPurge() {
+      try {
+        const ws = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(ws.map(r => r.unregister()));
+        const ks = await caches.keys();
+        await Promise.all(ks.map(k => caches.delete(k)));
+      } catch (_) {}
+      try { await fetch('/heal', { cache: 'no-store' }); } catch (_) {}
+    }
     if (location.search.indexOf('reset') !== -1) {
       (async () => {
-        try {
-          const ws = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(ws.map(r => r.unregister()));
-          const ks = await caches.keys();
-          await Promise.all(ks.map(k => caches.delete(k)));
-        } catch (_) {}
+        await __nonPurge();
         location.replace('/');
       })();
     }
@@ -46,10 +54,9 @@
     // version.json is written at ship time from NON_VERSION and fetched
     // with no-store, so it is always the truth from the network. If the
     // build actually running is older, every cache on this device is
-    // wrong: unregister the workers, delete the caches, reload once.
-    // Guarded by sessionStorage so a genuine mismatch can never become a
-    // reload loop. Costs one tiny request per load and removes the whole
-    // class of "shipped but invisible" bugs.
+    // wrong: unregister the workers, delete the caches, hit /heal, and
+    // navigate once. Guarded by sessionStorage so a genuine mismatch
+    // can never become a reload loop.
     window.addEventListener('load', () => {
       setTimeout(async () => {
         try {
@@ -67,11 +74,10 @@
           if (sessionStorage.getItem('non.healed') === live) return;  // already tried
           sessionStorage.setItem('non.healed', live);
           console.warn(`[NON] running ${running}, live is ${version} — clearing caches`);
-          const ws = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(ws.map(w => w.unregister()));
-          const ks = await caches.keys();
-          await Promise.all(ks.map(k => caches.delete(k)));
-          location.reload();
+          await __nonPurge();
+          // replace (not reload): bypasses the HTTP disk cache entry
+          // that max-age=14400 would otherwise hand back.
+          location.replace('/?build=' + encodeURIComponent(live));
         } catch (_) { /* offline — keep whatever build we have */ }
       }, 1500);
     });

@@ -10,9 +10,14 @@
 #
 # no-cache does not mean "don't cache" — it means the edge must
 # revalidate with the origin before serving, which costs one conditional
-# request and makes a deploy visible everywhere in seconds. The heavy
-# things (music, photos, three.js) keep long caching; they never change
-# under the same name.
+# request and makes a deploy visible everywhere in seconds.
+#
+# FIFTH LAYER (2026-08-07): these rules land on *.pages.dev. The custom
+# domain nonarkara.org is proxied through the zone, and the zone's
+# Browser Cache TTL rewrites Cache-Control on JS/CSS back to
+# max-age=14400. Until that zone setting is "Respect Existing Headers",
+# /heal + self-heal is what actually clears a visitor's disk cache.
+# ship.sh warns when the custom domain still serves the 4h header.
 
 /
   Cache-Control: no-cache
@@ -20,46 +25,10 @@
 /index.html
   Cache-Control: no-cache
 
-/app.js
+/*.js
   Cache-Control: no-cache
 
-/styles.css
-  Cache-Control: no-cache
-
-/sw.js
-  Cache-Control: no-cache
-
-/look.js
-  Cache-Control: no-cache
-
-/walk.js
-  Cache-Control: no-cache
-
-/pavilion.js
-  Cache-Control: no-cache
-
-/glasshouse.js
-  Cache-Control: no-cache
-
-/savoye.js
-  Cache-Control: no-cache
-
-/sky.js
-  Cache-Control: no-cache
-
-/ground.js
-  Cache-Control: no-cache
-
-/daylight.js
-  Cache-Control: no-cache
-
-/poems.js
-  Cache-Control: no-cache
-
-/starlore.js
-  Cache-Control: no-cache
-
-/discover.js
+/*.css
   Cache-Control: no-cache
 
 /mixtape.html
@@ -67,3 +36,23 @@
 
 /version.json
   Cache-Control: no-store
+
+# Self-heal / ?reset hit this to wipe HTTP disk cache. Zone TTL can
+# leave app.js sticky after SW caches are cleared; Clear-Site-Data is
+# the browser API that actually drops that layer.
+/heal
+  Cache-Control: no-store
+  Clear-Site-Data: "cache"
+
+# Fingerprinted / immutable media — leave them hot.
+/music/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/city-photos/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/portraits/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/vendor-three-0.160.0.js
+  Cache-Control: public, max-age=31536000, immutable

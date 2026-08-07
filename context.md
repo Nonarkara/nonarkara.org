@@ -50,7 +50,9 @@ v3.0–v3.1 shipped real backend organs (fleet history, braind, Worker capture q
 
 ## Deploy
 
-`./ship.sh` — stage with `.deployignore`, `wrangler pages deploy`, verify `NON_VERSION` on the live domain. GitHub Actions Cloudflare token is stale; OAuth on this machine is the path.
+`./ship.sh` — stage with `.deployignore`, `wrangler pages deploy`, verify build hash on the live domain. GitHub Actions Cloudflare token is stale; OAuth on this machine is the path.
+
+**Cache layers (do not call a deploy “visible” from one probe):** (1) SW cache-first — fixed network-first for CODE. (2) Version-number collision — fixed via `NON_BUILD` git hash. (3) Pages 4h edge cache ignoring query strings — `_headers` `no-cache` on code (honoured on `*.pages.dev`). (4) Custom-domain zone Browser Cache TTL rewrites JS/CSS to `max-age=14400` even when origin says `no-cache` — OAuth lacks zone write; until the zone is “Respect Existing Headers”, `/heal` + self-heal (`Clear-Site-Data`) is the client escape. Music/portraits keep long immutable cache on purpose.
 
 ## Do not
 

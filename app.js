@@ -45,6 +45,11 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.11 (2026-08-07) fifth cache layer — _headers no-cache works on
+//                    *.pages.dev; the custom domain's zone Browser Cache
+//                    TTL rewrites JS/CSS to max-age=14400. Self-heal and
+//                    ?reset now hit /heal (Clear-Site-Data) so a stale
+//                    disk cache cannot outlive the hash mismatch.
 //   4.10 (2026-08-07) Villa Savoye promenade — Traction Avant parked
 //                     under the pilotis, walkable central ramp lifts
 //                     the eye to the living terrace and roof garden so
@@ -166,7 +171,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.10';
+const NON_VERSION = '4.11';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
