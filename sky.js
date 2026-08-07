@@ -307,6 +307,32 @@ const BINS = [
   { max: 99,  size: 1.9, opacity: 0.46 },
 ];
 
+/**
+ * A star is a round glow, not a square. Default PointsMaterial draws an
+ * unfiltered square of colour — which at 2px reads as dust and at 6px
+ * reads as confetti, and is the whole reason the sky looked flat rather
+ * than beautiful. One shared radial-gradient sprite fixes every bin at
+ * once: a bright core, a soft falloff, nothing at the edge.
+ */
+let _starSprite = null;
+function starSprite(THREE) {
+  if (_starSprite) return _starSprite;
+  const S = 64;
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+  grad.addColorStop(0.00, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.18, 'rgba(255,255,255,0.92)');
+  grad.addColorStop(0.42, 'rgba(255,255,255,0.28)');
+  grad.addColorStop(1.00, 'rgba(255,255,255,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, S, S);
+  _starSprite = new THREE.CanvasTexture(c);
+  _starSprite.colorSpace = THREE.SRGBColorSpace;
+  return _starSprite;
+}
+
 export function buildSky(themeColor = 0xf5f5f0, amber = 0xf59e0b) {
   const group = new THREE.Group();
   group.name = 'sky';
@@ -320,7 +346,9 @@ export function buildSky(themeColor = 0xf5f5f0, amber = 0xf59e0b) {
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(idx.length * 3), 3));
     const mat = new THREE.PointsMaterial({
       fog: false,   // the dome is 400 units out; room fog would erase it
-      color: themeColor, size: BINS[b].size,
+      color: themeColor, size: BINS[b].size * 3.2,
+      map: starSprite(THREE), alphaTest: 0.01,
+      blending: THREE.AdditiveBlending,   // overlapping stars pool light
       sizeAttenuation: false, transparent: true,
       opacity: 0, depthWrite: false,
     });
@@ -349,7 +377,10 @@ export function buildSky(themeColor = 0xf5f5f0, amber = 0xf59e0b) {
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3), 3));
     const p = new THREE.Points(geo, new THREE.PointsMaterial({
       fog: false,   // the dome is 400 units out; room fog would erase it
-      color, size, sizeAttenuation: false, transparent: true, opacity: 0, depthWrite: false,
+      color, size: size * 3.2,
+      map: starSprite(THREE), alphaTest: 0.01,
+      blending: THREE.AdditiveBlending,
+      sizeAttenuation: false, transparent: true, opacity: 0, depthWrite: false,
     }));
     p.userData = { targetOpacity: target };
     p.frustumCulled = false;

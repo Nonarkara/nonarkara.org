@@ -1,6 +1,6 @@
 # nonarkara.org — product law
 
-Live: https://nonarkara.org · Cloudflare Pages project `nonarkara-org` · ship via `./ship.sh`
+Live: https://nonarkara.org · also https://www.nonarkara.org · Cloudflare Pages project `nonarkara-org` · ship via `./ship.sh`
 
 ## What this site is (the drawing board, 2026-08-06)
 
@@ -52,7 +52,9 @@ v3.0–v3.1 shipped real backend organs (fleet history, braind, Worker capture q
 
 `./ship.sh` — stage with `.deployignore`, `wrangler pages deploy`, verify build hash on the live domain. GitHub Actions Cloudflare token is stale; OAuth on this machine is the path.
 
-**Cache layers (do not call a deploy “visible” from one probe):** (1) SW cache-first — fixed network-first for CODE. (2) Version-number collision — fixed via `NON_BUILD` git hash. (3) Pages 4h edge cache ignoring query strings — `_headers` `no-cache` on code (honoured on `*.pages.dev`). (4) Custom-domain zone Browser Cache TTL rewrites JS/CSS to `max-age=14400` even when origin says `no-cache` — OAuth lacks zone write; until the zone is “Respect Existing Headers”, `/heal` + self-heal (`Clear-Site-Data`) is the client escape. Music/portraits keep long immutable cache on purpose.
+**Cache layers (do not call a deploy “visible” from one probe):** (1) SW cache-first — fixed network-first for CODE. (2) Version-number collision — fixed via `NON_BUILD` git hash. (3) Pages 4h edge cache ignoring query strings — `_headers` `no-cache` on code (honoured on `*.pages.dev`). (4) Custom-domain zone Browser Cache TTL rewrites JS/CSS to `max-age=14400` even when origin says `no-cache` — still open as of 2026-08-07. Zone `8809ee955a8edb681c34f45ed8f5b765` (`nonarkara.org`). Fix API: `PATCH /zones/{zone_id}/settings/browser_cache_ttl` with `{"value":0}` (= Respect Existing Headers). Wrangler OAuth has `zone (read)` only — PATCH returns `{"code":10000,"message":"Authentication error"}`. Needs an API token with **Zone Settings:Edit** on that zone (or broader Zone:Edit). Until then `/heal` + self-heal (`Clear-Site-Data`) is the client escape. Music/portraits keep long immutable cache on purpose.
+
+**www custom domain (2026-08-07):** Apex was on Pages; `www` DNS was orange-cloud to CF but not a Pages project domain → intermittent/hard **522**. Added via `POST /accounts/.../pages/projects/nonarkara-org/domains` `{"name":"www.nonarkara.org"}`. Now `active` (Google CA, http validation). Domains: `nonarkara-org.pages.dev`, `nonarkara.org`, `www.nonarkara.org`.
 
 ## Do not
 

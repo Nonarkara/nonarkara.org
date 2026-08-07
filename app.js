@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { createDiscovery } from './discover.js';
 import { buildPavilion, PLAN } from './pavilion.js';
+import { buildPool } from './pool.js';
+import { furnishGlassHouse, furnishFarnsworth } from './interiors.js';
 import { buildGlassHouse, PLAN as GLASS_PLAN, paint as paintGlass } from './glasshouse.js';
 import { buildSavoye, PLAN as SAVOYE_PLAN, paint as paintSavoye } from './savoye.js';
 import { buildFarnsworth, PLAN as FARN_PLAN, paint as paintFarn } from './farnsworth.js';
@@ -45,6 +47,11 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.12 (2026-08-07) the pool reflects the world — twelve live markets
+//                    drawn as a trading floor in Mies' black water, read
+//                    by looking down. Stars became round glows instead
+//                    of square pixels. Glass House and Farnsworth got
+//                    the furniture that IS their plan.
 //   4.11 (2026-08-07) fifth cache layer — _headers no-cache works on
 //                    *.pages.dev; the custom domain's zone Browser Cache
 //                    TTL rewrites JS/CSS to max-age=14400. Self-heal and
@@ -171,7 +178,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.11';
+const NON_VERSION = '4.12';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -796,6 +803,7 @@ const placeAt = (obj, x, y, z) => { obj.position.set(x, y, z); return obj; };
 // controller collides against, so there can be no invisible wall and no
 // wall you can walk through.
 let PAVILION = null;
+let POOL = null;
 let GLASS = null, SAVOYE = null, FARNSWORTH = null;
 // Every building on the site, nearest-first lookups included. The
 // Pavilion is at the origin because it was here first and everything
@@ -805,9 +813,20 @@ if (WEBGL_OK) {
   // fence:false — the podium edge used to be the end of the world.
   const dark = CURRENT_THEME !== 'light';
   PAVILION = buildPavilion(THREE, scene, { dark, fence: false });
+
+  // THE REFLECTING POOL — Mies' black water, reflecting the world it
+  // actually sits in. Built here so it shares the Pavilion's plan (one
+  // source of truth for where the water is) and fed by the same market
+  // call the daily brief already makes.
+  POOL = buildPool(THREE, PLAN);
+  scene.add(POOL.group);
+  window.__pool = POOL;   // verification handle
   GLASS = buildGlassHouse(THREE, scene, { dark });
+  // A shell you cross 120m to reach owes you an interior.
+  furnishGlassHouse(THREE, GLASS.group, dark);
   SAVOYE = buildSavoye(THREE, scene, { dark });
   FARNSWORTH = buildFarnsworth(THREE, scene, { dark });
+  furnishFarnsworth(THREE, FARNSWORTH.group, dark);
   SITE.push(
     { name: 'PAVILION', plan: PLAN, origin: { x: 0, z: 0 }, build: PAVILION },
     { name: GLASS_PLAN.name, plan: GLASS_PLAN, origin: GLASS_PLAN.origin, build: GLASS },
@@ -832,6 +851,31 @@ if (WEBGL_OK) {
 
   // A 10m grid, barely there. Crossing 120m of nothing with no texture
   // reads as not moving; the grid is how you feel the distance close.
+  // The plain reads as an endless flat sheet without something to make
+  // distance felt. A radial fade under the grid gives it a horizon: the
+  // ground you are standing on is legible, and it dissolves rather than
+  // ending at a hard edge 300m away.
+  {
+    const fc = document.createElement('canvas');
+    fc.width = fc.height = 256;
+    const fg = fc.getContext('2d');
+    const rg = fg.createRadialGradient(128, 128, 10, 128, 128, 128);
+    rg.addColorStop(0.0, 'rgba(255,255,255,0.16)');
+    rg.addColorStop(0.45, 'rgba(255,255,255,0.05)');
+    rg.addColorStop(1.0, 'rgba(255,255,255,0)');
+    fg.fillStyle = rg; fg.fillRect(0, 0, 256, 256);
+    const ftex = new THREE.CanvasTexture(fc);
+    const fade = new THREE.Mesh(
+      new THREE.PlaneGeometry(600, 600),
+      new THREE.MeshBasicMaterial({
+        map: ftex, transparent: true, opacity: 0.5, depthWrite: false,
+      })
+    );
+    fade.rotation.x = -Math.PI / 2;
+    fade.position.y = GROUND_Y + 0.001;
+    scene.add(fade);
+  }
+
   const plainGrid = new THREE.GridHelper(600, 60, 0x8b98a6, 0x8b98a6);
   plainGrid.material = new THREE.LineBasicMaterial({
     color: 0x6f7d8a, transparent: true, opacity: 0.07,
@@ -1627,6 +1671,8 @@ async function fetchDailyBrief() {
     const r = await fetch('https://api.nonarkara.org/daily-brief', { cache: 'no-cache' });
     const d = await r.json();
     const p = (key) => d[key] ? { price: d[key].price, change: d[key].change ?? 0 } : null;
+    // The pool reads the same payload the brief does.
+    try { POOL?.setData(d); } catch (_) {}
 
     // FX — supplement open.er-api with Worker values if available
     if (d.usdthb?.price) {
@@ -5155,6 +5201,16 @@ function animate() {
     camera.position.y = 1.7 + Math.sin(t * 0.4) * 0.015;
   }
   if (window.__tickWeather) window.__tickWeather();
+
+  // The pool brightens as you look down at it — the way water only
+  // shows you anything when you stand over it and lower your eyes. It
+  // uses a gentler threshold than the full ground map, so glancing down
+  // while walking reads the markets, and committing to the look brings
+  // the street map. Two depths of the same gesture.
+  if (POOL) {
+    const p = camera.rotation.x;
+    POOL.tick(dtLook, p < -0.12);
+  }
 
   // The sky dome and the ground tiles were both built around a viewer
   // standing at the origin, which was true when the camera could not

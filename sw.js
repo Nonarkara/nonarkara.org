@@ -6,7 +6,7 @@
  * for same-origin, so a stale version means users keep the old shell.
  */
 
-const CACHE_VERSION = 'non-2026-08-07-v4.11';
+const CACHE_VERSION = 'non-2026-08-07-v4.12';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 // The app's own code. These are always revalidated when online so a
@@ -15,7 +15,7 @@ const CODE = new Set([
   '/', '/index.html', '/mixtape.html',
   '/styles.css', '/app.js', '/discover.js', '/sky.js', '/ground.js',
   '/pavilion.js', '/glasshouse.js', '/savoye.js', '/farnsworth.js',
-  '/walk.js', '/daylight.js', '/poems.js', '/starlore.js', '/look.js',
+  '/walk.js', '/daylight.js', '/poems.js', '/starlore.js', '/look.js', '/pool.js', '/interiors.js',
   // Must be network-first or the staleness check reads a stale answer
   // about staleness, which is a very good way to never fix anything.
   '/version.json',
@@ -39,6 +39,8 @@ const SHELL = [
   '/poems.js',                      // the wall, one day at a time
   '/starlore.js',                   // what the constellations mean
   '/look.js',                       // the one owner of the camera
+  '/pool.js',                       // the world, reflected in the water
+  '/interiors.js',                  // the furniture that IS the plan
   '/ground.js',                     // the satellite floor (tiles need network)
   '/manifest.webmanifest',
   '/icon.svg',
