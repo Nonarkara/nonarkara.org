@@ -45,6 +45,13 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.9 (2026-08-07) Farnsworth House joins the estate — Mies's glass
+//                    tray south of the Pavilion, facing Johnson's Glass
+//                    House across the plain. Procedural plan at real
+//                    scale (not a SketchUp Warehouse mesh): white steel,
+//                    primavera core as the one amber, porch end, well
+//                    under the tray so it reads as floating while the
+//                    walk datum stays at y≈0.
 //   4.8 (2026-08-07) the rewrite you could not see — two sessions both
 //                    shipped as '4.7', so the self-heal thought the old
 //                    build was current. Versions now carry the git hash;
@@ -153,7 +160,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.8';
+const NON_VERSION = '4.9';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -798,7 +805,7 @@ if (WEBGL_OK) {
   );
 
   // ── The ground they share ─────────────────────────────
-  // Three buildings 120m apart need something to stand on that is not
+  // Four buildings on a cross need something to stand on that is not
   // each other's podium. It sits 3cm below the walking datum, so every
   // floor in the site reads as slightly proud of the plain rather than
   // sunk into it — and nothing z-fights.
@@ -864,7 +871,7 @@ camera.lookAt(PLAN.spawn.lookAt.x, PLAN.spawn.lookAt.y, PLAN.spawn.lookAt.z);
 LOOK.yaw = camera.rotation.y;
 LOOK.pitch = camera.rotation.x;
 
-// The walk collides against the union of all three buildings. One list,
+// The walk collides against the union of every building. One list,
 // built from the same plans the geometry came from.
 const WALK = new Walk(camera, SITE.flatMap(b => b.build.colliders), PLAN.spawn);
 WALK.attach();
@@ -6816,17 +6823,18 @@ if (WEBGL_OK && PAVILION) {
     M.water.color.setHex(p.water);
     M.podium.color.setHex(p.podium);
     M.roof.color.setHex(p.roof);
-    // The other two answer the same light in their own materials —
-    // steel and brick over there, render and pale columns over there.
+    // The others answer the same light in their own materials —
+    // steel and brick, render and pale columns, white tray and wood.
     if (GLASS) paintGlass(GLASS.materials, p);
     if (SAVOYE) paintSavoye(SAVOYE.materials, p);
+    if (FARNSWORTH) paintFarn(FARNSWORTH.materials, p);
     if (scene.background) scene.background.setHex(p.bg);
     else scene.background = new THREE.Color(p.bg);
     // Fog has to follow the sky or the far buildings sit in last
     // night's haze at noon.
     if (scene.fog) scene.fog.color.setHex(p.bg);
-    // The plain is the ground under all three: a shade off the sky, so
-    // there is a horizon rather than a void.
+    // The plain is the ground under every building: a shade off the sky,
+    // so there is a horizon rather than a void.
     if (window.__plainMat) window.__plainMat.color.setHex(mixHex(p.bg, p.podium, 0.35));
     if (window.__plainGridMat) window.__plainGridMat.color.setHex(p.line);
     // The HUD is white-on-dark by default. In the day and twilight

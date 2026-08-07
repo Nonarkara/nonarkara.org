@@ -23,7 +23,7 @@ Default for `data-mode="host"`. Phone-first. No WebGL required.
 
 A walkable memory palace where strangers who want to can discover who Non is — by looking, not by reading a bio.
 
-- 3D room (Three.js, phone-safe — mass + edge lines, not a game engine dump)
+- 3D estate (Three.js, phone-safe — plan geometry, not SketchUp Warehouse meshes): Barcelona Pavilion at origin, Glass House NE, Savoye NW, Farnsworth House south (v4.9)
 - Screens that open real projects
 - Furniture that opens CV / LinkedIn / contact
 - Sky (real stars) and ground (where you stand)
@@ -39,6 +39,8 @@ v3.0–v3.1 shipped real backend organs (fleet history, braind, Worker capture q
 **v3.2 scar (2026-08-06):** shipped dual-surface routing + discovery + "architectural mass" at `#0a0e14` on black. Deploy was real (`PAVILION` HUD label). Look was not. Dr Non could not tell the difference from May. Rule: if a visual change needs a hex debugger to prove, it did not ship. v3.3 lights the TV wall, paints charcoal fills, and puts the discovery chip where you cannot miss it.
 
 **v4.4→4.5 scar (2026-08-06):** `S` both walked backwards and toggled the sky. WASD enabled walk without pointer-lock, so the mouse could not look. Keyboard felt broken; sky/ground felt "missing." Fix: U/J for sky/ground, setWalk on WASD (pointer-lock), turn on baseRotY, pitch-to-enter.
+
+**Architizer / SketchUp icons (2026-08-07):** No local `.skp` files found on this machine. Estate icons are procedural plans from the same numbers the walk collides against — never Warehouse megabyte meshes. Farnsworth (Plano 1951) is the fourth building; next candidates from the Architizer free list if asked: Church of the Light, Fallingwater, Ronchamp.
 
 ## Conservation law
 

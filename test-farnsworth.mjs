@@ -11,8 +11,8 @@ const RADIUS = 0.34;
 
 // ── One room + one core ───────────────────────────────────
 {
-  // 5 glass runs (N, S×2, E, porch threshold) + 1 core
-  assert.equal(colliderBoxes(PLAN).length, 6, 'glass runs + core only');
+  // 6 glass runs (N, S×2, E, porch×2) + 1 core
+  assert.equal(colliderBoxes(PLAN).length, 7, 'glass runs + core only');
 }
 
 // ── Real-ish dimensions ───────────────────────────────────
@@ -50,20 +50,16 @@ assert(PLAN.porch > 4 && PLAN.porch < PLAN.floor.d * 0.4,
   }
 }
 
-// ── Cross distances: a real walk to every neighbour ───────
+// ── Distance to the Pavilion: a real walk. Diagonals to Glass /
+//    Savoye are longer on a four-point cross; the compass handles those.
 {
-  const O = {
-    PAVILION: { x: 0, z: 0 },
-    GLASS: GLASS.origin,
-    SAVOYE: SAVOYE.origin,
-    FARNSWORTH: PLAN.origin,
-  };
-  const d = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
-  for (const other of ['PAVILION', 'GLASS', 'SAVOYE']) {
-    const m = d(O.FARNSWORTH, O[other]);
-    assert(m > 90 && m < 160,
-      `FARNSWORTH→${other} is ${m.toFixed(0)}m — need a walk, not a step or a trek`);
-  }
+  const m = Math.hypot(PLAN.origin.x, PLAN.origin.z);
+  assert(m > 90 && m < 140,
+    `FARNSWORTH→PAVILION is ${m.toFixed(0)}m — need a walk, not a step or a trek`);
+  // Still on the same plain as the other two, not off in another county.
+  const toGlass = Math.hypot(PLAN.origin.x - GLASS.origin.x, PLAN.origin.z - GLASS.origin.z);
+  const toSavoye = Math.hypot(PLAN.origin.x - SAVOYE.origin.x, PLAN.origin.z - SAVOYE.origin.z);
+  assert(toGlass < 280 && toSavoye < 280, 'Farnsworth drifted off the estate');
   assert(PAVILION.podium, 'Pavilion plan still present');
 }
 
@@ -90,16 +86,34 @@ const world = BOXES.map(b => ({
   }
 }
 
-// Walk in from the porch end, through the threshold, past the core.
+// Walk in from the porch end through the sliding door. The primavera
+// core sits just inside on the centreline, so "past the glass" is the
+// proof — not clearing the whole room on one axis.
 {
+  const glassZ1 = PLAN.floor.d / 2 - PLAN.porch;
   const w = mkWalk(world, {
     x: PLAN.origin.x + PLAN.spawn.x,
     z: PLAN.origin.z + PLAN.spawn.z,
   });
-  // Face −Z (into the house from the porch).
-  step(w, 0, 180);
-  assert(w.pos.z < PLAN.origin.z + (PLAN.floor.d / 2 - PLAN.porch) - 1,
+  w.keys.add('w');                 // yaw 0 → forward is −Z
+  step(w, 0, 240);
+  assert(w.pos.z < PLAN.origin.z + glassZ1 - PLAN.glassT,
     `never made it past the porch threshold (z=${(w.pos.z - PLAN.origin.z).toFixed(2)})`);
+}
+
+// Side door in, then −Z along the aisle past the core.
+{
+  const hw = PLAN.floor.w / 2;
+  const w = mkWalk(world, {
+    x: PLAN.origin.x - hw - 2.0,
+    z: PLAN.origin.z + PLAN.door.z,
+  });
+  w.keys.add('w');
+  step(w, -Math.PI / 2, 180);      // +X through the side door
+  assert(w.pos.x > PLAN.origin.x - hw + 0.5, 'never entered through the side door');
+  step(w, 0, 240);                 // −Z along the aisle
+  assert(w.pos.z < PLAN.origin.z + PLAN.core.z - PLAN.core.d / 2 - 0.5,
+    `could not clear the core down the aisle (z=${(w.pos.z - PLAN.origin.z).toFixed(2)})`);
 }
 
 // Cannot walk through the core.
@@ -109,9 +123,10 @@ const world = BOXES.map(b => ({
     x: PLAN.origin.x + c.x - c.w / 2 - 1.2,
     z: PLAN.origin.z + c.z,
   });
-  const x0 = w.pos.x;
-  step(w, -Math.PI / 2, 90);   // walk +X into the core
-  assert(w.pos.x < x0 + 0.8, 'walked through the primavera core');
+  w.keys.add('w');
+  step(w, -Math.PI / 2, 120);   // walk +X into the core
+  assert(w.pos.x < PLAN.origin.x + c.x - c.w / 2 + 0.1,
+    `walked through the primavera core (x=${(w.pos.x - PLAN.origin.x).toFixed(2)})`);
 }
 
 console.log('test-farnsworth: ok');

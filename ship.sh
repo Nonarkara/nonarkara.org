@@ -28,7 +28,7 @@ say "shipping v${LOCAL_VERSION}"
 
 # Refuse to ship a working tree that does not match what is committed —
 # otherwise the version you verify is not the version in git.
-if [ -n "$(git status --porcelain -- app.js index.html styles.css sw.js mixtape.html sky.js ground.js 2>/dev/null)" ]; then
+if [ -n "$(git status --porcelain -- app.js index.html styles.css sw.js mixtape.html sky.js ground.js pavilion.js glasshouse.js savoye.js farnsworth.js walk.js look.js 2>/dev/null)" ]; then
   die "uncommitted changes to shipped files — commit first, or you will deploy something git does not have"
 fi
 

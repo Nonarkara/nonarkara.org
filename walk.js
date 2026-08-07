@@ -16,6 +16,14 @@
  *   - Head bob, tiny. 3cm at 1.9Hz. You do not notice it; you notice its
  *     absence, which reads as floating.
  *
+ * Floor height: optional `floors` patches (each exposes heightAt(x,z)).
+ * When several surfaces share an XZ — Savoye's stacked ramp flights —
+ * the walker stays on the one nearest its current floorY within a short
+ * step. That is how you climb without teleporting to the roof.
+ *
+ * Colliders may carry minY/maxY so a first-floor wall does not block
+ * the grass under the pilotis.
+ *
  * The controller owns position only. Look direction stays with the
  * existing camera code so gyro, drag, the sky and the dolly keep working
  * exactly as they did.
@@ -37,12 +45,18 @@ const RUN_AFTER = 1.2;
 const SPEED_SLOW = 1.4;
 const BOB_HZ = 1.7;
 const BOB_M = 0.025;
+// Largest vertical step accepted when picking among overlapping floors
+// (ramp flights stacked in plan). Gentler than a stair riser; steeper
+// than one frame of ramp climb at walk speed.
+const FLOOR_STEP = 0.55;
 
 export class Walk {
-  constructor(camera, colliders, spawn) {
+  constructor(camera, colliders, spawn, floors = []) {
     this.camera = camera;
     this.colliders = colliders || [];
+    this.floors = floors || [];
     this.pos = { x: spawn.x, z: spawn.z };
+    this.floorY = spawn.floorY || 0;
     this.vel = { x: 0, z: 0 };
     this.keys = new Set();
     this.stick = null;        // {dx, dy} from the touch thumbstick
@@ -87,9 +101,37 @@ export class Walk {
     this.keys.delete(e.key.toLowerCase());
   }
 
+  /**
+   * Highest continuous floor under (x,z). Overlapping patches (stacked
+   * ramp flights) resolve by proximity to the current floorY so a climb
+   * stays on one flight instead of snapping to the roof.
+   */
+  floorAt(x, z) {
+    if (!this.floors.length) return 0;
+    const cur = this.floorY;
+    let best = null;
+    let bestDist = Infinity;
+    let below = 0;
+    for (const f of this.floors) {
+      const fy = f.heightAt(x, z);
+      if (fy == null || Number.isNaN(fy)) continue;
+      if (fy <= cur + 0.05 && fy > below) below = fy;
+      const d = Math.abs(fy - cur);
+      if (d <= FLOOR_STEP && d < bestDist) {
+        bestDist = d;
+        best = fy;
+      }
+    }
+    if (best != null) return best;
+    return below;
+  }
+
   /** Axis-aligned box test with the player treated as a circle-ish box. */
   _blocked(x, z) {
+    const y = this.floorY;
     for (const c of this.colliders) {
+      if (c.minY != null && y < c.minY - 0.05) continue;
+      if (c.maxY != null && y > c.maxY + 0.05) continue;
       if (x > c.minX - RADIUS && x < c.maxX + RADIUS &&
           z > c.minZ - RADIUS && z < c.maxZ + RADIUS) return true;
     }
@@ -148,11 +190,13 @@ export class Walk {
     const nz = this.pos.z + this.vel.z * dt;
     if (!this._blocked(this.pos.x, nz)) this.pos.z = nz; else this.vel.z = 0;
 
+    this.floorY = this.floorAt(this.pos.x, this.pos.z);
+
     const speed = Math.hypot(this.vel.x, this.vel.z);
     this.bobT += dt * speed * BOB_HZ;
     const bob = Math.sin(this.bobT * Math.PI * 2) * BOB_M * Math.min(1, speed / SPEED);
 
-    this.camera.position.set(this.pos.x, EYE + bob, this.pos.z);
+    this.camera.position.set(this.pos.x, this.floorY + EYE + bob, this.pos.z);
   }
 
   /**
@@ -176,9 +220,11 @@ export class Walk {
     return p;
   }
 
-  teleport(x, z) {
+  teleport(x, z, floorY) {
     this.pos.x = x; this.pos.z = z;
     this.vel.x = 0; this.vel.z = 0;
+    if (floorY != null) this.floorY = floorY;
+    else this.floorY = this.floorAt(x, z);
   }
 }
 

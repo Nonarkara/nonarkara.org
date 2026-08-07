@@ -58,6 +58,8 @@ export const PLAN = {
   glassT: 0.08,
   // Door on the −X long face, near the core.
   door: { z: 2.2, half: 0.95 },
+  // Sliding run on the porch threshold — how you walk in from the tray.
+  porchDoor: { x: 0, half: 1.1 },
 
   // Primavera core — kitchen / bath / utilities.
   core: { x: 0.4, z: 1.8, w: 3.6, d: 5.8, h: 2.55 },
@@ -87,8 +89,10 @@ export function colliderBoxes(plan = PLAN) {
   out.push({ minX: -hw - T, maxX: -hw + T, minZ: d.z + d.half, maxZ: glassZ1 });
   // −Z short (enclosed end)
   out.push({ minX: -hw, maxX: hw, minZ: glassZ0 - T, maxZ: glassZ0 + T });
-  // +Z short of the enclosure (porch threshold)
-  out.push({ minX: -hw, maxX: hw, minZ: glassZ1 - T, maxZ: glassZ1 + T });
+  // +Z porch threshold — two runs around the sliding door
+  const pd = plan.porchDoor;
+  out.push({ minX: -hw, maxX: pd.x - pd.half, minZ: glassZ1 - T, maxZ: glassZ1 + T });
+  out.push({ minX: pd.x + pd.half, maxX: hw, minZ: glassZ1 - T, maxZ: glassZ1 + T });
 
   const c = plan.core;
   out.push({
@@ -203,7 +207,12 @@ export function buildFarnsworth(THREE, scene, opts = {}) {
   if (sZ1 > sZ0) at(box(T, gh, sZ1 - sZ0, MATS.glass), -hw, gy, (sZ0 + sZ1) / 2);
   if (sZ3 > sZ2) at(box(T, gh, sZ3 - sZ2, MATS.glass), -hw, gy, (sZ2 + sZ3) / 2);
   at(box(F.w, gh, T, MATS.glass), 0, gy, -hd);
-  at(box(F.w, gh, T, MATS.glass), 0, gy, glassZ1);
+  // Porch threshold glass — leave the sliding door out so the walk
+  // and the drawing agree.
+  const pd = PLAN.porchDoor;
+  const pL0 = -hw, pL1 = pd.x - pd.half, pR0 = pd.x + pd.half, pR1 = hw;
+  if (pL1 > pL0) at(box(pL1 - pL0, gh, T, MATS.glass), (pL0 + pL1) / 2, gy, glassZ1);
+  if (pR1 > pR0) at(box(pR1 - pR0, gh, T, MATS.glass), (pR0 + pR1) / 2, gy, glassZ1);
 
   for (const x of [-hw, hw]) {
     at(edges(0.06, gh, 0.06), x, gy, -hd);
