@@ -44,6 +44,10 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.8 (2026-08-07) the rewrite you could not see — two sessions both
+//                    shipped as '4.7', so the self-heal thought the old
+//                    build was current. Versions now carry the git hash;
+//                    the healer compares hashes, which cannot collide.
 //   4.7 (2026-08-07) navigation rebuilt on the Doom model — look.js is
 //                    the single owner of the camera; inputs ADD, nothing
 //                    SETS. 1:1 same-frame response, mouse parallax gone,
@@ -148,8 +152,15 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.7';
+const NON_VERSION = '4.8';
 window.NON_VERSION = NON_VERSION;
+// The build identity. 'dev' locally; ship.sh stamps the git short hash
+// into the deployed copy. Exists because version numbers are typed by
+// hand and two parallel sessions once shipped DIFFERENT builds both
+// stamped '4.7' — the self-heal compared the strings, found them equal,
+// and calmly kept serving the old code. Hashes cannot collide by habit.
+const NON_BUILD = 'dev';
+window.NON_BUILD = NON_BUILD;
 // Stamp the build into the room HUD as early as possible — this element
 // is the answer to "am I actually seeing the new version?".
 try {
@@ -6576,6 +6587,32 @@ document.addEventListener('pointerlockchange', () => {
 });
 
 document.getElementById('walk-btn')?.addEventListener('click', () => setWalk(!WALK.enabled));
+
+// On touch, the joystick is not a walk-mode accessory — it is THE
+// movement control, present whenever you are in the room. One circle
+// for the feet, the rest of the screen for the eyes. The arrow pad it
+// replaces needed four targets and a hold; the stick needs a thumb.
+if (IS_TOUCH) {
+  const syncStick = () => {
+    const inRoom = document.body.dataset.view === 'room';
+    if (inRoom && !stickEl) stickEl = attachStick(WALK);
+    if (stickEl) stickEl.classList.toggle('in', inRoom);
+  };
+  new MutationObserver(syncStick)
+    .observe(document.body, { attributes: true, attributeFilter: ['data-view'] });
+  syncStick();
+
+  // If motion events never arrive after the permission dance — denied,
+  // or hardware without them — the tilt-to-look path is dead, and the
+  // sky needs a door again: two bare chevrons that aim the same
+  // integrator (see index/styles: they are the old LOOK UP/DOWN buttons,
+  // stripped to arrows and shown only in this case).
+  const checkGyro = () => setTimeout(() => {
+    if (!window.__skyHasMotion) document.body.dataset.nogyro = '1';
+  }, 3000);
+  window.addEventListener('touchend', () => { try { enableGyro(); } catch (_) {} checkGyro(); },
+    { once: true, passive: true });
+}
 
 // iOS only grants motion access from a user gesture, and the only place
 // that ever asked was entering the sky. So in the room the gyro was

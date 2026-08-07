@@ -3480,3 +3480,36 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
       body[data-view="room"] .sky-hint    { bottom: 206px; }
       body[data-view="room"] .ground-hint { bottom: 158px; }
     }
+
+    /* ── One control per job ─────────────────────────────────────
+       The arrow pad is gone; the joystick is movement, the screen is
+       looking, tilt is the window. LOOK UP / LOOK DOWN survive only as
+       bare chevrons, and only where the gyro is denied or absent —
+       everywhere else, looking up is how you reach the sky. */
+    @media (pointer: coarse) {
+      body[data-view="room"] .walk-stick.in { display: block; }
+    }
+    /* Hidden everywhere by default now… */
+    body[data-view="room"] .sky-hint,
+    body[data-view="room"] .ground-hint {
+      display: none !important;
+    }
+    /* …except on a touch device whose motion sensors are dead. */
+    @media (pointer: coarse) {
+      body[data-nogyro="1"][data-view="room"] .sky-hint,
+      body[data-nogyro="1"][data-view="room"] .ground-hint {
+        display: inline-flex !important;
+        opacity: 1;
+        right: 18px; left: auto;
+        width: 48px; min-width: 48px; height: 48px;
+        padding: 0;
+        justify-content: center;
+        border-radius: 50%;            /* a true circle — allowed */
+        font-size: 14px;
+      }
+      body[data-nogyro="1"][data-view="room"] .sky-hint    { bottom: 224px; }
+      body[data-nogyro="1"][data-view="room"] .ground-hint { bottom: 166px; }
+      /* Chevron only — the words were the clutter. */
+      body[data-nogyro="1"] .sky-hint [data-i18n],
+      body[data-nogyro="1"] .ground-hint [data-i18n] { display: none; }
+    }

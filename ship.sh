@@ -41,10 +41,16 @@ say "stage"
 rm -rf dist
 rsync -a --exclude-from=.deployignore ./ dist/ || die "staging failed"
 
-# The truth the running page checks itself against. Generated here so it
-# can never drift from NON_VERSION in app.js.
-printf '{"version":"%s"}\n' "$LOCAL_VERSION" > dist/version.json
-echo "  version.json → $LOCAL_VERSION"
+# The truth the running page checks itself against. The BUILD hash is
+# the real identity — version numbers are typed by hand and two parallel
+# sessions once shipped different builds under the same number, which
+# blinded the self-heal. The hash is stamped into the deployed app.js
+# (dist only; the repo keeps 'dev') and into version.json.
+BUILD_SHA=$(git rev-parse --short HEAD)
+sed -i '' "s/const NON_BUILD = 'dev';/const NON_BUILD = '${BUILD_SHA}';/" dist/app.js
+grep -q "NON_BUILD = '${BUILD_SHA}'" dist/app.js || die "build stamp failed"
+printf '{"version":"%s","build":"%s"}\n' "$LOCAL_VERSION" "$BUILD_SHA" > dist/version.json
+echo "  version.json → $LOCAL_VERSION · build $BUILD_SHA"
 echo "  $(find dist -type f | wc -l | tr -d ' ') files, $(du -sh dist | cut -f1)"
 
 # The shell must never see a token here; wrangler uses its OAuth session.
@@ -55,15 +61,16 @@ say "verify"
 # Cloudflare needs a moment to make the new deployment the live one, so
 # poll rather than sleeping once and hoping.
 for i in $(seq 1 12); do
-  LIVE=$(curl -s "${DOMAIN}/app.js?cb=$RANDOM$i" | grep -m1 -oE "NON_VERSION = '[^']+'" | grep -oE "'[^']+'" | tr -d "'")
-  if [ "$LIVE" = "$LOCAL_VERSION" ]; then
-    echo "  live version ${LIVE} matches local"
+  # Verify by BUILD HASH, not version number — the number can collide.
+  LIVE=$(curl -s "${DOMAIN}/app.js?cb=$RANDOM$i" | grep -m1 -oE "NON_BUILD = '[^']+'" | grep -oE "'[^']+'" | tr -d "'")
+  if [ "$LIVE" = "$BUILD_SHA" ]; then
+    echo "  live build ${LIVE} matches HEAD"
     HTTP=$(curl -s -o /dev/null -w '%{http_code}' "$DOMAIN")
     echo "  ${DOMAIN} → ${HTTP}"
     say "shipped v${LOCAL_VERSION}"
     exit 0
   fi
-  printf '  waiting for edge (live=%s, want=%s)\n' "${LIVE:-none}" "$LOCAL_VERSION"
+  printf '  waiting for edge (live=%s, want=%s)\n' "${LIVE:-none}" "$BUILD_SHA"
   sleep 10
 done
-die "deployed, but ${DOMAIN} still serves '${LIVE:-nothing}' instead of '${LOCAL_VERSION}' — do not call this shipped"
+die "deployed, but ${DOMAIN} still serves build '${LIVE:-nothing}' instead of '${BUILD_SHA}' — do not call this shipped"

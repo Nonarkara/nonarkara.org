@@ -204,6 +204,11 @@ export function attachStick(walk, root = document.body) {
 
   base.addEventListener('pointerdown', (e) => {
     id = e.pointerId; base.setPointerCapture(id); e.preventDefault();
+    // Touching the stick is the request to move — no mode to discover.
+    if (!walk.enabled) {
+      walk.enabled = true;
+      walk.teleport(walk.camera.position.x, walk.camera.position.z);
+    }
   });
   base.addEventListener('pointermove', (e) => {
     if (e.pointerId !== id) return;

@@ -55,11 +55,17 @@
         try {
           const r = await fetch('/version.json', { cache: 'no-store' });
           if (!r.ok) return;
-          const { version } = await r.json();
+          const { version, build } = await r.json();
           const running = window.NON_VERSION;
-          if (!version || !running || version === running) return;
-          if (sessionStorage.getItem('non.healed') === version) return;  // already tried
-          sessionStorage.setItem('non.healed', version);
+          // Compare BUILD HASHES when both sides have one — version
+          // numbers are typed by hand and have already collided once
+          // (two different builds, both '4.7', healer blinded). Fall
+          // back to the version string only for older deploys.
+          const live = build || version;
+          const mine = window.NON_BUILD && window.NON_BUILD !== 'dev' ? window.NON_BUILD : running;
+          if (!live || !mine || live === mine) return;
+          if (sessionStorage.getItem('non.healed') === live) return;  // already tried
+          sessionStorage.setItem('non.healed', live);
           console.warn(`[NON] running ${running}, live is ${version} — clearing caches`);
           const ws = await navigator.serviceWorker.getRegistrations();
           await Promise.all(ws.map(w => w.unregister()));
@@ -186,19 +192,6 @@
       <span data-i18n="ground_exit">BACK UP</span>
     </button>
   </div>
-  <!-- WALKING CONTROLS — the room is 54m long, so moving through it has
-       to be possible with one thumb. Hold to walk, tap the arrows to
-       turn, pinch to zoom. Drag anywhere still turns you, as before. -->
-  <div class="nav-pad" id="nav-pad">
-    <button class="nav-turn" id="nav-left" aria-label="Turn left">‹</button>
-    <button class="nav-fwd" id="nav-fwd" aria-label="Hold to walk forward">
-      <span class="nav-fwd-glyph" aria-hidden="true">▲</span>
-      <span class="nav-fwd-label" data-i18n="nav_walk">HOLD</span>
-    </button>
-    <button class="nav-turn" id="nav-right" aria-label="Turn right">›</button>
-    <button class="nav-back" id="nav-back" aria-label="Step back">▼</button>
-  </div>
-
   <button class="sky-hint ground-hint" id="ground-hint" aria-label="Look down at the ground · keyboard J">
     <span aria-hidden="true">▼</span>
     <span data-i18n="ground_hint">LOOK DOWN</span>
