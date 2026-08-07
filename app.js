@@ -3,6 +3,7 @@ import { createDiscovery } from './discover.js';
 import { buildPavilion, PLAN } from './pavilion.js';
 import { buildGlassHouse, PLAN as GLASS_PLAN, paint as paintGlass } from './glasshouse.js';
 import { buildSavoye, PLAN as SAVOYE_PLAN, paint as paintSavoye } from './savoye.js';
+import { buildFarnsworth, PLAN as FARN_PLAN, paint as paintFarn } from './farnsworth.js';
 import { Walk, attachStick } from './walk.js';
 import { Look, overheadBlend, underfootBlend } from './look.js';
 import { sunAltitude, paletteFor, fetchWeather, makeRain } from './daylight.js';
@@ -777,20 +778,23 @@ const placeAt = (obj, x, y, z) => { obj.position.set(x, y, z); return obj; };
 // controller collides against, so there can be no invisible wall and no
 // wall you can walk through.
 let PAVILION = null;
-let GLASS = null, SAVOYE = null;
+let GLASS = null, SAVOYE = null, FARNSWORTH = null;
 // Every building on the site, nearest-first lookups included. The
 // Pavilion is at the origin because it was here first and everything
 // else — the poem, the rain, the spawn — is measured from it.
 const SITE = [];
 if (WEBGL_OK) {
   // fence:false — the podium edge used to be the end of the world.
-  PAVILION = buildPavilion(THREE, scene, { dark: CURRENT_THEME !== 'light', fence: false });
-  GLASS = buildGlassHouse(THREE, scene, { dark: CURRENT_THEME !== 'light' });
-  SAVOYE = buildSavoye(THREE, scene, { dark: CURRENT_THEME !== 'light' });
+  const dark = CURRENT_THEME !== 'light';
+  PAVILION = buildPavilion(THREE, scene, { dark, fence: false });
+  GLASS = buildGlassHouse(THREE, scene, { dark });
+  SAVOYE = buildSavoye(THREE, scene, { dark });
+  FARNSWORTH = buildFarnsworth(THREE, scene, { dark });
   SITE.push(
     { name: 'PAVILION', plan: PLAN, origin: { x: 0, z: 0 }, build: PAVILION },
     { name: GLASS_PLAN.name, plan: GLASS_PLAN, origin: GLASS_PLAN.origin, build: GLASS },
     { name: SAVOYE_PLAN.name, plan: SAVOYE_PLAN, origin: SAVOYE_PLAN.origin, build: SAVOYE },
+    { name: FARN_PLAN.name, plan: FARN_PLAN, origin: FARN_PLAN.origin, build: FARNSWORTH },
   );
 
   // ── The ground they share ─────────────────────────────
@@ -831,10 +835,10 @@ if (WEBGL_OK) {
     M.glass.color.setHex(dark ? 0x223040 : 0xbcc8d2);
     // onyx stays amber in both themes — it is the one accent.
 
-    // The other two, in their own materials. Same two-state fallback
-    // the Pavilion uses; the daylight palette overrides all three the
+    // The other three, in their own materials. Same two-state fallback
+    // the Pavilion uses; the daylight palette overrides them the
     // moment it next refreshes.
-    const G = GLASS.materials, S = SAVOYE.materials;
+    const G = GLASS.materials, S = SAVOYE.materials, F = FARNSWORTH.materials;
     G.steel.color.setHex(dark ? 0x333c45 : 0x424951);
     G.glass.color.setHex(dark ? 0x080d12 : 0xa8bcc8);
     G.deck.color.setHex(dark ? 0x1c1e1c : 0xe6e1d5);
@@ -845,7 +849,12 @@ if (WEBGL_OK) {
     S.glass.color.setHex(dark ? 0x080d12 : 0xa8bcc8);
     S.base.color.setHex(dark ? 0x0d1013 : 0x8f9490);
     S.slab.color.setHex(dark ? 0x121413 : 0xc9c4b8);
-    // Brick and ramp stay warm in both themes, like the onyx.
+    F.steel.color.setHex(dark ? 0xd4d0c6 : 0xefeee8);
+    F.glass.color.setHex(dark ? 0x080d12 : 0xa8bcc8);
+    F.floor.color.setHex(dark ? 0x2a2b28 : 0xd8d2c4);
+    F.roof.color.setHex(dark ? 0x1a1c1b : 0xe4e0d6);
+    F.well.color.setHex(dark ? 0x05070b : 0x2a2e32);
+    // Brick, ramp, primavera stay warm in both themes, like the onyx.
   });
 }
 

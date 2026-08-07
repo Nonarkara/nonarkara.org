@@ -1,0 +1,69 @@
+# Cloudflare Pages edge-cache policy.
+#
+# Why this file exists: Pages serves assets with a 4-hour edge cache and
+# ignores query strings in its cache key. So a deploy could be verified
+# green — version.json fresh from one edge entry — while app.js kept
+# serving the PREVIOUS build from another for up to four hours. Every
+# client-side staleness defence (network-first SW, self-heal) sat on top
+# of a CDN that was itself the stale layer. "Nothing changed whatsoever"
+# was, for the fourth time, accurate.
+#
+# no-cache does not mean "don't cache" — it means the edge must
+# revalidate with the origin before serving, which costs one conditional
+# request and makes a deploy visible everywhere in seconds. The heavy
+# things (music, photos, three.js) keep long caching; they never change
+# under the same name.
+
+/
+  Cache-Control: no-cache
+
+/index.html
+  Cache-Control: no-cache
+
+/app.js
+  Cache-Control: no-cache
+
+/styles.css
+  Cache-Control: no-cache
+
+/sw.js
+  Cache-Control: no-cache
+
+/look.js
+  Cache-Control: no-cache
+
+/walk.js
+  Cache-Control: no-cache
+
+/pavilion.js
+  Cache-Control: no-cache
+
+/glasshouse.js
+  Cache-Control: no-cache
+
+/savoye.js
+  Cache-Control: no-cache
+
+/sky.js
+  Cache-Control: no-cache
+
+/ground.js
+  Cache-Control: no-cache
+
+/daylight.js
+  Cache-Control: no-cache
+
+/poems.js
+  Cache-Control: no-cache
+
+/starlore.js
+  Cache-Control: no-cache
+
+/discover.js
+  Cache-Control: no-cache
+
+/mixtape.html
+  Cache-Control: no-cache
+
+/version.json
+  Cache-Control: no-store
