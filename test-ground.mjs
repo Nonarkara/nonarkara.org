@@ -66,4 +66,22 @@ near(tileXY(51.4778, 0, 1).x, 1.0, 1e-9, 'Greenwich is on the prime meridian');
   assert(Number.isFinite(t.y) && t.y >= 0, 'y stays finite at the Mercator limit');
 }
 
+
+// ── Zoom (new) ────────────────────────────────────────────────
+// The map now steps from lane level to region. The clamp and the label
+// tiers are what keep "zoom out a lot" from becoming "zoomed into void".
+{
+  const { buildGround, ZOOM_MIN, ZOOM_MAX } = await import('./ground.js');
+  // buildGround needs THREE + DOM in the browser; here we only test the
+  // exported range constants and label maths, which are pure.
+  assert(ZOOM_MIN >= 10 && ZOOM_MIN <= 12, 'region floor around z11');
+  assert(ZOOM_MAX >= 16 && ZOOM_MAX <= 18, 'lane ceiling around z17');
+  assert(ZOOM_MAX > ZOOM_MIN + 3, 'the range must actually cover block → region');
+  // 4 tiles across at z11, Bangkok: ~76 km — the metro region and its
+  // neighbours. "Zoom out a lot" lands here; the CITY tier is z12–13
+  // (19–38 km), one or two wheel-clicks up from the floor.
+  const across = metresPerPixel(13.7563, 11) * 256 * 4 / 1000;
+  assert(across > 60 && across < 90, `z11 span ${across.toFixed(0)}km should be region scale`);
+}
+
 console.log('ground: all checks passed');

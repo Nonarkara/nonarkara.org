@@ -72,12 +72,14 @@ const deg = r => r * 180 / Math.PI;
 // ── Sky and ground come from pitch alone ──────────────────────
 {
   assert.equal(overheadBlend(0), 0, 'level: no sky');
-  assert.equal(overheadBlend(0.44), 0, 'below 26°: no sky');
-  assert.equal(overheadBlend(0.96), 1, 'past 54°: full sky');
-  const mid = overheadBlend(0.7);
+  // Threshold raised to ~31°: a phone held naturally while walking sits
+  // 20–28° up, and the sky must not wash in mid-stride.
+  assert.equal(overheadBlend(0.50), 0, 'a naturally-held phone: no sky');
+  assert.equal(overheadBlend(1.06), 1, 'past 60°: full sky');
+  const mid = overheadBlend(0.8);
   assert(mid > 0.3 && mid < 0.7, 'the transition is a glance, not a switch');
-  assert.equal(underfootBlend(-0.96), 1, 'looking down: full map');
-  assert.equal(underfootBlend(0.96), 0, 'the two can never be on together');
+  assert.equal(underfootBlend(-1.06), 1, 'looking down: full map');
+  assert.equal(underfootBlend(1.06), 0, 'the two can never be on together');
   // Monotonic — a wobble at the boundary cannot flap.
   let prev = -1;
   for (let p = 0; p <= 1.55; p += 0.05) {

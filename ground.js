@@ -3,40 +3,37 @@
 //
 // The mirror of the sky. Same location, same compass, opposite
 // direction: the room's floor goes to glass and underneath it is the
-// actual ground you are standing on, from orbit, turned so that north
-// on the image is north in the room.
+// actual ground you are standing on, turned so that north on the map
+// is north in the room.
 //
-// Imagery: Esri World Imagery, which serves tiles without a key and
-// with CORS open — the only two properties that let a static site with
-// no build step and no secrets draw a real map. Attribution is not
-// optional and is rendered on screen, not buried in a comment.
+// Two layers now, because one answered "where exactly am I?" and never
+// "where am I in the city?". The DETAIL layer is your block at the
+// current zoom; under it a CONTEXT layer three zoom levels coarser
+// covers 8× the width, so the city is always around you the way it is
+// when you look out of an aeroplane — sharp underfoot, continuous to
+// the horizon. Zoom out (wheel, or pinch while looking down) and both
+// re-tile together, from lane level at z17 to the whole region at z11.
 // ════════════════════════════════════════════════════════
 
 import * as THREE from 'three';
 
-// OpenStreetMap raster tiles. Satellite imagery shows you what is
-// there; a street map shows you where you ARE — road names, the shape
-// of your own block, the lane you walked in on. That is the difference
-// between a photograph of the ground and knowing your position on it,
-// and it is what was asked for.
-//
-// OSM's tile policy is generous but not unlimited: attribution is
-// required and must be visible, and bulk downloading is not allowed. A
-// personal site pulling sixteen tiles when someone looks down is well
-// inside it. If this ever gets real traffic, move to a paid tile host
-// rather than leaning harder on a volunteer-funded one.
+// OSM raster tiles: attribution required and shown; a personal site
+// pulling a few dozen tiles per look-down is well inside the policy.
 const TILE_URL = (z, x, y) =>
   `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
 
 export const ATTRIBUTION = '© OPENSTREETMAP CONTRIBUTORS';
 
-export const ZOOM = 16;          // ~600 m per tile at this latitude
-const GRID = 4;                  // 4×4 tiles ≈ 2.4 km across
-const SPAN = 13;                 // scene units per tile
+export const ZOOM = 16;          // default: ~600 m per tile at Bangkok
+export const ZOOM_MIN = 11;      // whole-region view
+export const ZOOM_MAX = 17;      // lane level
+const GRID = 4;                  // detail: 4×4 tiles
+const CGRID = 4;                 // context: 4×4 tiles at (zoom - 3)
+const CTX_DZ = 3;                // context is 8× the width of detail
+const SPAN = 13;                 // scene units per detail tile
 
-// Web Mercator, the standard slippy-map projection. Fractional on
-// purpose: the whole point is to put the viewer's exact position at the
-// origin rather than at the nearest tile corner.
+// Web Mercator. Fractional on purpose: the viewer's exact position goes
+// at the origin, not the nearest tile corner.
 export function tileXY(lat, lon, z) {
   const n = Math.pow(2, z);
   const latRad = lat * Math.PI / 180;
@@ -46,105 +43,69 @@ export function tileXY(lat, lon, z) {
   };
 }
 
-// Metres per pixel, which is what makes the scale bar honest.
+// Metres per pixel — what makes the scale bar honest.
 export const metresPerPixel = (lat, z) =>
   156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, z);
 
 export function buildGround(lineColor = 0xe6edf3, amber = 0xf59e0b, maxAnisotropy = 1) {
   const group = new THREE.Group();
   group.name = 'ground';
-  group.position.y = -0.02;      // just under the room floor
+  group.position.y = -0.02;
 
-  const tiles = [];
   const loader = new THREE.TextureLoader();
-  loader.setCrossOrigin('anonymous');   // required: WebGL will not sample a tainted image
+  loader.setCrossOrigin('anonymous');
 
-  for (let j = 0; j < GRID; j++) {
-    for (let i = 0; i < GRID; i++) {
-      const geo = new THREE.PlaneGeometry(SPAN, SPAN);
-      const mat = new THREE.MeshBasicMaterial({
-        color: 0xffffff, transparent: true, opacity: 0, depthWrite: false,
-      });
-      const mesh = new THREE.Mesh(geo, mat);
-      // Flat in the XZ plane. After this rotation local +X is world east
-      // and local +Y is world north, which is exactly how the tile image
-      // is oriented — so north on the photograph is north in the room.
-      mesh.rotation.x = -Math.PI / 2;
-      mesh.userData = { i, j, targetOpacity: 0.92 };
-      group.add(mesh);
-      tiles.push(mesh);
+  // One tile layer: a grid of planes that place and texture themselves
+  // for a location at a zoom. Detail and context are the same machine
+  // at two scales.
+  function makeLayer(grid, span, targetOpacity, yOff) {
+    const meshes = [];
+    for (let j = 0; j < grid; j++) {
+      for (let i = 0; i < grid; i++) {
+        const mesh = new THREE.Mesh(
+          new THREE.PlaneGeometry(span, span),
+          new THREE.MeshBasicMaterial({
+            color: 0xffffff, transparent: true, opacity: 0, depthWrite: false,
+            // The wide zooms sit 12–53 units below the walker, straight
+            // through the room's fog band — with fog on, the city came
+            // back as a black sheet. Same fix as the star dome.
+            fog: false,
+          }));
+        mesh.rotation.x = -Math.PI / 2;
+        mesh.position.y = yOff;
+        mesh.userData = { i, j, targetOpacity };
+        group.add(mesh);
+        meshes.push(mesh);
+      }
     }
+    return meshes;
   }
 
-  // Hairline graticule over the imagery — the Vignelli move. The photo
-  // says where; the grid says how far.
-  const gLines = [];
-  const half = (GRID * SPAN) / 2;
-  for (let k = 0; k <= GRID; k++) {
-    const p = -half + k * SPAN;
-    gLines.push(new THREE.Vector3(p, 0, -half), new THREE.Vector3(p, 0, half));
-    gLines.push(new THREE.Vector3(-half, 0, p), new THREE.Vector3(half, 0, p));
-  }
-  const grid = new THREE.LineSegments(
-    new THREE.BufferGeometry().setFromPoints(gLines),
-    new THREE.LineBasicMaterial({ color: lineColor, transparent: true, opacity: 0, depthWrite: false }));
-  grid.userData = { targetOpacity: 0.2 };
-  group.add(grid);
+  // Context first so it renders beneath; slightly dimmer so the block
+  // you are standing on reads sharper than the city around it.
+  const ctxTiles = makeLayer(CGRID, SPAN * Math.pow(2, CTX_DZ), 0.55, -0.004);
+  const tiles = makeLayer(GRID, SPAN, 0.92, 0);
 
-  // You are here. An amber cross at the origin, which is the one place
-  // on this whole surface that is not an approximation.
-  const c = 1.6, gap = 0.45;
-  const crossPts = [
-    new THREE.Vector3(-c, 0, 0), new THREE.Vector3(-gap, 0, 0),
-    new THREE.Vector3(gap, 0, 0), new THREE.Vector3(c, 0, 0),
-    new THREE.Vector3(0, 0, -c), new THREE.Vector3(0, 0, -gap),
-    new THREE.Vector3(0, 0, gap), new THREE.Vector3(0, 0, c),
-  ];
-  const cross = new THREE.LineSegments(
-    new THREE.BufferGeometry().setFromPoints(crossPts),
-    new THREE.LineBasicMaterial({ color: amber, transparent: true, opacity: 0, depthWrite: false }));
-  cross.userData = { targetOpacity: 1 };
-  group.add(cross);
-
-  // North marker — a short amber tick on the north edge, so the map
-  // never has to be taken on trust.
-  const northTick = new THREE.LineSegments(
-    new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(0, 0, -half), new THREE.Vector3(0, 0, -half + 2.4),
-    ]),
-    new THREE.LineBasicMaterial({ color: amber, transparent: true, opacity: 0, depthWrite: false }));
-  northTick.userData = { targetOpacity: 0.8 };
-  group.add(northTick);
-
-  let loadedFor = null;
-
-  // Fetch and place the imagery for one position. Re-runs only when the
-  // viewer has actually moved to a different tile — panning the camera
-  // does not re-download the planet.
-  function load(site) {
-    const key = `${site.lat.toFixed(4)},${site.lon.toFixed(4)}`;
-    if (key === loadedFor) return;
-    loadedFor = key;
-
-    const f = tileXY(site.lat, site.lon, ZOOM);
+  function placeAndLoad(meshes, grid, span, site, z) {
+    const f = tileXY(site.lat, site.lon, z);
     const cx = Math.floor(f.x), cy = Math.floor(f.y);
     const fracX = f.x - cx, fracY = f.y - cy;
-    const o = Math.floor(GRID / 2);
-
-    tiles.forEach(mesh => {
+    const o = Math.floor(grid / 2);
+    meshes.forEach(mesh => {
       const { i, j } = mesh.userData;
       const tx = cx + i - o, ty = cy + j - o;
-      // Tile centre relative to the viewer, who sits at the origin.
-      // Tile +y is south, and south is +Z in this scene.
-      mesh.position.set((i - o + 0.5 - fracX) * SPAN, 0, (j - o + 0.5 - fracY) * SPAN);
+      mesh.position.x = (i - o + 0.5 - fracX) * span;
+      mesh.position.z = (j - o + 0.5 - fracY) * span;
+      // Drop the old texture before the new one arrives. A dark tile for
+      // 200ms is honest; the previous zoom's imagery standing at the new
+      // position is a map of somewhere you are not.
+      mesh.material.map = null;
+      mesh.material.needsUpdate = true;
       loader.load(
-        TILE_URL(ZOOM, tx, ty),
+        TILE_URL(z, tx, ty),
         (tex) => {
           tex.colorSpace = THREE.SRGBColorSpace;
-          // The map is always seen at a steep angle, which is the exact
-          // case bilinear filtering smears. Anisotropy is the difference
-          // between a photograph and a blur.
-          tex.anisotropy = maxAnisotropy;
+          tex.anisotropy = maxAnisotropy;   // steep viewing angle; without this it smears
           mesh.material.map = tex;
           mesh.material.needsUpdate = true;
         },
@@ -154,15 +115,93 @@ export function buildGround(lineColor = 0xe6edf3, amber = 0xf59e0b, maxAnisotrop
     });
   }
 
+  // Graticule over the detail layer. The map says where; the grid says
+  // how far.
+  const gLines = [];
+  const half = (GRID * SPAN) / 2;
+  for (let k = 0; k <= GRID; k++) {
+    const p = -half + k * SPAN;
+    gLines.push(new THREE.Vector3(p, 0, -half), new THREE.Vector3(p, 0, half));
+    gLines.push(new THREE.Vector3(-half, 0, p), new THREE.Vector3(half, 0, p));
+  }
+  const grid = new THREE.LineSegments(
+    new THREE.BufferGeometry().setFromPoints(gLines),
+    new THREE.LineBasicMaterial({ color: lineColor, transparent: true, opacity: 0, depthWrite: false, fog: false }));
+  grid.userData = { targetOpacity: 0.2 };
+  group.add(grid);
+
+  // You are here — the one point on this surface that is not an
+  // approximation — and a north tick, so the map is never on trust.
+  const c = 1.6, gap = 0.45;
+  const cross = new THREE.LineSegments(
+    new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-c, 0, 0), new THREE.Vector3(-gap, 0, 0),
+      new THREE.Vector3(gap, 0, 0), new THREE.Vector3(c, 0, 0),
+      new THREE.Vector3(0, 0, -c), new THREE.Vector3(0, 0, -gap),
+      new THREE.Vector3(0, 0, gap), new THREE.Vector3(0, 0, c),
+    ]),
+    new THREE.LineBasicMaterial({ color: amber, transparent: true, opacity: 0, depthWrite: false, fog: false }));
+  cross.userData = { targetOpacity: 1 };
+  group.add(cross);
+
+  const northTick = new THREE.LineSegments(
+    new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, 0, -half), new THREE.Vector3(0, 0, -half + 2.4),
+    ]),
+    new THREE.LineBasicMaterial({ color: amber, transparent: true, opacity: 0, depthWrite: false, fog: false }));
+  northTick.userData = { targetOpacity: 0.8 };
+  group.add(northTick);
+
+  let loadedFor = null;
+  let zoom = ZOOM;
+  let lastSite = null;
+
+  function load(site) {
+    const key = `${site.lat.toFixed(4)},${site.lon.toFixed(4)}@${zoom}`;
+    if (key === loadedFor) return;
+    loadedFor = key;
+    lastSite = site;
+    placeAndLoad(tiles, GRID, SPAN, site, zoom);
+    placeAndLoad(ctxTiles, CGRID, SPAN * Math.pow(2, CTX_DZ), site, zoom - CTX_DZ);
+  }
+
+  /**
+   * Step the zoom. dir +1 = closer (lanes), -1 = wider (the city, then
+   * the region). Both layers re-tile; the graticule and scene geometry
+   * stay put, because the FLOOR is not what changed — the map under it
+   * did, exactly like turning the knob on a chart plotter.
+   */
+  function setZoom(next) {
+    const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.round(next)));
+    if (z === zoom) return zoom;
+    zoom = z;
+    loadedFor = null;
+    if (lastSite) load(lastSite);
+    return zoom;
+  }
+  const getZoom = () => zoom;
+
+  /**
+   * How far below the walker the map sits, in scene units. At z16 it is
+   * just under the floor; every zoom step out doubles the altitude, so
+   * the texel density on screen stays roughly constant — zooming out
+   * FEELS like rising above the city rather than smearing a small
+   * picture across the same glass. z11 puts you ~53 units up, which
+   * frames the whole 76 km patch at about the angle an aeroplane window
+   * gives you.
+   */
+  const getDepth = () => 0.06 - 1.7 * (Math.pow(2, ZOOM - zoom > 0 ? ZOOM - zoom : 0) - 1);
+
   const scaleLabel = (lat) => {
-    const m = Math.round(metresPerPixel(lat, ZOOM) * 256 * GRID);
-    // Attribution is appended by the caller, which already shows
-    // ATTRIBUTION alongside this label — adding it here too printed it
-    // twice.
-    return m >= 1000 ? `${(m / 1000).toFixed(1)} KM ACROSS` : `${m} M ACROSS`;
+    const m = Math.round(metresPerPixel(lat, zoom) * 256 * GRID);
+    const across = m >= 1000 ? `${(m / 1000).toFixed(1)} KM ACROSS` : `${m} M ACROSS`;
+    // Name the altitude of the view in human terms — the label is how
+    // you know which world you are reading.
+    const kind = zoom >= 16 ? 'BLOCK' : zoom >= 14 ? 'DISTRICT' : zoom >= 12 ? 'CITY' : 'REGION';
+    return `${across} · ${kind}`;
   };
 
-  const fadeTargets = () => [...tiles, grid, cross, northTick];
+  const fadeTargets = () => [...tiles, ...ctxTiles, grid, cross, northTick];
 
-  return { group, load, fadeTargets, scaleLabel, tiles, GRID, SPAN };
+  return { group, load, setZoom, getZoom, getDepth, fadeTargets, scaleLabel, tiles, GRID, SPAN };
 }

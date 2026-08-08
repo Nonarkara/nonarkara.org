@@ -87,11 +87,16 @@ export class Look {
  * How much of the sky (or ground) you are looking at, from pitch alone.
  * This is what makes them places instead of modes: the stars are always
  * up there and the map is always underfoot — look, and they are there;
- * look away, and the room comes back. Smoothstep between 26° and 54°,
+ * look away, and the room comes back. Smoothstep between 31° and 60°,
  * so the transition is a glance, not a doorway.
  */
 export function overheadBlend(pitch) {
-  const t = (pitch - 0.45) / 0.5;
+  // Starts at ~31° rather than ~26°: with the 1:1 gyro window, a phone
+  // held naturally while walking sits 20–28° up, and the old threshold
+  // had the sky washing in over the room mid-stride — read as a glitch,
+  // and rightly. 31° requires meaning it; the transition still spans a
+  // single glance.
+  const t = (pitch - 0.55) / 0.5;
   const c = Math.max(0, Math.min(1, t));
   return c * c * (3 - 2 * c);
 }

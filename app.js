@@ -47,6 +47,13 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.13 (2026-08-08) the map earns "zoom out a lot" — wheel/pinch steps
+//                    z17→z11 (block → 76km region), the eye rises with
+//                    the zoom so it feels like lift-off instead of blur,
+//                    floors literally go to glass, and the map opts out
+//                    of fog (it was coming back as black past 30 units).
+//                    Sky threshold up to 31° so it can't wash in while
+//                    walking; the compass never fights an active finger.
 //   4.13 (2026-08-07) cpdt audit & production pass — WebGL context loss
 //                    safety & recovery listeners; modulepreload for Three.js
 //                    bundle; prefers-reduced-motion damping in render loop;
@@ -669,6 +676,7 @@ camera.rotation.order = 'YXZ';
 // result was a view that lagged, snapped back, and hijacked itself.
 const LOOK = new Look();
 window.__look = LOOK;
+window.__camera = camera;   // verification handle
 camera.rotation.order = 'YXZ';
 
 // Camera framing adapts to portrait phones — pull back, widen FOV,
@@ -865,6 +873,16 @@ if (WEBGL_OK) {
   plain.position.y = GROUND_Y;
   scene.add(plain);
   window.__plainMat = plain.material;
+
+  // The surfaces that must become glass when the map is read from
+  // altitude: the shared plain and each building's floor slabs.
+  window.__groundYields = [
+    window.__plainMat,
+    PAVILION.materials.floor, PAVILION.materials.podium, PAVILION.materials.water,
+    GLASS.materials?.brick || null, GLASS.materials?.floor || null,
+    SAVOYE.materials?.floor || null, SAVOYE.materials?.slab || null,
+    FARNSWORTH.materials?.floor || null, FARNSWORTH.materials?.tray || null,
+  ].filter(Boolean);
 
   // A 10m grid, barely there. Crossing 120m of nothing with no texture
   // reads as not moving; the grid is how you feel the distance close.
@@ -2835,6 +2853,7 @@ window.addEventListener('mousedown', (e) => {
   if (e.target.closest('button, a, input, textarea, select, .modal, .drawer, .nav-pad, .hud-chip')) return;
   mouseDrag = { x: e.clientX, y: e.clientY };
   window.__mouseDragMoved = false;
+  window.__dragActive = true;
 });
 window.addEventListener('mousemove', (e) => {
   if (!mouseDrag || document.pointerLockElement) return;
@@ -2843,7 +2862,7 @@ window.addEventListener('mousemove', (e) => {
   LOOK.addDelta(-(dx / window.innerWidth) * 2.4, (dy / window.innerHeight) * 1.8);
   mouseDrag = { x: e.clientX, y: e.clientY };
 }, { passive: true });
-window.addEventListener('mouseup', () => { mouseDrag = null; });
+window.addEventListener('mouseup', () => { mouseDrag = null; window.__dragActive = false; });
 
 // ── Touch: drag-to-rotate camera + tap detection
 // (a "tap" is a touchend with very little drag, handled by onClick)
@@ -2854,6 +2873,7 @@ function onTouchStart(e) {
   if (e.touches.length !== 1) return;
   const t = e.touches[0];
   touchAnchor = { x: t.clientX, y: t.clientY, lastX: t.clientX, lastY: t.clientY };
+  window.__dragActive = true;
   touchMoved = false;
   touchStartTs = Date.now();
   // Update mouse for any potential immediate raycast
@@ -2880,6 +2900,7 @@ function onTouchMove(e) {
 }
 function onTouchEnd() {
   touchAnchor = null;
+  window.__dragActive = false;
 }
 window.addEventListener('touchstart', onTouchStart, { passive: true });
 window.addEventListener('touchmove',  onTouchMove,  { passive: true });
@@ -5186,7 +5207,12 @@ function animate() {
   // window.*, not the module lets: animate's first frame runs during
   // module evaluation, before those declarations exist — reading them
   // here is a TDZ ReferenceError that kills the whole module.
-  if (window.__skyHasMotion && window.__skyHeading != null && (window.__skyBlend || 0) > 0.25) {
+  // The compass corrects the sky's yaw ONLY while no finger or mouse is
+  // on the glass. Correcting during a drag made the view rubber-band
+  // toward north against the hand — the single most "glitchy" feeling
+  // input can produce, because the user is right and loses anyway.
+  if (window.__skyHasMotion && window.__skyHeading != null &&
+      (window.__skyBlend || 0) > 0.25 && !window.__dragActive) {
     const wantYaw = -window.__skyHeading * Math.PI / 180;
     LOOK.yaw += Math.atan2(Math.sin(wantYaw - LOOK.yaw), Math.cos(wantYaw - LOOK.yaw)) * 0.08;
   }
@@ -5228,7 +5254,9 @@ function animate() {
   // the street map. Two depths of the same gesture.
   if (POOL) {
     const p = camera.rotation.x;
-    POOL.tick(dtLook, p < -0.12);
+    // The markets live in the water, not on the city: once the street
+    // map has mostly taken the floor, the pool yields to it.
+    POOL.tick(dtLook, p < -0.12 && (window.__groundBlend || 0) < 0.6);
   }
 
   // The sky dome and the ground tiles were both built around a viewer
@@ -5248,7 +5276,10 @@ function animate() {
     // supposed to replace.
     window.__groundGroup.position.x = camera.position.x;
     window.__groundGroup.position.z = camera.position.z;
-    window.__groundGroup.position.y = 0.06;
+    // Altitude follows zoom: wider map, higher eye. Eased, so stepping
+    // the wheel reads as a lift, not a cut.
+    const wantY = (GROUND && GROUND.getDepth) ? GROUND.getDepth() : 0.06;
+    window.__groundGroup.position.y += (wantY - window.__groundGroup.position.y) * 0.08;
   }
 
   // Ambient particles
@@ -6024,6 +6055,11 @@ function toggleSky() { CAMERA_MODE === 'sky' ? exitSky() : enterSky(); }
 // HUD bookkeeping follows the blends — it never leads them. One place
 // decides what "in the sky" means (you are mostly looking at it), and
 // every side-effect hangs off the transition.
+function updateGroundCaption() {
+  const cap = document.getElementById('ground-cap');
+  if (cap && GROUND) cap.textContent = `${GROUND.scaleLabel(SKY_SITE.lat)} · ${GROUND.mod.ATTRIBUTION}`;
+}
+
 function syncOverheadHud() {
   const sb = window.__skyBlend || 0, gb = window.__groundBlend || 0;
   const mode = sb > 0.45 ? 'sky' : gb > 0.45 ? 'ground' : 'room';
@@ -6049,7 +6085,7 @@ function syncOverheadHud() {
     if (GROUND) {
       GROUND.load(SKY_SITE);
       const cap = document.getElementById('ground-cap');
-      if (cap) cap.textContent = `${GROUND.scaleLabel(SKY_SITE.lat)} · ${GROUND.mod.ATTRIBUTION}`;
+      updateGroundCaption();
       const place = document.getElementById('ground-place');
       if (place) place.textContent = `${SKY_SITE.lat.toFixed(4)}°, ${SKY_SITE.lon.toFixed(4)}°`;
     }
@@ -6078,6 +6114,7 @@ async function initGround() {
     const mod = await import('./ground.js');
     GROUND = mod.buildGround(0xe6edf3, 0xf59e0b, renderer.capabilities.getMaxAnisotropy());
     window.__groundGroup = GROUND.group;
+    window.__ground = GROUND;   // verification handle
     GROUND.mod = mod;
     GROUND.group.visible = false;
     scene.add(GROUND.group);
@@ -6248,6 +6285,10 @@ function tickGround() {
   if (GROUND_BLEND < 0.002) {
     GROUND_BLEND = 0;
     if (GROUND) GROUND.group.visible = false;
+    for (const m of (window.__groundYields || [])) {
+      if (!m) continue;
+      m.opacity = 1; m.transparent = false; m.depthWrite = true;
+    }
     return 1;
   }
   if (!GROUND) return 1;
@@ -6255,6 +6296,17 @@ function tickGround() {
   GROUND.fadeTargets().forEach(o => {
     o.material.opacity = (o.userData.targetOpacity ?? 0.8) * GROUND_BLEND;
   });
+  // "The floor goes to glass" has to be literal. At block zoom the map
+  // floated 6cm above the floor and got away with it; at city zoom it
+  // sits 25–53 units below, under an OPAQUE plain and podium — which is
+  // how the city came back as darkness with a grid on it. The ground
+  // planes yield exactly as much as the map is present.
+  for (const m of (window.__groundYields || [])) {
+    if (!m) continue;
+    m.transparent = true;
+    m.opacity = 1 - GROUND_BLEND;
+    m.depthWrite = GROUND_BLEND < 0.5;   // stop occluding once mostly glass
+  }
   _bgScratch.set(THEMES[CURRENT_THEME].bg).lerp(_deepEarth, GROUND_BLEND);
   scene.background = _bgScratch;
   return 1 - GROUND_BLEND * 0.88;
@@ -6860,6 +6912,14 @@ window.addEventListener('keydown', (e) => {
     if (!pinching || e.touches.length !== 2) return;
     const d = pinchDist(e);
     if (d < 20 || pinch0 < 20) return;           // ignore degenerate pinches
+    if ((window.__groundBlend || 0) > 0.5 && GROUND) {
+      // Pinch works the map. Each 30% of spread is one zoom level, and
+      // the baseline resets so a single long pinch keeps stepping.
+      const ratio = d / pinch0;
+      if (ratio > 1.3)  { GROUND.setZoom(GROUND.getZoom() + 1); updateGroundCaption(); pinch0 = d; }
+      if (ratio < 0.77) { GROUND.setZoom(GROUND.getZoom() - 1); updateGroundCaption(); pinch0 = d; }
+      return;
+    }
     setFov(fov0 * (pinch0 / d));
   }, { passive: true });
 
@@ -6881,6 +6941,13 @@ window.addEventListener('keydown', (e) => {
   window.addEventListener('wheel', (e) => {
     if (document.body.dataset.view !== 'room') return;
     if (document.getElementById('modal')?.classList.contains('in')) return;
+    // Looking at the map: the wheel works the map, like every chart
+    // plotter ever made. Scroll away = wider = the city, the region.
+    if ((window.__groundBlend || 0) > 0.5 && GROUND) {
+      GROUND.setZoom(GROUND.getZoom() - Math.sign(e.deltaY));
+      updateGroundCaption();
+      return;
+    }
     setFov(camera.fov + Math.sign(e.deltaY) * 2);
   }, { passive: true });
 }
