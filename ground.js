@@ -98,8 +98,11 @@ export function buildGround(lineColor = 0xe6edf3, amber = 0xf59e0b, maxAnisotrop
       mesh.position.z = (j - o + 0.5 - fracY) * span;
       // Drop the old texture before the new one arrives. A dark tile for
       // 200ms is honest; the previous zoom's imagery standing at the new
-      // position is a map of somewhere you are not.
+      // position is a map of somewhere you are not. The colour also goes
+      // dark while the map is absent — without this, the cleared tile
+      // reads as a bright white square for the duration of the fetch.
       mesh.material.map = null;
+      mesh.material.color.setHex(0x0a0d10);
       mesh.material.needsUpdate = true;
       loader.load(
         TILE_URL(z, tx, ty),
@@ -107,6 +110,7 @@ export function buildGround(lineColor = 0xe6edf3, amber = 0xf59e0b, maxAnisotrop
           tex.colorSpace = THREE.SRGBColorSpace;
           tex.anisotropy = maxAnisotropy;   // steep viewing angle; without this it smears
           mesh.material.map = tex;
+          mesh.material.color.setHex(0xffffff);   // restore so the new tile isn't tinted
           mesh.material.needsUpdate = true;
         },
         undefined,
