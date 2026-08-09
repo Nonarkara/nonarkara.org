@@ -1,7 +1,7 @@
 // The look integrator — the Doom contract, held by assertions.
 // One owner, 1:1 response, the hand always wins, blends from pitch.
 import assert from 'node:assert';
-import { Look, overheadBlend, underfootBlend } from './look.js';
+import { Look, damp, overheadBlend, underfootBlend } from './look.js';
 
 const deg = r => r * 180 / Math.PI;
 
@@ -13,6 +13,15 @@ const deg = r => r * 180 / Math.PI;
   assert.equal(l.pitch, -0.3, 'pitch applies fully, immediately');
   const eff = l.tick(1 / 60);
   assert.equal(eff.yaw, 0.5, 'tick must not smooth the hand away');
+}
+
+// ── Visual easing is elapsed-time based, not refresh-rate based ─────
+{
+  let at60 = 0, at120 = 0;
+  for (let i = 0; i < 60; i++) at60 = damp(at60, 1, 3.4, 1 / 60);
+  for (let i = 0; i < 120; i++) at120 = damp(at120, 1, 3.4, 1 / 120);
+  assert(Math.abs(at60 - at120) < 1e-10,
+    `one second must ease equally at 60Hz (${at60}) and 120Hz (${at120})`);
 }
 
 // ── Pitch clamps at ±89°, yaw never does ─────────────────────

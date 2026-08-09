@@ -28,6 +28,13 @@ const PITCH_MAX = 1.55;                 // ±89° — never past vertical
 const clampPitch = (p) => Math.max(-PITCH_MAX, Math.min(PITCH_MAX, p));
 const normAngle = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
+/** Framerate-independent easing shared by visual camera transitions. */
+export const dampingFactor = (rate, dt) =>
+  1 - Math.exp(-Math.max(0, rate) * Math.max(0, dt));
+
+export const damp = (current, target, rate, dt) =>
+  current + (target - current) * dampingFactor(rate, dt);
+
 export class Look {
   constructor(yaw = 0, pitch = 0) {
     this.yaw = yaw;

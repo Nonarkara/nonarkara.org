@@ -7,7 +7,7 @@ import { buildGlassHouse, PLAN as GLASS_PLAN, paint as paintGlass } from './glas
 import { buildSavoye, PLAN as SAVOYE_PLAN, paint as paintSavoye } from './savoye.js';
 import { buildFarnsworth, PLAN as FARN_PLAN, paint as paintFarn } from './farnsworth.js';
 import { Walk, attachStick } from './walk.js';
-import { Look, overheadBlend, underfootBlend } from './look.js';
+import { Look, damp, dampingFactor, overheadBlend, underfootBlend } from './look.js';
 import { sunAltitude, paletteFor, fetchWeather, makeRain } from './daylight.js';
 import { poemForDate } from './poems.js';
 import * as STARLORE_MOD from './starlore.js';
@@ -47,6 +47,11 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.14 (2026-08-09) Axiom's full public project portfolio joins the
+//                    all-projects screen; retired destinations corrected.
+//                    Sabai Sabai cups now live in the Pavilion, Glass
+//                    House and Farnsworth. Sky/map fades are refresh-rate
+//                    independent and both HUDs carry truthful aria state.
 //   4.13 (2026-08-08) the map earns "zoom out a lot" — wheel/pinch steps
 //                    z17→z11 (block → 76km region), the eye rises with
 //                    the zoom so it feels like lift-off instead of blur,
@@ -189,7 +194,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.13';
+const NON_VERSION = '4.14';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -571,25 +576,24 @@ const PROJECTS = [
   { code: 'AXIOM',    title: 'Axiom Consultancy',                 url: 'https://axiom.nonarkara.org',                       img: 'screenshots/axiom.jpg',     dom: 'axiom.nonarkara.org' },
   { code: 'SLIC',     title: 'SLIC Index v3',                     url: 'https://slic.nonarkara.org',                        img: 'screenshots/slic.jpg',      dom: 'slic.nonarkara.org' },
   { code: 'SCITI',    title: 'Smart City Thailand Index',         url: 'https://sciti.nonarkara.org',                       img: 'screenshots/sciti.jpg',     dom: 'sciti.nonarkara.org' },
-  { code: 'TOMASITY', title: 'Muang Thong Thani · MTT view',      url: 'https://monitor.nonarkara.org',                     img: 'screenshots/monitor.jpg',   dom: 'monitor.nonarkara.org' },
+  { code: 'TOMASITY', title: 'Muang Thong Thani · MTT view',      url: 'https://mtt-super-dashboard-v2.pages.dev/',          img: 'screenshots/monitor.jpg',   dom: 'mtt-super-dashboard-v2.pages.dev' },
   { code: 'BANGKOK',  title: 'Bangkok IOC · BKK view',             url: 'https://bangkok-ioc.pages.dev/',                    img: 'screenshots/monitor.jpg',   dom: 'bangkok-ioc.pages.dev' },
   { code: 'CDP v2',   title: 'CD Data Platform',                  url: 'https://cdp.nonarkara.org',                         img: 'screenshots/cdp.jpg',       dom: 'cdp.nonarkara.org' },
-  { code: 'CONFLICT', title: 'Global Political Monitor',          url: 'https://globalmonitor.nonarkara.org',               img: 'screenshots/conflict.jpg',  dom: 'globalmonitor.nonarkara.org' },
-  { code: 'MEM',      title: 'Middle Eastern Monitor',            url: 'https://mem.nonarkara.org',                         img: 'screenshots/mem.jpg',       dom: 'mem.nonarkara.org' },
+  { code: 'CONFLICT', title: 'Global Political Monitor',          url: 'https://global.nonarkara.org/',                     img: 'screenshots/conflict.jpg',  dom: 'global.nonarkara.org' },
+  { code: 'MEM',      title: 'Middle Eastern Monitor',            url: 'https://conflict.nonarkara.org/',                   img: 'screenshots/mem.jpg',       dom: 'conflict.nonarkara.org' },
   { code: 'GEO',      title: 'Thailand Geopolitical Watch',       url: 'https://geo.nonarkara.org',                         img: 'screenshots/geo.jpg',       dom: 'geo.nonarkara.org' },
-  { code: 'PHUKET',   title: 'Phuket Dashboard',                  url: 'https://phuket.nonarkara.org',                      img: 'screenshots/phuket.jpg',    dom: 'phuket.nonarkara.org' },
-  { code: 'WAR ROOM', title: 'Phuket · War Room',                 url: 'https://phuket-dashboard.nonarkara.org/war-room',     img: 'screenshots/phuket.jpg',  dom: 'phuket-dashboard.nonarkara.org/war-room' },
+  { code: 'PHUKET',   title: 'Phuket Ops · War Room',             url: 'https://phuket.nonarkara.org/war-room',             img: 'screenshots/phuket.jpg',    dom: 'phuket.nonarkara.org' },
   { code: 'BUS',      title: 'Phuket Smart Bus',                  url: 'https://bus.nonarkara.org',                         img: 'screenshots/bus.jpg',       dom: 'bus.nonarkara.org' },
   { code: 'VIABUS',   title: 'Tech Hunt · Mobility · Viabus',     url: 'https://nonarkara.github.io/techhuntthailand/?id=mobility-cohort-001-viabus', img: 'screenshots/bus.jpg' },
   { code: 'MEAN',     title: 'MEAN · Smart Money',                url: 'https://mean.nonarkara.org',                        img: 'screenshots/cdp.jpg',       dom: 'mean.nonarkara.org' },
-  { code: 'ATLAS',    title: 'City Tech Atlas',                   url: 'https://citytechatlas.lovable.app/',                img: 'screenshots/cdp.jpg' },
+  { code: 'ATLAS',    title: 'BKKx 3D Atlas',                     url: 'https://atlas.nonarkara.org/',                      img: 'screenshots/cdp.jpg',       dom: 'atlas.nonarkara.org' },
   { code: 'AGENTIC',  title: 'Agentic AI Research · @peterthien', url: 'https://github.com/agentic-ai-research',            img: 'screenshots/academic.jpg' },
-  { code: 'COUNCIL',  title: 'AI Council · v1 · 3 siblings',     url: 'https://github.com/Nonarkara/second-brain-os',      img: 'screenshots/academic.jpg' },
+  { code: 'COUNCIL',  title: 'Dr Non’s AI Council',               url: 'https://github.com/agentic-ai-research/dr-non-diy-ai-council', img: 'screenshots/academic.jpg' },
   { code: 'COUNCIL+', title: 'AI Council · v2 · 9-bot taskforce', url: 'https://github.com/Nonarkara/dr-non-agentic-ai-council', img: 'screenshots/academic.jpg' },
   { code: 'KUCHING',  title: 'Greater Kuching IOC',               url: 'https://kuching.nonarkara.org',                     img: 'screenshots/kuching.jpg',   dom: 'kuching.nonarkara.org' },
   { code: 'SOLOMON',  title: 'Solomon Islands · UN DESA',         url: 'https://solomon.nonarkara.org',                     img: 'screenshots/solomon.jpg',   dom: 'solomon.nonarkara.org' },
   // Canonical fallback when ascn.depa.or.th / depa.or.th is down.
-  { code: 'ASCN',     title: 'ASEAN Smart Cities Network',        url: 'https://ascn.nonarkara.org',                        img: 'screenshots/ascn.jpg',      dom: 'ascn.nonarkara.org' },
+  { code: 'ASCN',     title: 'ASCN Performance Review',           url: 'https://ascn-smart-cities-network.pages.dev/',      img: 'screenshots/ascn.jpg',      dom: 'ascn-smart-cities-network.pages.dev' },
   { code: 'SLOWDOWN', title: 'The Things You Can See',            url: 'https://slowdown.nonarkara.org',                    img: 'screenshots/slowdown.jpg', dom: 'slowdown.nonarkara.org' },
   { code: 'NOVELS',   title: 'Substack · Novels',                 url: 'https://substack.com/@nonarkara',                   img: 'screenshots/substack.jpg' },
   { code: 'ESSAYS',   title: 'Medium · Essays',                   url: 'https://nonsmartcity.medium.com/',                  img: 'screenshots/medium.jpg' },
@@ -598,7 +602,32 @@ const PROJECTS = [
   { code: 'ACADEMIC', title: 'Academic Profile',                  url: 'https://arkaraprasertkul.socialpsychology.org/',    img: 'screenshots/academic.jpg' },
   { code: 'DAO',      title: 'Dao De Jing · 道德經',                url: 'https://dao.nonarkara.org/',                        img: 'screenshots/academic.jpg',  dom: 'dao.nonarkara.org' },
   { code: 'RESEARCH', title: 'ResearchGate · Profile',             url: 'https://www.researchgate.net/profile/Non-Arkaraprasertkul', img: 'screenshots/academic.jpg' },
-  { code: 'NSP',      title: 'NSP · National Streaming Platform',  url: 'https://nsp-thailand.netlify.app/',                     img: 'screenshots/academic.jpg' },
+  { code: 'NSP',      title: 'NSP · National Streaming Platform', url: 'https://nsp.nonarkara.org/',                         img: 'screenshots/academic.jpg',  dom: 'nsp.nonarkara.org' },
+  // Public systems currently presented by Axiom. They live in this
+  // single index so PLAN, MENU and command search cannot drift apart.
+  { code: 'FLOOD',      title: 'FloodDash · Thailand Flood Watch', url: 'https://flood-ami.pages.dev/',                      img: 'screenshots/cdp.jpg',       dom: 'flood-ami.pages.dev' },
+  { code: 'SIKHIO',     title: 'Sikhio Town Operations',           url: 'https://sikhio.nonarkara.org/',                     img: 'screenshots/sciti.jpg',     dom: 'sikhio.nonarkara.org' },
+  { code: 'LCB',        title: 'Laem Chabang Operations',          url: 'https://lcbcity.pages.dev/dashboard',               img: 'screenshots/sciti.jpg',     dom: 'lcbcity.pages.dev' },
+  { code: 'HCMC',       title: 'HCMCx Super Dashboard',            url: 'https://hcmc.nonarkara.org',                        img: 'screenshots/monitor.jpg',   dom: 'hcmc.nonarkara.org' },
+  { code: 'CHULA',      title: 'Chula Control Tower',              url: 'https://chula.nonarkara.org/',                      img: 'screenshots/sciti.jpg',     dom: 'chula.nonarkara.org' },
+  { code: 'CHONBURI',   title: 'Chonburi Control Tower',           url: 'https://chonburi-control-tower.pages.dev',          img: 'screenshots/sciti.jpg',     dom: 'chonburi-control-tower.pages.dev' },
+  { code: 'KMITL',      title: 'KMITL Control Tower',              url: 'https://kmitl-control-tower.pages.dev/',            img: 'screenshots/sciti.jpg',     dom: 'kmitl-control-tower.pages.dev' },
+  { code: 'YALA',       title: 'Yala Control Tower',               url: 'https://yala-control-tower.pages.dev/',             img: 'screenshots/sciti.jpg',     dom: 'yala-control-tower.pages.dev' },
+  { code: 'CITY HUB',   title: 'City Hub',                         url: 'https://city-hub.pages.dev/',                       img: 'screenshots/cdp.jpg',       dom: 'city-hub.pages.dev' },
+  { code: 'AIRDASH',    title: 'AirDash · Thailand Air Quality',   url: 'https://air.nonarkara.org/',                       img: 'screenshots/sciti.jpg',     dom: 'air.nonarkara.org' },
+  { code: 'DAYTRADERS', title: 'DayTraders · Siam Markets',        url: 'https://siam-markets.pages.dev/',                   img: 'screenshots/cdp.jpg',       dom: 'siam-markets.pages.dev' },
+  { code: 'SECOND BRAIN', title: 'Second Brain OS',                url: 'https://github.com/agentic-ai-research/second-brain-os', img: 'screenshots/academic.jpg' },
+  { code: 'HORIZON 45', title: 'Horizon 45 · Capability Lab',      url: 'https://horizon-field-lab.pages.dev/',              img: 'screenshots/academic.jpg',  dom: 'horizon-field-lab.pages.dev' },
+  { code: 'IKIGAI',     title: 'Ikigai Finance Engine',            url: 'https://github.com/nonarkara/ikigai-finance-engine', img: 'screenshots/academic.jpg' },
+  { code: 'FLOOD BP',   title: 'FloodDash Blueprint',              url: 'https://github.com/Nonarkara/FloodDash-Blueprint',  img: 'screenshots/academic.jpg' },
+  { code: 'EKKASARN',   title: 'Ekkasarn AI',                      url: 'https://ekkasarn-ai.pages.dev/',                    img: 'screenshots/academic.jpg',  dom: 'ekkasarn-ai.pages.dev' },
+  { code: 'NONWRITER',  title: 'The Non-Writer',                   url: 'https://nonwriter.nonarkara.org/',                  img: 'screenshots/academic.jpg',  dom: 'nonwriter.nonarkara.org' },
+  { code: 'DIGESTS',    title: 'Dr Non’s Digests',                 url: 'https://news.nonarkara.org/',                       img: 'screenshots/academic.jpg',  dom: 'news.nonarkara.org' },
+  { code: 'NONSCRAPE',  title: 'Non-Scrape',                       url: 'https://nonscrape.nonarkara.org/',                  img: 'screenshots/academic.jpg',  dom: 'nonscrape.nonarkara.org' },
+  { code: 'TIME POP',   title: 'Time Pop',                         url: 'https://watch-1de.pages.dev/',                      img: 'screenshots/academic.jpg',  dom: 'watch-1de.pages.dev' },
+  { code: 'LUMA/HOUSE', title: 'Luma/house',                       url: 'https://luma-house.pages.dev/',                     img: 'screenshots/academic.jpg',  dom: 'luma-house.pages.dev' },
+  { code: 'SCL',        title: 'Smart City Lighthouse',            url: 'https://scl.nonarkara.org/',                        img: 'screenshots/sciti.jpg',     dom: 'scl.nonarkara.org' },
+  { code: 'DEPA-USDOT', title: 'depa × U.S. DOT',                  url: 'https://depa-usdot.nonarkara.org/',                 img: 'screenshots/sciti.jpg',     dom: 'depa-usdot.nonarkara.org' },
   // (LINKEDIN dropped from PROJECTS — it's identity, not project
   //  work; the row in PERSONAL already covers it. Norman mapping:
   //  one label, one action.)
@@ -1014,13 +1043,11 @@ function makeClickableGroup(kind, key, hitW, hitH, hitD, x, y, z) {
   }));
   // Cup is a SEPARATE clickable group — easter egg
 }
-{
+function makeSabaiCup(x, y, z) {
   const { group: cupGrp, lines: cupLines } = makeClickableGroup(
-    'furniture', 'cup', 0.32, 0.42, 0.32,
-    0.4, 0.51, 1.5  // group origin sits where the visible cup is
-  );
+    'furniture', 'cup', 0.42, 0.48, 0.42, x, y, z);
   // Raise the invisible hit cube above the table-top so it intercepts clicks
-  cupGrp.userData.hit.position.y = 0.15;  // → world y from 0.45 to 0.87 (table tops out at 0.625)
+  cupGrp.userData.hit.position.y = 0.12;
   const cylG = new THREE.CylinderGeometry(0.06, 0.06, 0.12, 12);
   const cyl = new THREE.LineSegments(new THREE.WireframeGeometry(cylG), matFurni);
   cupGrp.add(cyl); cupLines.push(cyl);
@@ -1031,6 +1058,12 @@ function makeClickableGroup(kind, key, hitW, hitH, hitD, x, y, z) {
   );
   saucer.position.y = -0.06; cupGrp.add(saucer); cupLines.push(saucer);
 }
+
+// Sabai Sabai is a small thing you find by inhabiting the estate, not
+// only a row in PLAN. One cup in the Pavilion, one in each glass house.
+makeSabaiCup(0.4, 0.51, 1.5);
+makeSabaiCup(GLASS_PLAN.origin.x - 1.5, 0.46, GLASS_PLAN.origin.z + 0.5);
+makeSabaiCup(FARN_PLAN.origin.x - 3.2, 0.46, FARN_PLAN.origin.z + 0.3);
 
 // ── Furniture: chair (decoration, moved to back-left) ────
 {
@@ -3786,6 +3819,7 @@ function _renderPlanBody() {
     <button class="plan-cell" data-code="${p.code}" aria-label="Open ${p.code} · ${p.title}">
       <span class="dot"></span>
       <span class="code">${p.code}</span>
+      <span class="title">${p.title}</span>
     </button>
   `).join('');
   planProjEl.querySelectorAll('.plan-cell').forEach(btn => {
@@ -5181,19 +5215,22 @@ function animate() {
 
   if (isWebGLContextLost) return;
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const nowLook = performance.now();
+  const dtLook = Math.min((nowLook - (window.__lastLookT || nowLook)) / 1000, 0.05);
+  window.__lastLookT = nowLook;
 
   // smooth screen opacity
   TVs.forEach(grp => {
     const m = grp.userData.screen.material;
     const tgt = grp.userData.screenTargetOpacity * ease;
-    m.opacity += (tgt - m.opacity) * 0.12;
+    m.opacity = damp(m.opacity, tgt, 8, dtLook);
   });
 
   // Camera control: finger drag is the primary input, gyro adds a
   // gentle offset on top. While actively dragging, gyro fades to 0
   // so it doesn't fight the finger; on release, gyro eases back in.
   const gyroTarget = touchAnchor ? 0 : 1;
-  window.__gyroBlend = (window.__gyroBlend ?? 0) + ((gyroTarget - (window.__gyroBlend ?? 0)) * 0.06);
+  window.__gyroBlend = damp(window.__gyroBlend ?? 0, gyroTarget, 4, dtLook);
   // Doom rule: the camera is SET from the look state, same frame, no
   // easing. The old 5%/frame lerp meant the view trailed a third of a
   // second behind every input — the "swimming". Gyro rides on top as an
@@ -5214,12 +5251,10 @@ function animate() {
   if (window.__skyHasMotion && window.__skyHeading != null &&
       (window.__skyBlend || 0) > 0.25 && !window.__dragActive) {
     const wantYaw = -window.__skyHeading * Math.PI / 180;
-    LOOK.yaw += Math.atan2(Math.sin(wantYaw - LOOK.yaw), Math.cos(wantYaw - LOOK.yaw)) * 0.08;
+    LOOK.yaw += Math.atan2(Math.sin(wantYaw - LOOK.yaw), Math.cos(wantYaw - LOOK.yaw))
+      * dampingFactor(5, dtLook);
   }
 
-  const nowLook = performance.now();
-  const dtLook = Math.min((nowLook - (window.__lastLookT || nowLook)) / 1000, 0.05);
-  window.__lastLookT = nowLook;
   const eff = LOOK.tick(dtLook);
   camera.rotation.set(eff.pitch, eff.yaw, 0);
 
@@ -5279,7 +5314,7 @@ function animate() {
     // Altitude follows zoom: wider map, higher eye. Eased, so stepping
     // the wheel reads as a lift, not a cut.
     const wantY = (GROUND && GROUND.getDepth) ? GROUND.getDepth() : 0.06;
-    window.__groundGroup.position.y += (wantY - window.__groundGroup.position.y) * 0.08;
+    window.__groundGroup.position.y = damp(window.__groundGroup.position.y, wantY, 5, dtLook);
   }
 
   // Ambient particles
@@ -6090,9 +6125,11 @@ function syncOverheadHud() {
       if (place) place.textContent = `${SKY_SITE.lat.toFixed(4)}°, ${SKY_SITE.lon.toFixed(4)}°`;
     }
     document.body.dataset.ground = 'on';
+    document.getElementById('ground-hud')?.setAttribute('aria-hidden', 'false');
     try { window.__discover?.('ground'); } catch (_) {}
   } else if (CAMERA_MODE === 'ground') {
     document.body.dataset.ground = 'off';
+    document.getElementById('ground-hud')?.setAttribute('aria-hidden', 'true');
   }
 
   CAMERA_MODE = mode;
@@ -6250,11 +6287,11 @@ function skyTap(clientX, clientY) {
 // otherwise the finger does, exactly as in the room. Sky and ground
 // share it — pointing north means the same thing in both directions.
 
-function tickSky() {
+function tickSky(dt = 1 / 60) {
   syncOverheadHud();
-  const roomLeftByGround = tickGround();
+  const roomLeftByGround = tickGround(dt);
   const want = window.__skyBlend || 0;
-  SKY_BLEND += (want - SKY_BLEND) * 0.055;
+  SKY_BLEND = damp(SKY_BLEND, want, 3.4, dt);
   if (SKY_BLEND < 0.002 && want === 0) {
     SKY_BLEND = 0;
     if (SKY) SKY.group.visible = false;
@@ -6279,9 +6316,9 @@ function tickSky() {
 
 // The ground fades the room the same way the sky does, and eases the
 // scene toward the deep blue of an image seen from very high up.
-function tickGround() {
+function tickGround(dt = 1 / 60) {
   const want = window.__groundBlend || 0;
-  GROUND_BLEND += (want - GROUND_BLEND) * 0.055;
+  GROUND_BLEND = damp(GROUND_BLEND, want, 3.4, dt);
   if (GROUND_BLEND < 0.002) {
     GROUND_BLEND = 0;
     if (GROUND) GROUND.group.visible = false;
@@ -6342,7 +6379,10 @@ window.__skyTap = (e) => {
 window.__sky = {
   blend: 0, yaw: 0, pitch: SKY_PITCH,
   tick() {
-    const dim = tickSky();
+    const now = performance.now();
+    const dt = Math.min((now - (this.lastT || now - 1000 / 60)) / 1000, 0.05);
+    this.lastT = now;
+    const dim = tickSky(dt);
     // Sky and ground are mutually exclusive, so one blend and one pitch
     // can stand for both — whichever is currently pulling the camera.
     if (GROUND_BLEND > SKY_BLEND) {

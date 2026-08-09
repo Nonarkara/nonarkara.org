@@ -1505,8 +1505,8 @@
       margin-bottom: 12px;
     }
 
-    /* Project grid — 3 cols on phone (21 = 3×7, no orphan rows), 7 cols
-       on tablet+ (21 = 7×3). Each cell: code + status dot. Hairlines via
+    /* Project grid — 3 cols on phone, 7 cols on tablet+. Each cell:
+       code, title and status dot. Hairlines via
        per-cell borders so partial rows don't expose container bg. */
     .plan-grid {
       display: grid;
@@ -1536,6 +1536,14 @@
       color: inherit; line-height: 1.15;
       word-break: break-word;
     }
+    .plan-cell .title {
+      font-size: 9px;
+      line-height: 1.35;
+      letter-spacing: 0.04em;
+      color: var(--dim);
+      text-align: left;
+    }
+    .plan-cell:hover .title { color: inherit; }
     .plan-cell .dot {
       width: 8px; height: 8px;
       border-radius: 50%;             /* true circle — Codex Incident exception */
