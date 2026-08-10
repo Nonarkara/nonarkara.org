@@ -77,9 +77,11 @@ near(tileXY(51.4778, 0, 1).x, 1.0, 1e-9, 'Greenwich is on the prime meridian');
   assert(ZOOM_MIN >= 10 && ZOOM_MIN <= 12, 'region floor around z11');
   assert(ZOOM_MAX >= 16 && ZOOM_MAX <= 18, 'lane ceiling around z17');
   assert(ZOOM_MAX > ZOOM_MIN + 3, 'the range must actually cover block → region');
+  assert(ZOOM <= 14, 'default must start zoomed out — street tiles pixelate underfoot');
+  assert(ZOOM >= 12, 'default still shows the city, not a continent');
   // 4 tiles across at z11, Bangkok: ~76 km — the metro region and its
   // neighbours. "Zoom out a lot" lands here; the CITY tier is z12–13
-  // (19–38 km), one or two wheel-clicks up from the floor.
+  // (19–38 km), the default underfoot view.
   const across = metresPerPixel(13.7563, 11) * 256 * 4 / 1000;
   assert(across > 60 && across < 90, `z11 span ${across.toFixed(0)}km should be region scale`);
 }

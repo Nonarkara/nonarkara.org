@@ -14,8 +14,8 @@
  *   - STONE VERTICAL CORE. A rough chimney mass anchors the trays.
  *     One amber hearth opening — the site accent, once.
  *   - WATER AT THE FRONT. A cascade drops from under the living
- *     cantilever down toward the walker. Five translucent tiers, not
- *     a shader waterfall.
+ *     cantilever down toward the walker. Sheet bands scroll down
+ *     (phone-light — no particles, no glTF).
  *
  * Walk: approach path up the hill, living terrace walkable, stone core
  * blocks. Upper terrace is visible; living is the one you stand on.
@@ -48,11 +48,12 @@ export const PLAN = {
   door: { x: 3.2, half: 0.85 },
 
   // Hill — crest behind (−Z), falls toward the stream (+Z).
+  // Tall enough that the mass reads from the SE approach, not a pad.
   hill: {
-    x0: -16, x1: 16,
-    z0: -18, z1: 14,
-    crestZ: -10,
-    crestY: 4.2,
+    x0: -18, x1: 18,
+    z0: -20, z1: 14,
+    crestZ: -9,
+    crestY: 5.6,
   },
 
   // Cascade under the living tip, flowing +Z down the front.
@@ -62,7 +63,8 @@ export const PLAN = {
     zBot: 15.5,
     yTop: 2.6,
     yBot: 0.04,
-    tiers: 5,
+    tiers: 6,
+    bands: 5,
   },
 
   // Approach from the SE, looking at the cascade and the trays.
@@ -76,12 +78,12 @@ export function hillHeight(x, z, plan = PLAN) {
   // Peak at crestZ (behind the house); fall toward the stream (+Z).
   let t;
   if (z <= H.crestZ) {
-    t = 0.65 + 0.35 * Math.max(0, (z - H.z0) / (H.crestZ - H.z0));
+    t = 0.7 + 0.3 * Math.max(0, (z - H.z0) / (H.crestZ - H.z0));
   } else {
     t = Math.max(0, 1 - (z - H.crestZ) / (H.z1 - H.crestZ));
   }
   const edge = 1 - Math.min(1, Math.abs(x) / ((H.x1 - H.x0) / 2));
-  const y = H.crestY * t * t * (0.55 + 0.45 * edge);
+  const y = H.crestY * t * t * (0.5 + 0.5 * edge);
   // Carve a stream notch under the cascade so the water reads.
   const S = plan.stream;
   if (z > S.zTop - 1 && z < S.zBot && Math.abs(x) < S.halfW + 0.4) {
@@ -243,17 +245,41 @@ export function buildFallingwater(THREE, scene, opts = {}) {
     new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, d)), m);
   const at = (o, x, y, z) => { o.position.set(x, y, z); G.add(o); return o; };
 
-  // ── Hill ledges (few boxes — phone-cheap) ───────────────
+  // ── Hill mass — stepped bedrock the house sits IN, not ON ──
+  // Tall rear crest + side flanks that read from the SE spawn. Cheap
+  // boxes only; the walk height comes from hillHeight(), not these meshes.
   const ledges = [
-    { w: 22, d: 10, h: 1.4, x: 0, y: 0.7, z: -11 },
-    { w: 16, d: 8,  h: 1.8, x: -2, y: 1.8, z: -8 },
-    { w: 12, d: 6,  h: 1.6, x: -1, y: 2.8, z: -5.5 },
-    { w: 10, d: 5,  h: 1.2, x: 1, y: 2.0, z: -2.5 },
-    { w: 8,  d: 4,  h: 0.9, x: 3, y: 1.1, z: 1.5 },
+    // Crest mass behind the house — the hill you cannot miss.
+    { w: 28, d: 12, h: 2.4, x: 0,   y: 1.2,  z: -12 },
+    { w: 22, d: 9,  h: 2.2, x: -1,  y: 2.6,  z: -9 },
+    { w: 16, d: 7,  h: 2.0, x: -1.5,y: 3.8,  z: -6.2 },
+    { w: 12, d: 5.5,h: 1.6, x: -0.5,y: 4.6,  z: -4.0 },
+    // Under / around the trays — rock gripping the cantilever.
+    { w: 10, d: 5,  h: 1.4, x: 1,   y: 2.4,  z: -1.5 },
+    { w: 8,  d: 4,  h: 1.1, x: 2.5, y: 1.5,  z: 1.2 },
+    { w: 7,  d: 3.5,h: 0.85,x: 3.5, y: 0.7,  z: 3.8 },
+    // Side flanks — visible from the approach, not a flat pad.
+    { w: 5,  d: 14, h: 2.8, x: -12, y: 1.6,  z: -4 },
+    { w: 4.5,d: 12, h: 2.2, x: 12,  y: 1.3,  z: -3 },
+    { w: 4,  d: 8,  h: 1.6, x: -10, y: 3.2,  z: -7 },
+    { w: 3.5,d: 7,  h: 1.3, x: 11,  y: 2.6,  z: -6 },
   ];
   for (const L of ledges) {
     at(box(L.w, L.h, L.d, MATS.hill), L.x, L.y, L.z);
     at(edges(L.w, L.h, L.d), L.x, L.y, L.z);
+  }
+
+  // Climbing approach shelf — a visible ramp of rock beside the path
+  // so the walk up reads as climbing a hill, not floating on air.
+  const shelves = [
+    { w: 4.2, d: 3.2, h: 0.45, x: 8.5, y: 0.35, z: 12 },
+    { w: 4.0, d: 3.0, h: 0.55, x: 7.8, y: 0.85, z: 9.2 },
+    { w: 3.8, d: 2.8, h: 0.65, x: 7.0, y: 1.45, z: 6.6 },
+    { w: 3.6, d: 2.6, h: 0.7,  x: 6.4, y: 2.1,  z: 4.4 },
+  ];
+  for (const S of shelves) {
+    at(box(S.w, S.h, S.d, MATS.hill), S.x, S.y, S.z);
+    at(edges(S.w, S.h, S.d), S.x, S.y, S.z);
   }
 
   // ── Stone core ──────────────────────────────────────────
@@ -315,8 +341,11 @@ export function buildFallingwater(THREE, scene, opts = {}) {
   at(edges(R.w, rh, R.d), R.x, PLAN.livingY + rh / 2, R.z);
 
   // ── Cascade (front, under living tip) ───────────────────
+  // Static tiers give the fall its body; thin scrolling bands make
+  // the water RUN. Phone-light: shared materials, no particles.
   const S = PLAN.stream;
   const n = S.tiers;
+  const cascadeSheets = [];
   for (let i = 0; i < n; i++) {
     const t0 = i / n, t1 = (i + 1) / n;
     const y0 = S.yTop + (S.yBot - S.yTop) * t0;
@@ -325,12 +354,57 @@ export function buildFallingwater(THREE, scene, opts = {}) {
     const z1 = S.zTop + (S.zBot - S.zTop) * t1;
     const h = Math.max(0.08, y0 - y1);
     const dZ = Math.max(0.4, z1 - z0);
-    const opacity = 0.35 + 0.08 * (i % 2);
+    const opacity = 0.32 + 0.1 * (i % 2);
     const wMat = mat(dark ? 0x1a3040 : 0x6a9aaa, opacity);
-    at(box(S.halfW * 2 * (1 - i * 0.06), h, dZ, wMat), 0, (y0 + y1) / 2, (z0 + z1) / 2);
+    const sheet = at(
+      box(S.halfW * 2 * (1 - i * 0.05), h, dZ, wMat),
+      0, (y0 + y1) / 2, (z0 + z1) / 2,
+    );
+    cascadeSheets.push({ mesh: sheet, base: opacity, phase: i * 0.37 });
   }
-  // Stream bed pools at the bottom
-  at(box(S.halfW * 2.4, 0.06, 3.2, MATS.water), 0, 0.04, S.zBot + 0.5);
+
+  // Moving bands — thin sheets that loop down the fall.
+  const cascadeBands = [];
+  const bandN = S.bands;
+  const fallH = S.yTop - S.yBot;
+  const fallZ = S.zBot - S.zTop;
+  for (let i = 0; i < bandN; i++) {
+    const bMat = mat(dark ? 0x2a5068 : 0x8ab8c8, 0.55);
+    const band = box(S.halfW * 1.85, 0.14, 0.55, bMat);
+    const t = i / bandN;
+    at(band, 0, S.yTop - fallH * t, S.zTop + fallZ * t);
+    cascadeBands.push({ mesh: band, t0: t });
+  }
+
+  // Stream bed pool at the bottom — Wright's catch basin.
+  at(box(S.halfW * 2.6, 0.08, 3.6, MATS.water), 0, 0.05, S.zBot + 0.6);
+  // Secondary pool shelf just under the living tip.
+  at(box(S.halfW * 2.1, 0.06, 1.4, MATS.water), 0, 0.55, S.zTop + 0.8);
+
+  let waterT = 0;
+  function tick(dt) {
+    // Reduced motion: keep the cascade body, freeze the run.
+    if (typeof matchMedia === 'function' &&
+        matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
+    waterT += dt;
+    for (const s of cascadeSheets) {
+      // Staggered shimmer — sheets pulse out of phase so the fall
+      // reads as moving water, not a blinking solid.
+      const w = 0.5 + 0.5 * Math.sin(waterT * 3.1 + s.phase * Math.PI * 2);
+      s.mesh.material.opacity = s.base * (0.72 + 0.4 * w);
+    }
+    for (const b of cascadeBands) {
+      // Loop down the cascade: t advances, wraps 0→1.
+      const t = (b.t0 + waterT * 0.55) % 1;
+      b.mesh.position.y = S.yTop - fallH * t;
+      b.mesh.position.z = S.zTop + fallZ * t;
+      // Fade near the ends so the wrap is invisible.
+      const edge = Math.min(t, 1 - t);
+      b.mesh.material.opacity = 0.25 + 0.45 * Math.min(1, edge * 6);
+    }
+  }
 
   const o = PLAN.origin;
   const colliders = colliderBoxes(PLAN).map(b => ({
@@ -343,6 +417,7 @@ export function buildFallingwater(THREE, scene, opts = {}) {
     core:    { center: { x: o.x + c.x, y: c.h / 2, z: o.z + c.z }, kind: 'stone' },
     living:  { center: { x: o.x + L.x, y: ly, z: o.z + L.z }, kind: 'terrace' },
     cascade: { center: { x: o.x, y: 1.2, z: o.z + (S.zTop + S.zBot) / 2 }, kind: 'water' },
+    hill:    { center: { x: o.x, y: PLAN.hill.crestY * 0.5, z: o.z + PLAN.hill.crestZ }, kind: 'hill' },
   };
 
   const floors = floorPatches(PLAN).map(f => ({
@@ -350,5 +425,10 @@ export function buildFallingwater(THREE, scene, opts = {}) {
     heightAt: (x, z) => f.heightAt(x - o.x, z - o.z),
   }));
 
-  return { group: G, colliders, floors, surfaces, materials: MATS, plan: PLAN };
+  return {
+    group: G, colliders, floors, surfaces, materials: MATS, plan: PLAN,
+    tick,
+    // Test / verify hooks — cascade is alive if bands exist.
+    water: { sheets: cascadeSheets, bands: cascadeBands, tick },
+  };
 }

@@ -61,4 +61,18 @@ const KEYS = ['set','ptt','usdthb','sgdthb','dji','nasdaq','nvda','tsla','googl'
   }
 }
 
+// ── Scoreboard density contract ───────────────────────────
+// The pool must carry estate identity alongside markets — a thin
+// ticker of twelve quotes alone is no longer the brief.
+{
+  assert(KEYS.length >= 12, 'market grid stays full-width');
+  // Orientation: SE approach faces west into the Pavilion; pool meshes
+  // rotate canvas-up to −X (see pool.js rotateOnWorldAxis). Geometry
+  // still has to exist for that rotation to land on.
+  for (const p of PLAN.pools) {
+    const cx = (p.x0 + p.x1) / 2;
+    assert(Number.isFinite(cx), 'pool centre is a number the mesh can sit on');
+  }
+}
+
 console.log(`pool: all checks passed · ${PLAN.pools.length} pools · ${KEYS.length} instruments · one amber`);

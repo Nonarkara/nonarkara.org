@@ -7,12 +7,14 @@
 // is north in the room.
 //
 // Two layers now, because one answered "where exactly am I?" and never
-// "where am I in the city?". The DETAIL layer is your block at the
+// "where am I in the city?". The DETAIL layer is your district at the
 // current zoom; under it a CONTEXT layer three zoom levels coarser
 // covers 8× the width, so the city is always around you the way it is
-// when you look out of an aeroplane — sharp underfoot, continuous to
-// the horizon. Zoom out (wheel, or pinch while looking down) and both
-// re-tile together, from lane level at z17 to the whole region at z11.
+// when you look out of an aeroplane — location underfoot, continuous to
+// the horizon. Default is CITY (z13), not lane level: close-up street
+// tiles pixelate when the floor is a few metres under your eyes; a
+// coarser map only has to suggest where you are. Pinch/wheel still
+// reaches lane level (z17) or the whole region (z11).
 // ════════════════════════════════════════════════════════
 
 import * as THREE from 'three';
@@ -24,13 +26,15 @@ const TILE_URL = (z, x, y) =>
 
 export const ATTRIBUTION = '© OPENSTREETMAP CONTRIBUTORS';
 
-export const ZOOM = 16;          // default: ~600 m per tile at Bangkok
+export const ZOOM = 13;          // default: city — location, not a street atlas
 export const ZOOM_MIN = 11;      // whole-region view
 export const ZOOM_MAX = 17;      // lane level
 const GRID = 4;                  // detail: 4×4 tiles
 const CGRID = 4;                 // context: 4×4 tiles at (zoom - 3)
 const CTX_DZ = 3;                // context is 8× the width of detail
-const SPAN = 13;                 // scene units per detail tile
+// Larger span: each texel covers more floor — fewer pixels in your face
+// when looking straight down at eye height.
+const SPAN = 18;                 // scene units per detail tile
 
 // Web Mercator. Fractional on purpose: the viewer's exact position goes
 // at the origin, not the nearest tile corner.
@@ -186,13 +190,11 @@ export function buildGround(lineColor = 0xe6edf3, amber = 0xf59e0b, maxAnisotrop
   const getZoom = () => zoom;
 
   /**
-   * How far below the walker the map sits, in scene units. At z16 it is
-   * just under the floor; every zoom step out doubles the altitude, so
-   * the texel density on screen stays roughly constant — zooming out
-   * FEELS like rising above the city rather than smearing a small
-   * picture across the same glass. z11 puts you ~53 units up, which
-   * frames the whole 76 km patch at about the angle an aeroplane window
-   * gives you.
+   * How far below the walker the map sits, in scene units. At the
+   * default city zoom it is just under the floor; every zoom step out
+   * doubles the altitude, so the texel density on screen stays roughly
+   * constant — zooming out FEELS like rising above the city rather than
+   * smearing a small picture across the same glass.
    */
   const getDepth = () => 0.06 - 1.7 * (Math.pow(2, ZOOM - zoom > 0 ? ZOOM - zoom : 0) - 1);
 

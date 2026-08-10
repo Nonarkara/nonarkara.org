@@ -48,6 +48,11 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.20 (2026-08-11) Fallingwater hill reads + cascade runs; floor map
+//                    defaults to city zoom (z13) so tiles don't pixelate
+//                    underfoot; reflecting pool faces the SE approach as
+//                    a dense cyberpunk estate scoreboard.
+//   4.19 (2026-08-11) (prior) HUD / intent / cache pass.
 //   4.18 (2026-08-11) fifth collision from the same sweep — the host's
 //                    SET YOUR INTENT line ran behind the compass chip on
 //                    phones. The phone room's top band is fully allocated;
@@ -226,7 +231,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.19';
+const NON_VERSION = '4.20';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -902,11 +907,15 @@ if (WEBGL_OK) {
   const dark = CURRENT_THEME !== 'light';
   PAVILION = buildPavilion(THREE, scene, { dark, fence: false });
 
-  // THE REFLECTING POOL — Mies' black water, reflecting the world it
-  // actually sits in. Built here so it shares the Pavilion's plan (one
-  // source of truth for where the water is) and fed by the same market
-  // call the daily brief already makes.
-  POOL = buildPool(THREE, PLAN);
+  // THE REFLECTING POOL — Mies' black water as a dense estate scoreboard.
+  // Built here so it shares the Pavilion's plan (one source of truth for
+  // where the water is) and fed by the same market call the daily brief
+  // already makes, plus version / nodes / discovery.
+  POOL = buildPool(THREE, PLAN, {
+    version: NON_VERSION,
+    build: NON_BUILD,
+    estate: '农博士爱的现代建筑世界之窗',
+  });
   scene.add(POOL.group);
   window.__pool = POOL;   // verification handle
   GLASS = buildGlassHouse(THREE, scene, { dark });
@@ -923,6 +932,13 @@ if (WEBGL_OK) {
     { name: FARN_PLAN.name, plan: FARN_PLAN, origin: FARN_PLAN.origin, build: FARNSWORTH },
     { name: FALL_PLAN.name, plan: FALL_PLAN, origin: FALL_PLAN.origin, build: FALLINGWATER },
   );
+  try {
+    POOL.setMeta({
+      buildings: SITE.map(s => s.name),
+      version: NON_VERSION,
+      build: NON_BUILD,
+    });
+  } catch (_) {}
 
   // ── The ground they share ─────────────────────────────
   // Five buildings on a tight cross need something to stand on that is
@@ -5336,10 +5352,21 @@ function animate() {
   // the street map. Two depths of the same gesture.
   if (POOL) {
     const p = camera.rotation.x;
+    // Keep the scoreboard honest: discovery + phase change while you walk.
+    try {
+      POOL.setMeta({
+        discovery: DISCOVERY
+          ? { found: DISCOVERY.found.size, total: DISCOVERY.total }
+          : undefined,
+        phase: document.getElementById('hud-phase')?.textContent || '',
+      });
+    } catch (_) {}
     // The markets live in the water, not on the city: once the street
     // map has mostly taken the floor, the pool yields to it.
     POOL.tick(dtLook, p < -0.12 && (window.__groundBlend || 0) < 0.6);
   }
+  // Cascade runs whether or not you are looking at it — water does.
+  if (FALLINGWATER?.tick) FALLINGWATER.tick(dtLook);
 
   // The sky dome and the ground tiles were both built around a viewer
   // standing at the origin, which was true when the camera could not

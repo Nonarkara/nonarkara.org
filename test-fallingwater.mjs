@@ -1,12 +1,26 @@
 // Self-check for Fallingwater plan, hill, cascade, and walk.
 // `node test-fallingwater.mjs`
 import assert from 'node:assert';
-import { PLAN, colliderBoxes, floorPatches, hillHeight } from './fallingwater.js';
+import { PLAN, colliderBoxes, floorPatches, hillHeight, buildFallingwater } from './fallingwater.js';
 import { PLAN as FARN } from './farnsworth.js';
 import { PLAN as PAVILION } from './pavilion.js';
 import { Walk } from './walk.js';
 
 const RADIUS = 0.34;
+
+// Minimal THREE stub — geometry/materials only for buildFallingwater.
+const THREE = {
+  Group: class { constructor() { this.children = []; this.position = { set() {} }; }
+    add(o) { this.children.push(o); } },
+  Mesh: class { constructor(g, m) { this.geometry = g; this.material = m; this.position = { set(x,y,z){ this.x=x;this.y=y;this.z=z; }, x:0,y:0,z:0 }; this.rotation = { x:0,y:0,z:0 }; } },
+  LineSegments: class { constructor(g, m) { this.geometry = g; this.material = m; this.position = { set(x,y,z){ this.x=x;this.y=y;this.z=z; }, x:0,y:0,z:0 }; } },
+  BoxGeometry: class { constructor(w,h,d) { this.w=w;this.h=h;this.d=d; } },
+  PlaneGeometry: class { constructor(w,h) { this.w=w;this.h=h; } },
+  EdgesGeometry: class { constructor(g) { this.g = g; } },
+  MeshBasicMaterial: class { constructor(o) { Object.assign(this, o); this.color = { setHex() {} }; } },
+  LineBasicMaterial: class { constructor(o) { Object.assign(this, o); } },
+  DoubleSide: 2,
+};
 
 // ── Massing invariants ────────────────────────────────────
 assert(PLAN.livingY > 2.5 && PLAN.livingY < 4.5, 'living terrace is the middle height');
@@ -14,16 +28,35 @@ assert(PLAN.upperY > PLAN.livingY, 'bedroom tray above living');
 assert(PLAN.core.h > PLAN.upperY, 'stone core punches past the trays');
 assert(PLAN.living.d > 6, 'living cantilever is a real tray');
 assert(PLAN.stream.tiers >= 4, 'cascade needs enough tiers to read as falling water');
+assert(PLAN.stream.bands >= 3, 'cascade needs scrolling bands so water runs');
 assert(PLAN.stream.zTop < PLAN.stream.zBot, 'water flows +Z down the front');
 assert(PLAN.stream.yTop > PLAN.stream.yBot, 'water drops in height');
 
 // ── Hill rises behind, notched at the stream ──────────────
 {
   const crest = hillHeight(0, PLAN.hill.crestZ);
-  assert(crest != null && crest > 2, 'hill has a crest behind the house');
+  assert(crest != null && crest > 3.5, 'hill crest is tall enough to read from the approach');
+  assert(PLAN.hill.crestY >= 5, 'hill mass is not a flat pad');
+  const mid = hillHeight(0, -4);
+  assert(mid != null && mid > 1.5, 'hill rises under/behind the trays');
+  const flank = hillHeight(-12, -4);
+  assert(flank != null && flank > 0.8, 'side flanks keep the hill obvious off-axis');
   const front = hillHeight(0, PLAN.stream.zTop + 1);
   assert(front != null && front < 0.3, 'stream notch keeps the cascade open');
   assert.equal(hillHeight(40, 0), null, 'hill is finite');
+}
+
+// ── Animated water hook ───────────────────────────────────
+{
+  const scene = { add() {} };
+  const built = buildFallingwater(THREE, scene, { dark: true });
+  assert(typeof built.tick === 'function', 'buildFallingwater exposes tick for cascade animation');
+  assert(built.water?.bands?.length >= 3, 'cascade has scrolling bands');
+  assert(built.water?.sheets?.length >= 4, 'cascade has sheet body');
+  const y0 = built.water.bands[0].mesh.position.y;
+  built.tick(0.5);
+  const y1 = built.water.bands[0].mesh.position.y;
+  assert(y1 !== y0, 'tick moves cascade bands down the fall');
 }
 
 // ── Colliders: core + living envelope + rear ──────────────
