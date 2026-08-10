@@ -47,6 +47,13 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.14 (2026-08-09) Farnsworth is now ACTUALLY lifted — the well-trick
+//                    is gone, the eight white columns are visible from
+//                    the grass to the roof, and a giant 8m travertine
+//                    deck extends from the south end. Three steps
+//                    (each 0.5m) bring the walker up from the grass;
+//                    glass and core colliders are minY-scoped to the
+//                    lift so the house is passable underneath.
 //   4.14 (2026-08-09) Axiom's full public project portfolio joins the
 //                    all-projects screen; retired destinations corrected.
 //                    Sabai Sabai cups now live in the Pavilion, Glass

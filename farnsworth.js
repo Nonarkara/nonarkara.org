@@ -9,24 +9,32 @@
  *
  * The moves that make it that building:
  *
- *   - It FLOATS. Eight white columns lift a floor tray and a roof tray
- *     clear of the ground. The Glass House sits on a brick terrace; this
- *     one refuses the ground. That is the whole argument with Johnson,
- *     standing across the plain on this site.
- *   - The glass is ONE ROOM, inset just inside the column line. On one
- *     end the glass stops and the floor keeps going — a PORCH — so the
- *     tray reads as structure before it reads as enclosure.
- *   - A PRIMAVERA CORE, floor to almost-ceiling, holds kitchen and bath.
- *     It is the only opaque volume. Like Johnson's brick cylinder, it is
- *     the one warm thing — and so it takes the amber.
+ *   - It FLOATS. Eight white columns lift the floor tray and the roof
+ *     tray clear of the ground by 1.5m. The Glass House sits on a
+ *     brick terrace; this one refuses the ground. That is the whole
+ *     argument with Johnson, standing across the plain on this site.
+ *     You can walk under the house and look up at the underside of
+ *     the floor tray; the columns are what you see first.
+ *   - A GIANT TRAVERTINE TERRACE, 8m × 8.5m, extends the floor tray
+ *     past the glass at the south end — the famous Mies deck. Three
+ *     hairline steps at the south edge of the terrace bring the
+ *     walker from the grass up to deck level.
+ *   - The glass is ONE ROOM, inset just inside the column line. On
+ *     the +Z end the glass stops and the floor keeps going — the
+ *     terrace — so the tray reads as structure before it reads as
+ *     enclosure.
+ *   - A PRIMAVERA CORE, floor to almost-ceiling, holds kitchen and
+ *     bath. It is the only opaque volume. Like Johnson's brick
+ *     cylinder, it is the one warm thing — and so it takes the amber.
  *   - WHITE STEEL. Not the near-black of the Glass House frame. Mies
  *     painted it white so the structure dissolves against Illinois sky.
  *
- * Walk note: the controller keeps the eye at 1.65m on a y≈0 datum (see
- * walk.js). A literal 1.5m pilotis would put you under the floor. So the
- * floor tray sits on the walking datum and the columns continue DOWN
- * into a recessed well — same silhouette from outside, walkable inside.
- * When walk.js gains floor height, raise the tray and delete the well.
+ * Walk note: walk.js has floor patches now, so the walker can climb
+ * the three steps and end up on the deck at y=plan.lift, then cross
+ * the porch threshold into the house. From the grass (y=0) the house
+ * is fully passable under — the glass walls and the core are
+ * minY-scoped to plan.lift so the walker is not blocked by anything
+ * above the deck. The columns are unconditional colliders.
  *
  * Same return shape as buildGlassHouse / buildPavilion.
  */
@@ -41,8 +49,10 @@ export const PLAN = {
   floor: { w: 8.56, d: 23.48, t: 0.32 },
   roof:  { w: 8.56, d: 23.48, t: 0.28 },
 
-  // Visual lift: how far the columns drop into the well under the floor.
-  // Clear inside: living height under the roof tray.
+  // The lift. The real Farnsworth sits 1.5m up so the Fox River cannot
+  // take it; this is why you can drive a car under the pilotis. The
+  // house is genuinely on stilts now — the columns run from y=0 to the
+  // roof tray, visible all the way, no well underneath to hide them.
   lift: 1.50,
   clear: 2.90,
 
@@ -53,25 +63,42 @@ export const PLAN = {
     section: 0.22,
   },
 
-  // Glass enclosure stops short of the +Z end — that end is the porch.
-  porch: 6.4,
+  // The travertine terrace (porch) and the three steps that climb to
+  // it. The terrace is a 8m × 8.56m slab at floor level — bigger than
+  // the 6.4m the old well-hack had, so the patio reads as the giant
+  // travertine deck the house is famous for. Three hairline steps at
+  // the south end bring the walker up from the grass without using a
+  // ramp; 0.5m rise is under FLOOR_STEP so walk.js climbs them
+  // naturally.
+  porch: 8.0,
+  stepRise: 0.5,
+  stepRun: 0.6,
   glassT: 0.08,
   // Door on the −X long face, near the core.
   door: { z: 2.2, half: 0.95 },
   // Sliding run on the porch threshold — how you walk in from the tray.
   porchDoor: { x: 0, half: 1.1 },
 
-  // Primavera core — kitchen / bath / utilities.
-  core: { x: 0.4, z: 1.8, w: 3.6, d: 5.8, h: 2.55 },
+  // Primavera core — kitchen / bath / utilities. Centred on the long
+  // axis so it does not eat into the giant travertine deck. The real
+  // core sits roughly in the middle of the plan; the small bias the
+  // old build carried has gone to make room for the 8m patio.
+  core: { x: 0.4, z: 0, w: 3.6, d: 5.8, h: 2.55 },
 
-  // Travel drops you on the grass, looking at the porch end-on so the
-  // lift (the well) is the first thing you read.
-  spawn: { x: 0, y: 1.65, z: 16.5, lookAt: { x: 0, y: 2.0, z: 0 } },
+  // Travel drops you on the grass 10m south of the steps, looking at
+  // the porch end-on. From here the columns, the giant travertine
+  // deck, and the house on top all read as one lifted composition.
+  spawn: { x: 0, y: 1.65, z: 20, lookAt: { x: 0, y: 2.0, z: 0 } },
 };
 
 /**
- * Collision boxes in LOCAL coordinates. Floor is on the walking datum;
- * walk.js is 2D in XZ.
+ * Collision boxes in LOCAL coordinates. The glass walls, the core, and
+ * the steps only block from y=plan.lift up — the house is on stilts, so
+ * the walker can walk on the grass under it and reach the column field.
+ * The columns themselves ARE colliders (no minY) so the walker is
+ * stopped by them, but they leave plenty of room to pass between.
+ * walk.js skips any box whose [minY, maxY] does not include the
+ * walker's current floorY.
  */
 export function colliderBoxes(plan = PLAN) {
   const hw = plan.floor.w / 2;
@@ -79,25 +106,110 @@ export function colliderBoxes(plan = PLAN) {
   const glassZ0 = -hd;
   const glassZ1 = hd - plan.porch;
   const T = plan.glassT;
+  const lift = plan.lift;
+  const clear = plan.clear;
+  const roof = plan.roof;
+  // Glass spans the full living height (floor to roof) plus a little.
+  // The walker on the patio (y=lift) and the walker on the inside
+  // floor (y=lift) are both blocked. The walker on the grass (y=0)
+  // walks under unobstructed.
+  const minY = lift - 0.05;
+  const maxY = lift + clear + roof.t + 0.05;
   const out = [];
   const d = plan.door;
 
   // +X long — unbroken
-  out.push({ minX: hw - T, maxX: hw + T, minZ: glassZ0, maxZ: glassZ1 });
+  out.push({ minX: hw - T, maxX: hw + T, minZ: glassZ0, maxZ: glassZ1, minY, maxY });
   // −X long — two runs around the door
-  out.push({ minX: -hw - T, maxX: -hw + T, minZ: glassZ0, maxZ: d.z - d.half });
-  out.push({ minX: -hw - T, maxX: -hw + T, minZ: d.z + d.half, maxZ: glassZ1 });
+  out.push({ minX: -hw - T, maxX: -hw + T, minZ: glassZ0, maxZ: d.z - d.half, minY, maxY });
+  out.push({ minX: -hw - T, maxX: -hw + T, minZ: d.z + d.half, maxZ: glassZ1, minY, maxY });
   // −Z short (enclosed end)
-  out.push({ minX: -hw, maxX: hw, minZ: glassZ0 - T, maxZ: glassZ0 + T });
+  out.push({ minX: -hw, maxX: hw, minZ: glassZ0 - T, maxZ: glassZ0 + T, minY, maxY });
   // +Z porch threshold — two runs around the sliding door
   const pd = plan.porchDoor;
-  out.push({ minX: -hw, maxX: pd.x - pd.half, minZ: glassZ1 - T, maxZ: glassZ1 + T });
-  out.push({ minX: pd.x + pd.half, maxX: hw, minZ: glassZ1 - T, maxZ: glassZ1 + T });
+  out.push({ minX: -hw, maxX: pd.x - pd.half, minZ: glassZ1 - T, maxZ: glassZ1 + T, minY, maxY });
+  out.push({ minX: pd.x + pd.half, maxX: hw, minZ: glassZ1 - T, maxZ: glassZ1 + T, minY, maxY });
 
   const c = plan.core;
   out.push({
     minX: c.x - c.w / 2, maxX: c.x + c.w / 2,
     minZ: c.z - c.d / 2, maxZ: c.z + c.d / 2,
+    minY, maxY: lift + c.h + 0.05,
+  });
+
+  // The columns. They span from the ground to the roof, so no minY /
+  // maxY — the walker at any height is stopped by them. Their narrow
+  // section (0.22m) leaves a 7m clear gap inside the row, so this is
+  // not a fence.
+  const S = plan.cols.section / 2;
+  for (const x of plan.cols.xs) {
+    for (const z of plan.cols.zs) {
+      out.push({ minX: x - S, maxX: x + S, minZ: z - S, maxZ: z + S });
+    }
+  }
+
+  return out;
+}
+
+/**
+ * Walkable floor patches in LOCAL coordinates. Each exposes
+ * heightAt(x, z) so walk.js can sample stacked surfaces. The grass
+ * around the house is y=0; the three steps rise at 0.5m each; the
+ * travertine deck and the inside of the house share y=plan.lift.
+ */
+export function floorPatches(plan = PLAN) {
+  const hw = plan.floor.w / 2;
+  const hd = plan.floor.d / 2;
+  const glassZ1 = hd - plan.porch;
+  const lift = plan.lift;
+  const rise = plan.stepRise;
+  const run = plan.stepRun;
+  const out = [];
+
+  // Grass — the area around the house the walker needs to reach the
+  // bottom step. Stops at the south edge of the bottom step (the
+  // steps take over from there); without that cut, the walker's
+  // sticky patch stays "grass" right through the steps and never
+  // climbs.
+  out.push({
+    kind: 'grass',
+    heightAt(x, z) {
+      if (Math.abs(x) > hw + 4) return null;
+      if (z < -hd - 4) return null;
+      if (z > glassZ1 + 3 * run) return 0;
+      return null;
+    },
+  });
+
+  // Three steps, deepest first. The walker samples these in z order;
+  // crossing the step boundary raises the eye by `rise`.
+  for (let i = 0; i < 3; i++) {
+    const z0 = glassZ1 + (3 - i - 1) * run;
+    const z1 = z0 + run;
+    const y = (i + 1) * rise;
+    out.push({
+      kind: 'step',
+      n: i + 1,
+      heightAt(x, z) {
+        if (Math.abs(x) > hw + 0.05) return null;
+        if (z < z0 || z > z1) return null;
+        return y;
+      },
+    });
+  }
+
+  // The travertine deck (porch) and the inside of the house — one
+  // continuous patch at floor level. The glass walls split them in
+  // colliders; the floor itself is one tray.
+  out.push({
+    kind: 'tray',
+    heightAt(x, z) {
+      if (Math.abs(x) > hw + 0.05) return null;
+      if (z < -hd || z > hd) return null;
+      // Hole for the steps' footprint so they are not also the patio.
+      if (z > glassZ1 && z <= glassZ1 + 3 * run) return null;
+      return lift;
+    },
   });
 
   return out;
@@ -108,7 +220,6 @@ export function paint(M, p) {
   M.glass.color.setHex(p.water);
   M.floor.color.setHex(mix(p.travertine, p.bg, 0.2));
   M.roof.color.setHex(mix(p.roof, p.bg, 0.1));
-  M.well.color.setHex(mix(0x05070b, p.bg, 0.4));
 }
 
 const mix = (a, b, t) => {
@@ -141,7 +252,6 @@ export function buildFarnsworth(THREE, scene, opts = {}) {
     wood:  mat(WOOD),
     floor: mat(dark ? 0x2a2b28 : 0xd8d2c4),
     roof:  mat(dark ? 0x1a1c1b : 0xe4e0d6),
-    well:  mat(dark ? 0x05070b : 0x2a2e32),
   };
 
   const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
@@ -151,25 +261,22 @@ export function buildFarnsworth(THREE, scene, opts = {}) {
 
   const F = PLAN.floor, R = PLAN.roof;
   const lift = PLAN.lift;
-  const floorTop = 0.02;                 // walking datum
-  const floorBot = floorTop - F.t;
+  // The whole structure is lifted `lift` off the grass. The floor tray
+  // sits at y=lift; the roof tray sits at y=floorTop+clear (the
+  // walkable floor to the inside ceiling); the columns run from the
+  // grass to the roof top, passing through the trays so the lift
+  // reads at every level. No well, no lip — the columns are what the
+  // building is doing.
+  const floorBot = lift - F.t / 2;
+  const floorTop = lift + F.t / 2;
   const roofBot = floorTop + PLAN.clear;
+  const roofTop = roofBot + R.t;
   const hw = F.w / 2, hd = F.d / 2;
   const glassZ1 = hd - PLAN.porch;
 
-  // ── Well — the ground drops away under the tray ─────────
-  const well = new THREE.Mesh(
-    new THREE.PlaneGeometry(F.w + 3.2, F.d + 3.2), MATS.well);
-  well.rotation.x = -Math.PI / 2;
-  at(well, 0, -lift, 0);
-  // Lip so the drop reads as a court, not a hole in the shader.
-  const lipT = 0.12;
-  at(box(F.w + 3.2, lipT, F.d + 3.2, MATS.well), 0, -lipT / 2, 0);
-  at(edges(F.w + 3.2, lipT, F.d + 3.2), 0, -lipT / 2, 0);
-
-  // ── Columns: well floor → roof top ──────────────────────
-  const colH = roofBot + R.t + lift;
-  const colMid = (roofBot + R.t - lift) / 2;
+  // ── Columns: grass → roof top, fully visible ────────────
+  const colH = roofTop;
+  const colMid = colH / 2;
   const S = PLAN.cols.section;
   for (const x of PLAN.cols.xs) {
     for (const z of PLAN.cols.zs) {
@@ -178,12 +285,30 @@ export function buildFarnsworth(THREE, scene, opts = {}) {
     }
   }
 
+  // ── Steps at the south end of the patio ─────────────────
+  // Each step is a hairline frame, not a solid block, so the steps
+  // read as a stair and not as part of the deck. Three of them at
+  // stepRise (0.5m) take the walker from the grass to the deck in
+  // 1.5m of horizontal travel.
+  for (let i = 0; i < 3; i++) {
+    const y = (i + 1) * PLAN.stepRise;
+    const z = glassZ1 + (3 - i - 1) * PLAN.stepRun + PLAN.stepRun / 2;
+    at(edges(F.w + 0.4, y, PLAN.stepRun), 0, y / 2, z);
+  }
+
   // ── Floor tray ──────────────────────────────────────────
-  at(box(F.w, F.t, F.d, MATS.floor), 0, (floorTop + floorBot) / 2, 0);
-  at(edges(F.w, F.t, F.d), 0, (floorTop + floorBot) / 2, 0);
+  at(box(F.w, F.t, F.d, MATS.floor), 0, lift, 0);
+  at(edges(F.w, F.t, F.d), 0, lift, 0);
   const fl = new THREE.Mesh(new THREE.PlaneGeometry(F.w - 0.08, F.d - 0.08), MATS.floor);
   fl.rotation.x = -Math.PI / 2;
   at(fl, 0, floorTop + 0.004, 0);
+
+  // The underside of the lifted floor. The walker under the house sees
+  // this; drawing it makes the lift legible from every angle.
+  const flU = new THREE.Mesh(new THREE.PlaneGeometry(F.w - 0.08, F.d - 0.08),
+    new THREE.MeshBasicMaterial({ color: dark ? 0x15171a : 0xa9a59a, side: THREE.DoubleSide }));
+  flU.rotation.x = Math.PI / 2;
+  at(flU, 0, floorBot - 0.004, 0);
 
   const deckGrid = new THREE.GridHelper(F.w, 8, 0x8b98a6, 0x8b98a6);
   deckGrid.material = new THREE.LineBasicMaterial({
@@ -238,6 +363,9 @@ export function buildFarnsworth(THREE, scene, opts = {}) {
   const colliders = colliderBoxes(PLAN).map(b => ({
     minX: b.minX + o.x, maxX: b.maxX + o.x,
     minZ: b.minZ + o.z, maxZ: b.maxZ + o.z,
+    // Preserve the height scope so walk.js can pass under the lifted
+    // house. Columns deliberately do not get minY/maxY here.
+    minY: b.minY, maxY: b.maxY,
   }));
 
   const surfaces = {
@@ -245,5 +373,12 @@ export function buildFarnsworth(THREE, scene, opts = {}) {
     porch: { center: { x: o.x, y: floorTop, z: o.z + hd - PLAN.porch / 2 }, kind: 'porch' },
   };
 
-  return { group: G, colliders, surfaces, materials: MATS, plan: PLAN };
+  // Floor patches in world space. Same shape as Savoye: walk.js samples
+  // each patch and uses the right one for the walker's current XZ.
+  const floors = floorPatches(PLAN).map(f => ({
+    ...f,
+    heightAt: (x, z) => f.heightAt(x - o.x, z - o.z),
+  }));
+
+  return { group: G, colliders, floors, surfaces, materials: MATS, plan: PLAN };
 }
