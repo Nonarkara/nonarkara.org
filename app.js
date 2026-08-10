@@ -6,6 +6,7 @@ import { furnishGlassHouse, furnishFarnsworth } from './interiors.js';
 import { buildGlassHouse, PLAN as GLASS_PLAN, paint as paintGlass } from './glasshouse.js';
 import { buildSavoye, PLAN as SAVOYE_PLAN, paint as paintSavoye } from './savoye.js';
 import { buildFarnsworth, PLAN as FARN_PLAN, paint as paintFarn } from './farnsworth.js';
+import { buildFallingwater, PLAN as FALL_PLAN, paint as paintFall } from './fallingwater.js';
 import { Walk, attachStick } from './walk.js';
 import { Look, damp, dampingFactor, overheadBlend, underfootBlend } from './look.js';
 import { sunAltitude, paletteFor, fetchWeather, makeRain } from './daylight.js';
@@ -225,7 +226,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.18';
+const NON_VERSION = '4.19';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -889,10 +890,12 @@ const placeAt = (obj, x, y, z) => { obj.position.set(x, y, z); return obj; };
 // wall you can walk through.
 let PAVILION = null;
 let POOL = null;
-let GLASS = null, SAVOYE = null, FARNSWORTH = null;
+let GLASS = null, SAVOYE = null, FARNSWORTH = null, FALLINGWATER = null;
 // Every building on the site, nearest-first lookups included. The
 // Pavilion is at the origin because it was here first and everything
 // else — the poem, the rain, the spawn — is measured from it.
+// Estate spirit: 农博士爱的现代建筑世界之窗 — a dense walkable field
+// of the modern houses he loves, not a trek across empty grass.
 const SITE = [];
 if (WEBGL_OK) {
   // fence:false — the podium edge used to be the end of the world.
@@ -907,23 +910,25 @@ if (WEBGL_OK) {
   scene.add(POOL.group);
   window.__pool = POOL;   // verification handle
   GLASS = buildGlassHouse(THREE, scene, { dark });
-  // A shell you cross 120m to reach owes you an interior.
+  // A shell you walk to owes you an interior.
   furnishGlassHouse(THREE, GLASS.group, dark);
   SAVOYE = buildSavoye(THREE, scene, { dark });
   FARNSWORTH = buildFarnsworth(THREE, scene, { dark });
-  furnishFarnsworth(THREE, FARNSWORTH.group, dark);
+  furnishFarnsworth(THREE, FARNSWORTH.group, dark, FARN_PLAN.lift);
+  FALLINGWATER = buildFallingwater(THREE, scene, { dark });
   SITE.push(
     { name: 'PAVILION', plan: PLAN, origin: { x: 0, z: 0 }, build: PAVILION },
     { name: GLASS_PLAN.name, plan: GLASS_PLAN, origin: GLASS_PLAN.origin, build: GLASS },
     { name: SAVOYE_PLAN.name, plan: SAVOYE_PLAN, origin: SAVOYE_PLAN.origin, build: SAVOYE },
     { name: FARN_PLAN.name, plan: FARN_PLAN, origin: FARN_PLAN.origin, build: FARNSWORTH },
+    { name: FALL_PLAN.name, plan: FALL_PLAN, origin: FALL_PLAN.origin, build: FALLINGWATER },
   );
 
   // ── The ground they share ─────────────────────────────
-  // Four buildings on a cross need something to stand on that is not
-  // each other's podium. It sits 3cm below the walking datum, so every
-  // floor in the site reads as slightly proud of the plain rather than
-  // sunk into it — and nothing z-fights.
+  // Five buildings on a tight cross need something to stand on that is
+  // not each other's podium. It sits 3cm below the walking datum, so
+  // every floor in the site reads as slightly proud of the plain rather
+  // than sunk into it — and nothing z-fights.
   const GROUND_Y = -0.03;
   const plain = new THREE.Mesh(
     new THREE.PlaneGeometry(600, 600),
@@ -941,10 +946,11 @@ if (WEBGL_OK) {
     PAVILION.materials.floor, PAVILION.materials.podium, PAVILION.materials.water,
     GLASS.materials?.brick || null, GLASS.materials?.floor || null,
     SAVOYE.materials?.floor || null, SAVOYE.materials?.slab || null,
-    FARNSWORTH.materials?.floor || null, FARNSWORTH.materials?.tray || null,
+    FARNSWORTH.materials?.floor || null, FARNSWORTH.materials?.lower || null,
+    FALLINGWATER.materials?.terrace || null, FALLINGWATER.materials?.hill || null,
   ].filter(Boolean);
 
-  // A 10m grid, barely there. Crossing 120m of nothing with no texture
+  // A 10m grid, barely there. Crossing the plain with no texture
   // reads as not moving; the grid is how you feel the distance close.
   // The plain reads as an endless flat sheet without something to make
   // distance felt. A radial fade under the grid gives it a horizon: the
@@ -992,10 +998,11 @@ if (WEBGL_OK) {
     M.glass.color.setHex(dark ? 0x223040 : 0xbcc8d2);
     // onyx stays amber in both themes — it is the one accent.
 
-    // The other three, in their own materials. Same two-state fallback
-    // the Pavilion uses; the daylight palette overrides them the
-    // moment it next refreshes.
+    // The others, in their own materials. Same two-state fallback the
+    // Pavilion uses; the daylight palette overrides them the moment
+    // it next refreshes.
     const G = GLASS.materials, S = SAVOYE.materials, F = FARNSWORTH.materials;
+    const W = FALLINGWATER.materials;
     G.steel.color.setHex(dark ? 0x333c45 : 0x424951);
     G.glass.color.setHex(dark ? 0x080d12 : 0xa8bcc8);
     G.deck.color.setHex(dark ? 0x1c1e1c : 0xe6e1d5);
@@ -1010,8 +1017,13 @@ if (WEBGL_OK) {
     F.glass.color.setHex(dark ? 0x080d12 : 0xa8bcc8);
     F.floor.color.setHex(dark ? 0x2a2b28 : 0xd8d2c4);
     F.roof.color.setHex(dark ? 0x1a1c1b : 0xe4e0d6);
-    F.well.color.setHex(dark ? 0x05070b : 0x2a2e32);
-    // Brick, ramp, primavera stay warm in both themes, like the onyx.
+    F.lower.color.setHex(dark ? 0x2e2f2c : 0xddd6c8);
+    W.stone.color.setHex(dark ? 0x3a3630 : 0x6a6558);
+    W.terrace.color.setHex(dark ? 0x2a2b28 : 0xc8c2b4);
+    W.glass.color.setHex(dark ? 0x080d12 : 0xa8bcc8);
+    W.water.color.setHex(dark ? 0x1a3040 : 0x6a9aaa);
+    W.hill.color.setHex(dark ? 0x1e221c : 0x5a5e52);
+    // Brick, ramp, primavera, hearth stay warm in both themes, like the onyx.
   });
 }
 
@@ -6711,13 +6723,12 @@ function setWalk(on) {
 window.__setWalk = setWalk;
 
 // ════════════════════════════════════════════════════════
-// THE COMPASS — getting between three buildings
+// THE COMPASS — getting between the estate buildings
 //
-// The triangle is about 120m a side. On foot that is a minute and a
-// half of empty grass each way, three times over, and the third time
-// nobody does it. So the compass names the nearest building you are
-// not standing in, says how far it is and which way, and takes you to
-// its threshold if you tap it.
+// Centres sit ~40–60m apart now — a short walk, not a trek. The
+// compass still names the nearest building you are not standing in,
+// says how far it is and which way, and takes you to its threshold
+// if you tap it.
 //
 // It names the building rather than drawing a marker on it because you
 // often cannot see the thing — you are behind an onyx wall, or under
@@ -6793,7 +6804,7 @@ if (WEBGL_OK && SITE.length > 1) {
   setInterval(() => {
     if (!chip || document.body.dataset.view !== 'room') return;
     const near = byDistance();
-    // The HUD used to say PAVILION whatever happened. There are three
+    // The HUD used to say PAVILION whatever happened. There are five
     // buildings now and it has to say the true one, or it is lying.
     if (here && here.textContent !== near[0].b.name) here.textContent = near[0].b.name;
     const n = near[1];
@@ -7063,6 +7074,7 @@ if (WEBGL_OK && PAVILION) {
     if (GLASS) paintGlass(GLASS.materials, p);
     if (SAVOYE) paintSavoye(SAVOYE.materials, p);
     if (FARNSWORTH) paintFarn(FARNSWORTH.materials, p);
+    if (FALLINGWATER) paintFall(FALLINGWATER.materials, p);
     if (scene.background) scene.background.setHex(p.bg);
     else scene.background = new THREE.Color(p.bg);
     // Fog has to follow the sky or the far buildings sit in last

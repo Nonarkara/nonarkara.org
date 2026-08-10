@@ -35,7 +35,7 @@ export const PLAN = {
   name: 'GLASS HOUSE',
   // Where it sits on the shared ground plane. Local coordinates below
   // are relative to the centre of the house floor.
-  origin: { x: 60, z: 104 },
+  origin: { x: 40, z: 48 },
 
   // Brick terrace. The house sits on it; you step up onto brick before
   // you step into glass.

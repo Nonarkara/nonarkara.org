@@ -23,7 +23,7 @@ Default for `data-mode="host"`. Phone-first. No WebGL required.
 
 A walkable memory palace where strangers who want to can discover who Non is — by looking, not by reading a bio.
 
-- 3D estate (Three.js, phone-safe — plan geometry, not SketchUp Warehouse meshes): Barcelona Pavilion at origin, Glass House NE, Savoye NW, Farnsworth House south (v4.9)
+- 3D estate (Three.js, phone-safe — plan geometry, not SketchUp Warehouse meshes): Barcelona Pavilion at origin, Glass House NE, Savoye NW, Farnsworth south, Fallingwater SE — dense ~40–60m centres (v4.19). Spirit: 农博士爱的现代建筑世界之窗
 - Screens that open real projects
 - Furniture that opens CV / LinkedIn / contact
 - Sky (real stars) and ground (where you stand)
@@ -40,9 +40,11 @@ v3.0–v3.1 shipped real backend organs (fleet history, braind, Worker capture q
 
 **v4.4→4.5 scar (2026-08-06):** `S` both walked backwards and toggled the sky. WASD enabled walk without pointer-lock, so the mouse could not look. Keyboard felt broken; sky/ground felt "missing." Fix: U/J for sky/ground, setWalk on WASD (pointer-lock), turn on baseRotY, pitch-to-enter.
 
-**v4.10 Savoye promenade (2026-08-07):** Villa Savoye is no longer a façade you walk up to. Traction Avant under the pilotis; central ramp is a floor (not a wall); walk.js lifts the eye via sticky floor patches so stacked flights do not teleport you to the roof. Living terrace (north) and roof garden are reachable — look up for sky. Farnsworth still sits on the y≈0 well trick until someone raises its tray.
+**v4.10 Savoye promenade (2026-08-07):** Villa Savoye is no longer a façade you walk up to. Traction Avant under the pilotis; central ramp is a floor (not a wall); walk.js lifts the eye via sticky floor patches so stacked flights do not teleport you to the roof. Living terrace (north) and roof garden are reachable — look up for sky.
 
-**Architizer / SketchUp icons (2026-08-07):** No local `.skp` files found on this machine. Estate icons are procedural plans from the same numbers the walk collides against — never Warehouse megabyte meshes. Farnsworth (Plano 1951) is the fourth building; next candidates from the Architizer free list if asked: Church of the Light, Fallingwater, Ronchamp.
+**v4.19 Farnsworth + Fallingwater + dense estate (2026-08-11):** Farnsworth rebuilt to match the BIM massing (two floating white trays, H-section columns, mullioned full-height glass, primavera core) — the prior single-tray / square-post plan was wrong. Fallingwater added on a hill SE with cantilevered terraces, stone core, and a front cascade (five translucent tiers — phone-cheap, no glTF). Origins pulled in from ~120m cross to ~40–60m centres. Brand framing: 农博士爱的现代建筑世界之窗.
+
+**Architizer / SketchUp icons (2026-08-07):** No local `.skp` files found on this machine. Estate icons are procedural plans from the same numbers the walk collides against — never Warehouse megabyte meshes. Candidates if asked next: Church of the Light, Ronchamp.
 
 ## Conservation law
 

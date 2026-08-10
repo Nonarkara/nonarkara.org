@@ -55,13 +55,13 @@ assert(PLAN.cabinet.h < 1.9,
   assert(clear > 0.9, `a ${(PLAN.door * 2).toFixed(2)}m doorway leaves only ${clear.toFixed(2)}m clear`);
 }
 
-// ── The triangle: generous walking distance, all three ─────
+// ── Dense estate: walkable between buildings, no trek ──────
 {
   const O = { PAVILION: { x: 0, z: 0 }, GLASS: PLAN.origin, SAVOYE: SAVOYE.origin };
   const d = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
   for (const [a, b] of [['PAVILION', 'GLASS'], ['PAVILION', 'SAVOYE'], ['GLASS', 'SAVOYE']]) {
     const m = d(O[a], O[b]);
-    assert(m > 90 && m < 140, `${a}→${b} is ${m.toFixed(0)}m — the walk must be a real walk, not a step`);
+    assert(m > 35 && m < 95, `${a}→${b} is ${m.toFixed(0)}m — dense estate (~40–60m centres)`);
   }
   assert(PAVILION.podium, 'the Pavilion plan must still be the one the walk collides against');
 }

@@ -135,13 +135,13 @@ assert.equal(PLAN.levels.firstTop - PLAN.levels.first, 3.0,
     'north terrace is not walkable');
 }
 
-// ── The triangle: generous walking distance, all three ─────
+// ── Dense estate: walkable between buildings, no trek ──────
 {
   const O = { PAVILION: { x: 0, z: 0 }, GLASS: GLASS.origin, SAVOYE: PLAN.origin };
   const d = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
   for (const [a, b] of [['PAVILION', 'GLASS'], ['PAVILION', 'SAVOYE'], ['GLASS', 'SAVOYE']]) {
     const m = d(O[a], O[b]);
-    assert(m > 90 && m < 140, `${a}→${b} is ${m.toFixed(0)}m — the walk must be a real walk`);
+    assert(m > 35 && m < 95, `${a}→${b} is ${m.toFixed(0)}m — dense estate (~40–60m centres)`);
   }
   const reach = { PAVILION: PAVILION.podium.w / 2, GLASS: GLASS.podium.d / 2, SAVOYE: PLAN.box.d / 2 };
   for (const [a, b] of [['PAVILION', 'GLASS'], ['PAVILION', 'SAVOYE'], ['GLASS', 'SAVOYE']]) {

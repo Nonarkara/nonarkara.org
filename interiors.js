@@ -1,8 +1,8 @@
 /**
  * INTERIORS — the reason walking there means something.
  *
- * Three of the four houses were shells: perfect envelopes with nothing
- * inside them. You crossed 120m of plain, arrived, and the payoff was a
+ * Three of the houses were shells: perfect envelopes with nothing
+ * inside them. You walked the plain, arrived, and the payoff was a
  * roof and a core. A building you can only read from outside is a
  * model, not a place.
  *
@@ -169,16 +169,18 @@ export function furnishGlassHouse(THREE, group, dark) {
  * its west and sleeping to its east, and you are not invited to
  * rearrange. Placed relative to the tray's own centre.
  */
-export function furnishFarnsworth(THREE, group, dark) {
+export function furnishFarnsworth(THREE, group, dark, floorY = 1.55) {
   const M = interiorMats(THREE, dark);
   const g = new THREE.Group();
-  g.add(rug(THREE, M, -3.2, 0.2, 4.0, 3.2));
-  g.add(barcelonaChair(THREE, M, -4.2, -0.8, Math.PI * 0.55));
-  g.add(barcelonaChair(THREE, M, -4.0, 1.2, Math.PI * 0.45));
-  g.add(ottoman(THREE, M, -2.8, -1.2, Math.PI * 0.5));
-  g.add(table(THREE, M, -3.2, 0.3, 1.2, 0.7, 0.34, M.wood));
-  g.add(table(THREE, M, 1.2, -1.6, 1.8, 0.95, 0.74, M.wood));  // dining
-  g.add(bed(THREE, M, 4.6, 1.4, 0));
+  // Living west of the primavera, sleeping east — Mies's fixed plan.
+  g.add(rug(THREE, M, -2.4, -0.4, 3.6, 3.0));
+  g.add(barcelonaChair(THREE, M, -3.0, -1.2, Math.PI * 0.55));
+  g.add(barcelonaChair(THREE, M, -2.8, 0.8, Math.PI * 0.45));
+  g.add(ottoman(THREE, M, -1.8, -1.6, Math.PI * 0.5));
+  g.add(table(THREE, M, -2.4, 0.1, 1.2, 0.7, 0.34, M.wood));
+  g.add(table(THREE, M, -2.2, 2.8, 1.6, 0.9, 0.74, M.wood));  // dining
+  g.add(bed(THREE, M, -2.6, -4.8, 0));
+  g.position.y = floorY;
   group.add(g);
   return g;
 }

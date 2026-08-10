@@ -47,7 +47,7 @@
 
 export const PLAN = {
   name: 'VILLA SAVOYE',
-  origin: { x: -60, z: 104 },
+  origin: { x: -40, z: 48 },
 
   // The box. Square, and cantilevered past the columns on every side.
   box: { w: 21.5, d: 21.5 },
