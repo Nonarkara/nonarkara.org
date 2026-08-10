@@ -3067,6 +3067,18 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
        The stick sits bottom-left because that is where a left thumb
        already rests when a phone is held in two hands. */
     .walk-btn.on { color: var(--amber); border-color: var(--amber); }
+
+    /* The right rail is a COLUMN. Every chip that anchors top-right
+       declares its row here, in one place — WALK, then FOCUS, then the
+       language toggle. Before this, WALK and FOCUS both defaulted to the
+       same corner and sat exactly on top of each other in host mode, and
+       the lang chip landed on the version stamp. An edge that lands on
+       another element is not an edge — it is an accident (§14.11). */
+    #room-hud-focus { top: calc(58px + var(--sat)); }
+    body[data-view="room"] .lang {
+      top: calc(102px + var(--sat));
+      right: calc(18px + var(--sar));
+    }
     /* Hide the cursor only when the pointer is actually locked. Walking
        with the keyboard alone must not take the mouse away from you —
        you still need it to click a TV. */
@@ -3187,6 +3199,26 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
       body[data-view="room"] .ground-hint { bottom: 142px; }
       body[data-view="room"] .discover-chip { left: 14px; bottom: 24px; }
       .nav-pad { bottom: 78px; }
+
+      /* The phone top strip, measured at 390px and resolved so no edge
+         lands on another element:
+         — the left cluster wraps to a second row (identity/time above,
+           build/phase below) before it can run under the WALK chip;
+         — the compass row owns y60–104 hugging the right edge, so the
+           rail steps over it: WALK 14, compass, FOCUS 112, LANG 160;
+         — the welcome hint moves above the thumbstick ring instead of
+           running through its bottom arc. */
+      .room-hud-cluster.top-left {
+        flex-wrap: wrap;
+        max-width: calc(100vw - 130px);
+        row-gap: 4px;
+      }
+      body[data-view="room"] #room-hud-focus { top: calc(112px + var(--sat)); }
+      body[data-view="room"] .lang {
+        top: calc(160px + var(--sat));
+        right: calc(14px + var(--sar));
+      }
+      body[data-view="room"] .hint { bottom: calc(216px + var(--sab)); }
     }
 
     /* Time-of-day / weather state, same treatment as the build stamp. */
