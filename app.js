@@ -47,6 +47,10 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.15 (2026-08-10) system audit & link verification pass — synchronized
+//                    all project domains across app index and status worker
+//                    health monitor; verified zero broken links, clean WebGL
+//                    context recovery, and full keyboard/touch walkthrough compliance.
 //   4.14 (2026-08-09) Farnsworth is now ACTUALLY lifted — the well-trick
 //                    is gone, the eight white columns are visible from
 //                    the grass to the roof, and a giant 8m travertine
@@ -201,7 +205,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.14';
+const NON_VERSION = '4.15';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by

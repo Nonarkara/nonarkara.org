@@ -68,6 +68,13 @@ const ACTIVE = [
   "siam-markets.pages.dev",
   "yala-control-tower.pages.dev",
   "ascn-smart-cities-network.pages.dev",
+  "ekkasarn-ai.pages.dev",
+  "nonwriter.nonarkara.org",
+  "news.nonarkara.org",
+  "nonscrape.nonarkara.org",
+  "watch-1de.pages.dev",
+  "luma-house.pages.dev",
+  "depa-usdot.nonarkara.org",
 ];
 
 // In the pipeline: real work with no public URL yet, either because it
