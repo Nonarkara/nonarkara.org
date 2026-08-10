@@ -10,6 +10,10 @@ import { buildFallingwater, PLAN as FALL_PLAN, paint as paintFall } from './fall
 import { Walk, attachStick } from './walk.js';
 import { Look, damp, dampingFactor, overheadBlend, underfootBlend } from './look.js';
 import { sunAltitude, paletteFor, fetchWeather, makeRain } from './daylight.js';
+import {
+  cardinal as astroCardinal, moonHorizontal, moonPhase, solarEvents, sunHorizontal,
+} from './astronomy.js';
+import { buildMountains } from './world.js';
 import { poemForDate } from './poems.js';
 import * as STARLORE_MOD from './starlore.js';
 
@@ -48,6 +52,9 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.21 (2026-08-11) one astronomical clock now drives sunrise/set
+//                    bearings, real lunar phase, daylight, stars and sky;
+//                    procedural mountain rings give the estate a horizon.
 //   4.20 (2026-08-11) Fallingwater hill reads + cascade runs; floor map
 //                    defaults to city zoom (z13) so tiles don't pixelate
 //                    underfoot; reflecting pool faces the SE approach as
@@ -231,7 +238,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.20';
+const NON_VERSION = '4.21';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -895,7 +902,7 @@ const placeAt = (obj, x, y, z) => { obj.position.set(x, y, z); return obj; };
 // wall you can walk through.
 let PAVILION = null;
 let POOL = null;
-let GLASS = null, SAVOYE = null, FARNSWORTH = null, FALLINGWATER = null;
+let GLASS = null, SAVOYE = null, FARNSWORTH = null, FALLINGWATER = null, MOUNTAINS = null;
 // Every building on the site, nearest-first lookups included. The
 // Pavilion is at the origin because it was here first and everything
 // else — the poem, the rain, the spawn — is measured from it.
@@ -1000,6 +1007,11 @@ if (WEBGL_OK) {
   plainGrid.position.y = GROUND_Y + 0.002;
   scene.add(plainGrid);
   window.__plainGridMat = plainGrid.material;
+
+  // A world needs a far edge. Three low-poly rings sit outside every
+  // building and inside the star dome, so they never collide with a walk.
+  MOUNTAINS = buildMountains(THREE, scene);
+  window.__mountains = MOUNTAINS;
 
   _themeRedrawHooks.push(() => {
     // Rebuild materials in place rather than the whole building.
@@ -6069,9 +6081,10 @@ let SKY_BLEND = 0;                  // 0 room · 1 sky
 // Reused every frame. Allocating two Colors per frame is 120 objects a
 // second for the garbage collector to clean up after, for no reason.
 const _bgScratch = new THREE.Color();
-const _night = new THREE.Color(0x05070b);
+const _worldBg = new THREE.Color(0x05070b);
 const _deepEarth = new THREE.Color(0x070a0f);
-let SKY_SITE = { lat: 13.7563, lon: 100.5018, label: 'BANGKOK' };
+const WORLD_SITE = { lat: 13.7563, lon: 100.5018, label: 'BANGKOK', asked: false };
+let WORLD_STATE = null;
 let SKY_HEADING = null;             // degrees from true north, if the phone knows
 let SKY_YAW = 0;                    // scene yaw actually used
 let SKY_LAST_CALC = 0;
@@ -6115,12 +6128,14 @@ function recalcSky(force) {
   if (!force && now - SKY_LAST_CALC < 10_000) return;
   SKY_LAST_CALC = now;
   const d = new Date();
-  SKY.update(d, SKY_SITE);
+  SKY.update(d, WORLD_SITE);
   const place = document.getElementById('sky-place');
   const time  = document.getElementById('sky-time');
-  if (place) place.textContent = `${t('sky_over')} ${SKY_SITE.label}`;
+  if (place) place.textContent = `${t('sky_over')} ${WORLD_SITE.label}`;
   if (time) {
+    const lunar = moonPhase(d);
     time.textContent = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+      + ` · ${lunar.label} ${Math.round(lunar.illumination * 100)}%`
       + (SKY_HEADING != null ? ` · ${cardinal(SKY_HEADING)} ${Math.round(SKY_HEADING)}°` : '');
   }
 }
@@ -6131,16 +6146,16 @@ const cardinal = (deg) =>
 // Ask once, gently, and treat a refusal as a normal answer. Bangkok is
 // not a failure state — it is where this was built.
 function askForLocation() {
-  if (!navigator.geolocation || SKY_SITE.asked) return;
-  SKY_SITE.asked = true;
+  if (!navigator.geolocation || WORLD_SITE.asked) return;
+  WORLD_SITE.asked = true;
   navigator.geolocation.getCurrentPosition(
     (pos) => {
-      SKY_SITE = {
-        lat: pos.coords.latitude, lon: pos.coords.longitude,
-        label: t('sky_here'), asked: true,
-      };
+      WORLD_SITE.lat = pos.coords.latitude;
+      WORLD_SITE.lon = pos.coords.longitude;
+      WORLD_SITE.label = t('sky_here');
       recalcSky(true);
-      if (GROUND) GROUND.load(SKY_SITE);
+      if (GROUND) GROUND.load(WORLD_SITE);
+      window.__worldLocationChanged?.();
     },
     () => {},
     { timeout: 8000, maximumAge: 600_000 }
@@ -6166,7 +6181,7 @@ function toggleSky() { CAMERA_MODE === 'sky' ? exitSky() : enterSky(); }
 // every side-effect hangs off the transition.
 function updateGroundCaption() {
   const cap = document.getElementById('ground-cap');
-  if (cap && GROUND) cap.textContent = `${GROUND.scaleLabel(SKY_SITE.lat)} · ${GROUND.mod.ATTRIBUTION}`;
+  if (cap && GROUND) cap.textContent = `${GROUND.scaleLabel(WORLD_SITE.lat)} · ${GROUND.mod.ATTRIBUTION}`;
 }
 
 function syncOverheadHud() {
@@ -6192,11 +6207,11 @@ function syncOverheadHud() {
   if (mode === 'ground') {
     askForLocation();
     if (GROUND) {
-      GROUND.load(SKY_SITE);
+      GROUND.load(WORLD_SITE);
       const cap = document.getElementById('ground-cap');
       updateGroundCaption();
       const place = document.getElementById('ground-place');
-      if (place) place.textContent = `${SKY_SITE.lat.toFixed(4)}°, ${SKY_SITE.lon.toFixed(4)}°`;
+      if (place) place.textContent = `${WORLD_SITE.lat.toFixed(4)}°, ${WORLD_SITE.lon.toFixed(4)}°`;
     }
     document.body.dataset.ground = 'on';
     document.getElementById('ground-hud')?.setAttribute('aria-hidden', 'false');
@@ -6317,7 +6332,11 @@ function skyTap(clientX, clientY) {
     (clientX / window.innerWidth) * 2 - 1,
     -(clientY / window.innerHeight) * 2 + 1);
   raycaster.setFromCamera(ndc, camera);
-  const hit = SKY.mod.nearestStar(raycaster.ray.direction.clone().normalize(), SKY_SITE, new Date(), 5);
+  // Do not let an invisible daytime catalogue answer taps. If the eye
+  // cannot see a star, the interface must not pretend that it did.
+  const hit = (WORLD_STATE?.sun.alt ?? -18) < -4
+    ? SKY.mod.nearestStar(raycaster.ray.direction.clone().normalize(), WORLD_SITE, new Date(), 5)
+    : null;
   const el = document.getElementById('sky-star');
   const panel = document.getElementById('sky-lore');
   if (el) {
@@ -6363,6 +6382,11 @@ function skyTap(clientX, clientY) {
 
 function tickSky(dt = 1 / 60) {
   syncOverheadHud();
+  // Restore the astronomical clear colour before either vertical layer
+  // modifies it. This also fixes the old "look down, return to black"
+  // residue when both blends reached zero on the same frame.
+  _bgScratch.copy(_worldBg);
+  scene.background = _bgScratch;
   const roomLeftByGround = tickGround(dt);
   const want = window.__skyBlend || 0;
   SKY_BLEND = damp(SKY_BLEND, want, 3.4, dt);
@@ -6374,12 +6398,6 @@ function tickSky(dt = 1 / 60) {
   if (!SKY) return roomLeftByGround;
   SKY.group.visible = true;
   recalcSky(false);
-
-  // Ease the scene clear colour toward night. The CSS background sits
-  // behind the canvas, so without this the light theme keeps painting a
-  // white sky underneath the stars.
-  _bgScratch.set(THEMES[CURRENT_THEME].bg).lerp(_night, SKY_BLEND);
-  scene.background = _bgScratch;
 
   const k = SKY_BLEND;
   SKY.mod.fadeTargets(SKY).forEach(o => {
@@ -6418,7 +6436,7 @@ function tickGround(dt = 1 / 60) {
     m.opacity = 1 - GROUND_BLEND;
     m.depthWrite = GROUND_BLEND < 0.5;   // stop occluding once mostly glass
   }
-  _bgScratch.set(THEMES[CURRENT_THEME].bg).lerp(_deepEarth, GROUND_BLEND);
+  _bgScratch.copy(_worldBg).lerp(_deepEarth, GROUND_BLEND);
   scene.background = _bgScratch;
   return 1 - GROUND_BLEND * 0.88;
 }
@@ -6772,6 +6790,10 @@ if (WEBGL_OK && SITE.length > 1) {
   const chip = document.getElementById('compass-chip');
   const label = document.getElementById('compass-label');
   const needle = document.getElementById('compass-needle');
+  const riseNeedle = document.getElementById('sunrise-needle');
+  const setNeedle = document.getElementById('sunset-needle');
+  const riseLabel = document.getElementById('sunrise-label');
+  const setLabel = document.getElementById('sunset-label');
 
   // Where you are put down: the building's own arrival point, in world
   // coordinates, which is the view its plan was drawn to be seen from.
@@ -6843,6 +6865,23 @@ if (WEBGL_OK && SITE.length > 1) {
     const dz = n.b.origin.z - camera.position.z;
     const rel = Math.atan2(dx, -dz) + camera.rotation.y;
     needle.style.transform = `rotate(${(rel * 180) / Math.PI}deg)`;
+
+    const events = WORLD_STATE?.events;
+    const setSolar = (event, arrow, text, verb) => {
+      if (!event || !arrow || !text) return false;
+      const relative = event.az * Math.PI / 180 + camera.rotation.y;
+      arrow.style.transform = `rotate(${relative * 180 / Math.PI}deg)`;
+      const time = event.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      text.textContent = `${verb} ${time} ${astroCardinal(event.az)} ${Math.round(event.az)}°`;
+      return true;
+    };
+    const hasRise = setSolar(events?.sunrise, riseNeedle, riseLabel, 'RISE');
+    const hasSet = setSolar(events?.sunset, setNeedle, setLabel, 'SET');
+    if (!hasRise && riseLabel) riseLabel.textContent = events?.polarDay ? 'MIDNIGHT SUN' : 'NO SUNRISE';
+    if (!hasSet && setLabel) setLabel.textContent = events?.polarNight ? 'POLAR NIGHT' : 'NO SUNSET';
+    if (chip && events) {
+      chip.setAttribute('aria-label', `Travel to ${n.b.name}. Sunrise and sunset bearings are shown below.`);
+    }
   }, 250);
 }
 
@@ -7078,7 +7117,6 @@ window.addEventListener('keydown', (e) => {
 // network or a location, which is a perfectly good room.
 // ════════════════════════════════════════════════════════
 if (WEBGL_OK && PAVILION) {
-  const SITE = { lat: 13.7563, lon: 100.5018, name: 'BANGKOK' };
   let weather = null;
   let RAIN = makeRain(THREE, PLAN);
   scene.add(RAIN.points);
@@ -7102,8 +7140,9 @@ if (WEBGL_OK && PAVILION) {
     if (SAVOYE) paintSavoye(SAVOYE.materials, p);
     if (FARNSWORTH) paintFarn(FARNSWORTH.materials, p);
     if (FALLINGWATER) paintFall(FALLINGWATER.materials, p);
-    if (scene.background) scene.background.setHex(p.bg);
-    else scene.background = new THREE.Color(p.bg);
+    _worldBg.setHex(p.bg);
+    if (scene.background) scene.background.copy(_worldBg);
+    else scene.background = _worldBg.clone();
     // Fog has to follow the sky or the far buildings sit in last
     // night's haze at noon.
     if (scene.fog) scene.fog.color.setHex(p.bg);
@@ -7111,6 +7150,14 @@ if (WEBGL_OK && PAVILION) {
     // so there is a horizon rather than a void.
     if (window.__plainMat) window.__plainMat.color.setHex(mixHex(p.bg, p.podium, 0.35));
     if (window.__plainGridMat) window.__plainGridMat.color.setHex(p.line);
+    if (MOUNTAINS) MOUNTAINS.setPalette(p, WORLD_STATE?.sun.alt ?? -30);
+    // Dust catches low sunlight warm and high daylight cool. MeshBasic
+    // buildings do not respond to fake lights, so their actual material
+    // palette—not a decorative unused PointLight—carries the heat.
+    particles.material.color.setHex(
+      p.phase === 'dawn' || p.phase === 'dusk' ? 0xffc58f :
+      p.phase === 'day' ? 0xeaf6ff : 0xa9b9ca,
+    );
     // The HUD is white-on-dark by default. In the day and twilight
     // palettes the ground goes pale and every label vanishes into it —
     // §11.10, unreadable is shipped broken. Flip the overlay to dark ink
@@ -7129,31 +7176,34 @@ if (WEBGL_OK && PAVILION) {
 
   const refresh = () => {
     const now = new Date();
-    const alt = sunAltitude(now, SITE.lat, SITE.lon);
+    const sun = sunHorizontal(now, WORLD_SITE.lat, WORLD_SITE.lon);
+    const moon = moonHorizontal(now, WORLD_SITE.lat, WORLD_SITE.lon);
+    const lunar = moonPhase(now);
+    const events = solarEvents(now, WORLD_SITE.lat, WORLD_SITE.lon);
     // Rising or setting: compare with ten minutes ago. Cheaper and more
     // honest than hard-coding sunrise tables per latitude.
-    const before = sunAltitude(new Date(now.getTime() - 600000), SITE.lat, SITE.lon);
-    applyPalette(paletteFor(alt, alt > before));
+    const before = sunAltitude(
+      new Date(now.getTime() - 600000), WORLD_SITE.lat, WORLD_SITE.lon,
+    );
+    const palette = paletteFor(sun.alt, sun.alt > before);
+    WORLD_STATE = { now, sun, moon, lunar, events, palette };
+    window.__worldState = WORLD_STATE;
+    applyPalette(palette);
+    recalcSky(true);
   };
 
-  refresh();
-  setInterval(refresh, 60_000);
+  const refreshWeather = () => fetchWeather(WORLD_SITE.lat, WORLD_SITE.lon)
+    .then((w) => { weather = w; refresh(); });
 
-  // Where the visitor actually is, if they will say. The sky and ground
-  // already ask; this reuses whatever they were given.
-  navigator.geolocation?.getCurrentPosition(
-    (p) => {
-      SITE.lat = p.coords.latitude;
-      SITE.lon = p.coords.longitude;
-      refresh();
-      fetchWeather(SITE.lat, SITE.lon).then(w => { weather = w; refresh(); });
-    },
-    () => { fetchWeather(SITE.lat, SITE.lon).then(w => { weather = w; refresh(); }); },
-    { timeout: 8000, maximumAge: 600000 }
-  );
-  setInterval(() => {
-    fetchWeather(SITE.lat, SITE.lon).then(w => { weather = w; refresh(); });
-  }, 15 * 60_000);
+  // One geolocation request updates every consumer. Previously the sky and
+  // daylight each held a private coordinate, so accepting one prompt could
+  // put the stars here while leaving sunrise in Bangkok.
+  window.__worldLocationChanged = () => { refresh(); refreshWeather(); };
+  refresh();
+  refreshWeather();
+  askForLocation();
+  setInterval(refresh, 60_000);
+  setInterval(refreshWeather, 15 * 60_000);
 
   let _rainT = performance.now();
   window.__tickWeather = () => {

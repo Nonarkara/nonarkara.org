@@ -17,6 +17,12 @@
 // ════════════════════════════════════════════════════════
 
 import * as THREE from 'three';
+import {
+  altAz, daysSinceJ2000, gmst, lst, moonPhase, moonPosition,
+  sunPosition,
+} from './astronomy.js';
+
+export { altAz, daysSinceJ2000, gmst, lst, moonPhase, moonPosition, sunPosition };
 
 // [ RA in hours, Dec in degrees, visual magnitude, name ]
 export const STARS = [
@@ -211,37 +217,7 @@ export const FIGURES = {
   Centaurus: seg('Rigil Kentaurus', 'Hadar', 'Epsilon Centauri', 'Zeta Centauri'),
 };
 
-// ── The arithmetic ──────────────────────────────────────
-// Everything below is standard spherical astronomy. Nothing here is
-// approximate enough to matter at the scale of a phone screen: the
-// dominant error is the compass, by two orders of magnitude.
-
 const D2R = Math.PI / 180;
-const J2000 = Date.UTC(2000, 0, 1, 12, 0, 0);
-
-// Days since the J2000 epoch.
-export const daysSinceJ2000 = (date) => (date.getTime() - J2000) / 86400000;
-
-// Greenwich mean sidereal time, in degrees.
-export function gmst(date) {
-  const d = daysSinceJ2000(date);
-  return ((280.46061837 + 360.98564736629 * d) % 360 + 360) % 360;
-}
-
-// Local sidereal time, in degrees. East longitude positive.
-export const lst = (date, lonDeg) => ((gmst(date) + lonDeg) % 360 + 360) % 360;
-
-// Equatorial (RA hours, Dec degrees) → horizontal (altitude, azimuth),
-// both in degrees. Azimuth is measured from true north, through east.
-export function altAz(raHours, decDeg, latDeg, lonDeg, date) {
-  const H = (lst(date, lonDeg) - raHours * 15) * D2R;   // hour angle
-  const dec = decDeg * D2R, lat = latDeg * D2R;
-  const sinAlt = Math.sin(dec) * Math.sin(lat) + Math.cos(dec) * Math.cos(lat) * Math.cos(H);
-  const alt = Math.asin(Math.max(-1, Math.min(1, sinAlt)));
-  const az = Math.atan2(-Math.sin(H) * Math.cos(dec),
-                        Math.sin(dec) * Math.cos(lat) - Math.cos(dec) * Math.sin(lat) * Math.cos(H));
-  return { alt: alt / D2R, az: ((az / D2R) % 360 + 360) % 360 };
-}
 
 // Horizontal → three.js direction on a dome of radius r.
 // Scene convention: +Y is up, north is −Z, east is +X.
@@ -249,37 +225,6 @@ export function altAzToVec(altDeg, azDeg, r = 1) {
   const alt = altDeg * D2R, az = azDeg * D2R;
   const cosAlt = Math.cos(alt);
   return new THREE.Vector3(r * cosAlt * Math.sin(az), r * Math.sin(alt), -r * cosAlt * Math.cos(az));
-}
-
-// The Sun, from the low-precision series in the Astronomical Almanac.
-// Good to about a minute of arc — far finer than a dot on a phone.
-export function sunPosition(date) {
-  const d = daysSinceJ2000(date);
-  const L = (280.460 + 0.9856474 * d) * D2R;            // mean longitude
-  const g = (357.528 + 0.9856003 * d) * D2R;            // mean anomaly
-  const lambda = L + (1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) * D2R;
-  const eps = (23.439 - 0.0000004 * d) * D2R;           // obliquity
-  const ra = Math.atan2(Math.cos(eps) * Math.sin(lambda), Math.cos(lambda));
-  const dec = Math.asin(Math.sin(eps) * Math.sin(lambda));
-  return { raHours: ((ra / D2R) % 360 + 360) % 360 / 15, decDeg: dec / D2R };
-}
-
-// The Moon, truncated Meeus. A degree or so of error, which is about
-// one moon-width — visible if you measure, invisible if you look.
-export function moonPosition(date) {
-  const d = daysSinceJ2000(date);
-  const L = (218.316 + 13.176396 * d) * D2R;            // mean longitude
-  const M = (134.963 + 13.064993 * d) * D2R;            // mean anomaly
-  const F = (93.272 + 13.229350 * d) * D2R;             // argument of latitude
-  const lambda = L + 6.289 * D2R * Math.sin(M);
-  const beta = 5.128 * D2R * Math.sin(F);
-  const eps = 23.439 * D2R;
-  const ra = Math.atan2(
-    Math.sin(lambda) * Math.cos(eps) - Math.tan(beta) * Math.sin(eps),
-    Math.cos(lambda));
-  const dec = Math.asin(Math.sin(beta) * Math.cos(eps) +
-                        Math.cos(beta) * Math.sin(eps) * Math.sin(lambda));
-  return { raHours: ((ra / D2R) % 360 + 360) % 360 / 15, decDeg: dec / D2R };
 }
 
 // ── The dome ────────────────────────────────────────────
@@ -333,6 +278,62 @@ function starSprite(THREE) {
   return _starSprite;
 }
 
+/** A billboarded lunar disc whose terminator follows the real phase. */
+function makeMoon(THREE, color) {
+  const S = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = S;
+  const ctx = canvas.getContext('2d');
+  const image = ctx.createImageData(S, S);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const material = new THREE.SpriteMaterial({
+    map: texture, color, transparent: true, opacity: 0,
+    depthWrite: false, depthTest: false,
+  });
+  const sprite = new THREE.Sprite(material);
+  sprite.scale.set(7, 7, 1);
+  sprite.userData = { targetOpacity: 0, phase: null };
+  sprite.frustumCulled = false;
+
+  sprite.userData.drawPhase = ({ phase }) => {
+    // Light vector: away from us at new moon, toward us at full moon.
+    const lightX = Math.sin(phase * Math.PI * 2);
+    const lightZ = -Math.cos(phase * Math.PI * 2);
+    const px = image.data;
+    for (let y = 0; y < S; y++) {
+      for (let x = 0; x < S; x++) {
+        const nx = (x + 0.5 - S / 2) / (S * 0.44);
+        const ny = (S / 2 - y - 0.5) / (S * 0.44);
+        const rr = nx * nx + ny * ny;
+        const i = (y * S + x) * 4;
+        if (rr > 1) { px[i + 3] = 0; continue; }
+        const nz = Math.sqrt(1 - rr);
+        const lit = Math.max(0, nx * lightX + nz * lightZ);
+        const limb = Math.max(0.38, nz);
+        const v = Math.round((18 + 228 * lit) * limb);
+        px[i] = v; px[i + 1] = Math.min(255, v + 5); px[i + 2] = Math.min(255, v + 12);
+        px[i + 3] = Math.round(255 * Math.min(1, (1 - rr) * 12));
+      }
+    }
+    ctx.putImageData(image, 0, 0);
+    texture.needsUpdate = true;
+  };
+  return sprite;
+}
+
+/** Visibility gates shared by the rendered bodies and deterministic tests. */
+export function visibilityFor(sunAlt, moonAlt, illumination) {
+  const stars = Math.max(0, Math.min(1, (-sunAlt - 4) / 8));
+  return {
+    stars,
+    sun: sunAlt > -1 ? 0.92 : 0,
+    moon: moonAlt > -1 && illumination > 0.01
+      ? (0.28 + 0.72 * stars) * (0.34 + illumination * 0.66)
+      : 0,
+  };
+}
+
 export function buildSky(themeColor = 0xf5f5f0, amber = 0xf59e0b) {
   const group = new THREE.Group();
   group.name = 'sky';
@@ -371,7 +372,8 @@ export function buildSky(themeColor = 0xf5f5f0, amber = 0xf59e0b) {
   figures.frustumCulled = false;
   group.add(figures);
 
-  // Sun and Moon get their own single-point objects.
+  // The Sun is a glow. The Moon is a real phased disc rather than the
+  // same full white dot every night.
   const disc = (color, size, target) => {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3), 3));
@@ -388,7 +390,8 @@ export function buildSky(themeColor = 0xf5f5f0, amber = 0xf59e0b) {
     return p;
   };
   const sun = disc(amber, 16, 0.9);
-  const moon = disc(themeColor, 13, 0.9);
+  const moon = makeMoon(THREE, themeColor);
+  group.add(moon);
 
   // The folly ring — a hairline circle around the one marked star.
   const ringGeo = new THREE.BufferGeometry().setFromPoints(
@@ -442,14 +445,35 @@ export function buildSky(themeColor = 0xf5f5f0, amber = 0xf59e0b) {
     const place = (obj, body) => {
       const { alt, az } = altAz(body.raHours, body.decDeg, site.lat, site.lon, date);
       const v = altAzToVec(alt, az, R * 0.98);
-      const a = obj.geometry.attributes.position.array;
-      a[0] = v.x; a[1] = v.y; a[2] = v.z;
-      obj.geometry.attributes.position.needsUpdate = true;
-      obj.geometry.computeBoundingSphere();
+      if (obj.isSprite) {
+        obj.position.copy(v);
+      } else {
+        const a = obj.geometry.attributes.position.array;
+        a[0] = v.x; a[1] = v.y; a[2] = v.z;
+        obj.geometry.attributes.position.needsUpdate = true;
+        obj.geometry.computeBoundingSphere();
+      }
       return alt;
     };
-    place(sun, sunPosition(date));
-    place(moon, moonPosition(date));
+    const sunAlt = place(sun, sunPosition(date));
+    const moonAlt = place(moon, moonPosition(date));
+    const phase = moonPhase(date);
+    if (moon.userData.phase == null || Math.abs(moon.userData.phase - phase.phase) > 0.001) {
+      moon.userData.phase = phase.phase;
+      moon.userData.drawPhase(phase);
+    }
+
+    // Civil twilight erases the stars continuously. The old instrument
+    // showed every constellation at noon; the world now shows the sky a
+    // person at this location and instant can actually see.
+    const visibility = visibilityFor(sunAlt, moonAlt, phase.illumination);
+    const starVisibility = visibility.stars;
+    points.forEach((p, i) => {
+      p.userData.targetOpacity = BINS[i].opacity * starVisibility;
+    });
+    figures.userData.targetOpacity = 0.18 * starVisibility;
+    sun.userData.targetOpacity = visibility.sun;
+    moon.userData.targetOpacity = visibility.moon;
 
     if (follyIndex >= 0) {
       const [ra, dec] = STARS[follyIndex];
@@ -457,15 +481,10 @@ export function buildSky(themeColor = 0xf5f5f0, amber = 0xf59e0b) {
       follyRing.position.copy(altAzToVec(alt, az, R * 0.99));
       follyRing.lookAt(0, 0, 0);
       // Below the horizon it is still there, just not visible from here.
-      follyRing.userData.targetOpacity = alt > 0 ? 0.85 : 0;
+      follyRing.userData.targetOpacity = alt > 0 ? 0.85 * starVisibility : 0;
     }
   }
 
-  // Note: the stars are not dimmed for daylight. This is an instrument,
-  // not a simulation — the question it answers is "what is over there
-  // right now", and that question has an answer at two in the afternoon
-  // too. The sun and moon are drawn where they actually are, so you can
-  // see for yourself whether it is day.
   return { group, update, points, figures, sun, moon, follyRing, horizon, R };
 }
 

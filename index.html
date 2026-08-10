@@ -245,10 +245,17 @@
     </button>
     <!-- The compass. Five buildings ~40–60m apart — a short walk.
          Names the next one, says how far, points at it, and takes
-         you to its threshold if you tap it. -->
+         you to its threshold if you tap it. The second line fixes the
+         day's real sunrise and sunset to the same true-north compass. -->
     <button id="compass-chip" title="Tap to travel there" class="hud-chip compass-chip" aria-label="Travel to the next building">
-      <span class="hud-chip-glyph compass-needle" id="compass-needle" aria-hidden="true">▲</span>
-      <span class="hud-chip-label" id="compass-label">—</span>
+      <span class="compass-destination">
+        <span class="hud-chip-glyph compass-needle" id="compass-needle" aria-hidden="true">▲</span>
+        <span class="hud-chip-label" id="compass-label">—</span>
+      </span>
+      <span class="solar-route" id="solar-route" aria-label="Today's sunrise and sunset">
+        <span><span class="solar-needle rise" id="sunrise-needle" aria-hidden="true">▲</span><span id="sunrise-label">RISE —</span></span>
+        <span><span class="solar-needle set" id="sunset-needle" aria-hidden="true">▲</span><span id="sunset-label">SET —</span></span>
+      </span>
     </button>
     <button id="walk-btn" class="hud-chip walk-btn" aria-label="Walk through the pavilion" aria-pressed="false">
       <span class="hud-chip-glyph" aria-hidden="true">⇱</span>

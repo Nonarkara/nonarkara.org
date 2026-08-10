@@ -28,11 +28,13 @@
  * dependency.
  */
 
+import { sunHorizontal } from './astronomy.js';
+
 const BANGKOK = { lat: 13.7563, lon: 100.5018, name: 'BANGKOK' };
 
 const PALETTES = {
   night: {
-    bg: 0x05070a, travertine: 0x2a2b28, green: 0x14201a, chrome: 0x8e9aa6,
+    bg: 0x07111a, travertine: 0x2a2b28, green: 0x14201a, chrome: 0x8e9aa6,
     water: 0x080d12, podium: 0x1c1e1c, roof: 0x121413, line: 0x8b98a6,
     lineOpacity: 0.55, label: 'NIGHT',
   },
@@ -44,7 +46,7 @@ const PALETTES = {
     lineOpacity: 0.42, label: 'DAWN',
   },
   day: {
-    bg: 0x9fb0bd, travertine: 0xd8d2c4, green: 0x5d7a68, chrome: 0xaab4bd,
+    bg: 0x7eb9df, travertine: 0xd8d2c4, green: 0x5d7a68, chrome: 0xaab4bd,
     water: 0xa8bcc8, podium: 0xe6e1d5, roof: 0xc9c4b8, line: 0x3a4048,
     lineOpacity: 0.5, label: 'DAY',
   },
@@ -55,26 +57,8 @@ const PALETTES = {
   },
 };
 
-/** Sun altitude in degrees. Same NOAA approximation the sky uses. */
-export function sunAltitude(date, lat, lon) {
-  const rad = Math.PI / 180;
-  const jd = date.getTime() / 86400000 + 2440587.5;
-  const n = jd - 2451545.0;
-  const L = (280.460 + 0.9856474 * n) % 360;              // mean longitude
-  const g = ((357.528 + 0.9856003 * n) % 360) * rad;      // mean anomaly
-  const lambda = (L + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) * rad;
-  const eps = (23.439 - 0.0000004 * n) * rad;             // obliquity
-  const dec = Math.asin(Math.sin(eps) * Math.sin(lambda));
-  const ra = Math.atan2(Math.cos(eps) * Math.sin(lambda), Math.cos(lambda));
-  const gmst = (18.697374558 + 24.06570982441908 * n) % 24;
-  const lst = ((gmst * 15 + lon) % 360) * rad;
-  const H = lst - ra;
-  const phi = lat * rad;
-  const alt = Math.asin(
-    Math.sin(phi) * Math.sin(dec) + Math.cos(phi) * Math.cos(dec) * Math.cos(H)
-  );
-  return alt / rad;
-}
+/** Sun altitude in degrees, from the estate's one astronomy clock. */
+export const sunAltitude = (date, lat, lon) => sunHorizontal(date, lat, lon).alt;
 
 /** Which palette, and how far between it and the next one. */
 export function phaseFor(altDeg, rising) {
@@ -95,7 +79,18 @@ const lerpHex = (a, b, t) => {
 /** Blend between the twilight palette and its neighbour by altitude. */
 export function paletteFor(altDeg, rising) {
   const { key, t } = phaseFor(altDeg, rising);
-  if (key === 'day' || key === 'night') return { ...PALETTES[key], phase: key };
+  if (key === 'night') return { ...PALETTES.night, phase: key, light: 0 };
+  if (key === 'day') {
+    // Noon is a clear high blue; low daylight is softer and greyer. The
+    // continuous altitude term is what makes evening dim instead of switch.
+    const high = Math.max(0, Math.min(1, (altDeg - 8) / 55));
+    return {
+      ...PALETTES.day,
+      bg: lerpHex(0x8fa8ba, PALETTES.day.bg, Math.sqrt(high)),
+      phase: key,
+      light: 0.55 + high * 0.45,
+    };
+  }
   const twilight = PALETTES[key];
   const toward = altDeg >= 0 ? PALETTES.day : PALETTES.night;
   // Ease toward the neighbour only in the outer half of the band, so the
@@ -105,6 +100,7 @@ export function paletteFor(altDeg, rising) {
   for (const c of ['bg', 'travertine', 'green', 'chrome', 'water', 'podium', 'roof', 'line']) {
     out[c] = lerpHex(twilight[c], toward[c], k * 0.75);
   }
+  out.light = Math.max(0, Math.min(1, (altDeg + 6) / 14));
   return out;
 }
 

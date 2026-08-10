@@ -1763,8 +1763,11 @@
       min-width: 176px;
       /* 44px, not the 36px the older chips settled for — this one is a
          travel control and gets the full Apple HIG target (§11.8). */
-      min-height: 44px;
-      justify-content: flex-start;
+      min-height: 58px;
+      justify-content: center;
+      align-items: stretch;
+      flex-direction: column;
+      gap: 4px;
       background: rgba(10, 14, 20, 0.92);
       font-variant-numeric: tabular-nums;
       /* A building name plus a distance must stay on one line — wrapped
@@ -1777,6 +1780,30 @@
       display: inline-block;
       transition: transform 120ms linear;
     }
+    .compass-destination,
+    .solar-route,
+    .solar-route > span {
+      display: flex;
+      align-items: center;
+    }
+    .compass-destination { gap: 8px; }
+    .solar-route {
+      justify-content: space-between;
+      gap: 12px;
+      padding-top: 4px;
+      border-top: 1px solid rgba(148, 163, 184, 0.22);
+      color: var(--dim);
+      font-size: 8px;
+      letter-spacing: 0.08em;
+    }
+    .solar-route > span { gap: 4px; }
+    .solar-needle {
+      display: inline-block;
+      color: var(--amber);
+      transition: transform 120ms linear;
+      transform-origin: 50% 52%;
+    }
+    .solar-needle.set { opacity: 0.66; }
     body.travelling .compass-chip { opacity: 0.35; pointer-events: none; }
     body[data-room-light="1"] .compass-chip { background: rgba(236, 238, 240, 0.92); }
 
@@ -1844,8 +1871,9 @@
         right: calc(14px + var(--sar));
         transform: none;
         top: calc(60px + var(--sat));
-        min-height: 44px;
+        min-height: 58px;
         min-width: 0;
+        max-width: calc(100vw - 138px);
       }
       .discover-toast {
         bottom: calc(112px + var(--sab));
