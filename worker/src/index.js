@@ -318,6 +318,7 @@ export default {
       const SYMBOLS = [
         ["USDTHB=X", "usdthb"], ["SGDTHB=X", "sgdthb"],
         ["BTC-USD",  "btc"],    ["%5ESET.BK", "set"],
+        ["ETH-USD",  "eth"],    ["SOL-USD",  "sol"],
         ["%5EDJI",  "dji"],     ["%5EIXIC", "nasdaq"],
         ["NVDA",    "nvda"],    ["TSLA", "tsla"],
         ["GOOGL",   "googl"],   ["GC%3DF", "gold"],

@@ -47,6 +47,15 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.16 (2026-08-10) human audit fixes — (1) the window-level raycast
+//                    click handler now ignores any tap that begins on
+//                    HTML UI, so "enter the pavilion" no longer fires a
+//                    ray through its own button into the poster wall and
+//                    opens the portrait share sheet as the first frame;
+//                    (2) crypto ticker/brief moved off coingecko (which
+//                    began 429ing browser IPs, silently emptying BTC/ETH/
+//                    SOL) onto the Worker's /daily-brief, same Yahoo
+//                    source as every other quote.
 //   4.15 (2026-08-10) system audit & link verification pass — synchronized
 //                    all project domains across app index and status worker
 //                    health monitor; verified zero broken links, clean WebGL
@@ -205,7 +214,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.15';
+const NON_VERSION = '4.16';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -1791,6 +1800,31 @@ async function fetchDailyBrief() {
       });
     }
 
+    // Crypto — same Worker payload. This used to hit coingecko directly
+    // from the browser, which began answering 429 with no CORS headers,
+    // so the ticker and the brief's crypto cells sat silently empty on
+    // every load. The Worker already reads Yahoo server-side for
+    // everything else; btc/eth/sol now ride the same call.
+    if (d.btc?.price != null) {
+      const cc = (k, sym) => d[k]?.price == null ? null :
+        { sym, usd: d[k].price, change: d[k].change ?? 0 };
+      window.__brief.crypto = {
+        btc: cc('btc', 'BTC'), eth: cc('eth', 'ETH'), sol: cc('sol', 'SOL'),
+      };
+      const fmt = (k, sym) => {
+        const p = d[k]; if (!p || p.price == null) return '';
+        const price = p.price >= 1000
+          ? p.price.toLocaleString('en-US', { maximumFractionDigits: 0 })
+          : p.price.toFixed(2);
+        const change = p.change ?? 0;
+        const arrow = change >= 0 ? '▲' : '▼';
+        return `${sym} $${price}  ${arrow} ${Math.abs(change).toFixed(2)}%`;
+      };
+      setTickerText(tckrCrypto,
+        `${fmt('btc','BTC')}   ▪   ${fmt('eth','ETH')}   ▪   ${fmt('sol','SOL')}   ▪   crypto live   ▪   `
+      );
+    }
+
     if (window.paintBrief) window.paintBrief();
   } catch (_) {}
 }
@@ -1798,35 +1832,7 @@ async function fetchDailyBrief() {
 // Keep the old per-symbol functions as fallback but no longer call them on their own
 async function fetchStocks() { return fetchDailyBrief(); }
 async function fetchSET()    { return fetchDailyBrief(); }
-
-async function fetchCrypto() {
-  try {
-    const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true', { cache: 'no-cache' });
-    const d = await r.json();
-    const fmt = (k, sym) => {
-      const p = d[k]; if (!p) return '';
-      const price = p.usd >= 1000
-        ? p.usd.toLocaleString('en-US', { maximumFractionDigits: 0 })
-        : p.usd.toFixed(2);
-      const change = p.usd_24h_change ?? 0;
-      const arrow = change >= 0 ? '▲' : '▼';
-      return `${sym} $${price}  ${arrow} ${Math.abs(change).toFixed(2)}%`;
-    };
-    setTickerText(tckrCrypto,
-      `${fmt('bitcoin','BTC')}   ▪   ${fmt('ethereum','ETH')}   ▪   ${fmt('solana','SOL')}   ▪   crypto live   ▪   `
-    );
-    const cache = (k, sym) => {
-      const p = d[k]; if (!p) return null;
-      return { sym, usd: p.usd, change: p.usd_24h_change ?? 0 };
-    };
-    window.__brief.crypto = {
-      btc: cache('bitcoin', 'BTC'),
-      eth: cache('ethereum', 'ETH'),
-      sol: cache('solana', 'SOL'),
-    };
-    if (window.paintBrief) window.paintBrief();
-  } catch (_) {}
-}
+async function fetchCrypto() { return fetchDailyBrief(); }
 
 async function fetchWx() {
   try {
@@ -1921,10 +1927,10 @@ _themeRedrawHooks.push(() => {
 //   /council      — every 5 min (matches council-watch cron)
 //   /capture      — only on explicit user action (note, steps)
 // Non-Worker calls (open APIs, free, no quota):
-//   open.er-api, open-meteo, ipapi, coingecko, hacker-news, github
-fetchFX(); fetchCrypto(); fetchWx(); fetchAQI(); fetchDailyBrief(); fetchNews(); fetchCommits(); fetchStats(); fetchCouncil();
+//   open.er-api, open-meteo, ipapi, hacker-news, github
+// (crypto moved into /daily-brief — coingecko 429s browser IPs now)
+fetchFX(); fetchWx(); fetchAQI(); fetchDailyBrief(); fetchNews(); fetchCommits(); fetchStats(); fetchCouncil();
 setInterval(fetchFX,         10 * 60_000);  // FX: every 10 min (was 5)
-setInterval(fetchCrypto,      5 * 60_000);  // crypto: every 5 min (was 1 min — CoinGecko, not Worker)
 setInterval(fetchWx,         10 * 60_000);  // weather: every 10 min
 setInterval(fetchAQI,        15 * 60_000);  // AQI: every 15 min
 setInterval(fetchDailyBrief,  5 * 60_000);  // all quotes: 1 Worker call every 5 min (was 10 calls/5 min)
@@ -2952,6 +2958,13 @@ window.addEventListener('touchend',   onTouchEnd,   { passive: true });
 window.addEventListener('touchcancel',onTouchEnd,   { passive: true });
 
 function onClick(e) {
+  // A tap that begins on UI is UI. Only taps that begin on the canvas may
+  // reach into the scene — this listener sits on window, so without the
+  // guard, every HTML button's click also fired a ray into the room. The
+  // flagrant case: "enter the pavilion" fired through its own button into
+  // the poster wall behind it, opening the portrait share sheet as the
+  // visitor's very first frame inside.
+  if (e && e.target && e.target !== renderer.domElement) return;
   // If this came from a touchend that involved a drag, treat as rotate-only
   if (e && e.type === 'touchend' && touchMoved) return;
   if (window.__mouseDragMoved) { window.__mouseDragMoved = false; return; }
