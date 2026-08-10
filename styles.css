@@ -1935,6 +1935,13 @@
       }
       .intent-text { max-width: 200px; }
     }
+    /* In the phone room the top band is fully allocated — cluster (two
+       rows), WALK, compass, FOCUS, LANG. The intent line was running
+       behind the compass chip, and a sixth chrome row would bury the
+       pavilion. Its home is the plan view; the desktop room keeps it. */
+    @media (max-width: 640px) {
+      body[data-view="room"] .intent-line { display: none; }
+    }
 
     /* Focus-minutes-today inline badge — sits in the HUD next to the clock */
     .hud-today {

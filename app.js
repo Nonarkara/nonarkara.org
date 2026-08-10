@@ -47,6 +47,10 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.18 (2026-08-11) fifth collision from the same sweep — the host's
+//                    SET YOUR INTENT line ran behind the compass chip on
+//                    phones. The phone room's top band is fully allocated;
+//                    the intent line stays in plan view and desktop rooms.
 //   4.17 (2026-08-11) the HUD earns the planar law — right rail resolved
 //                    as a column (WALK / FOCUS / LANG stacked; FOCUS and
 //                    WALK sat exactly on top of each other in host mode),
@@ -221,7 +225,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.17';
+const NON_VERSION = '4.18';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
