@@ -193,26 +193,46 @@ export function buildPavilion(THREE, scene, opts = {}) {
       minX: Math.min(w.x0, w.x1) - WALL_T, maxX: Math.max(w.x0, w.x1) + WALL_T,
       minZ: Math.min(w.z0, w.z1) - WALL_T, maxZ: Math.max(w.z0, w.z1) + WALL_T,
     });
+
+    // Glass mullions: the real building's glass is held in a chrome
+    // grid, not a single pane. Every 1.1m reads as glazing bars without
+    // becoming a fence.
+    if (w.kind === 'glass') {
+      const T_M = 0.04;
+      const n = Math.floor(len / 1.1);
+      for (let i = 1; i < n; i++) {
+        const u = -len / 2 + i * 1.1;
+        const mu = box(T_M, w.h, T_M, MATS.chrome);
+        if (along) {
+          mu.position.set(cx + u * Math.sign(w.x1 - w.x0), w.h / 2, cz);
+        } else {
+          mu.position.set(cx, w.h / 2, cz + u * Math.sign(w.z1 - w.z0));
+        }
+        G.add(mu);
+      }
+    }
   }
 
   // Book-matching: the slab is sawn and opened like a page, so the
   // figure is mirrored about the centre line. Drawn as veins rather
   // than painted on, because the mirror is the whole reason Mies chose
   // this block — and a flat amber rectangle is a lightbox, not stone.
+  // Density: 11 mirror sets, double the count, so the amber has a
+  // real grain rather than a few diagonal lines.
   {
     const s0 = surfaces.onyx;
     const vein = new THREE.LineBasicMaterial({
-      color: 0xf59e0b, transparent: true, opacity: 0.5,
+      color: 0xf59e0b, transparent: true, opacity: 0.55,
     });
     const half = s0.len / 2, H = s0.height;
     const pts = [];
-    for (let i = 1; i <= 7; i++) {
-      const f = i / 8;
+    for (let i = 1; i <= 11; i++) {
+      const f = i / 12;
       // One curve, then its mirror — same figure, opened outward.
       for (const sign of [-1, 1]) {
         const seg = [];
-        for (let k = 0; k <= 12; k++) {
-          const ty = k / 12;
+        for (let k = 0; k <= 16; k++) {
+          const ty = k / 16;
           const wobble = Math.sin(ty * Math.PI * 1.6 + i) * 0.16 * (1 - f);
           seg.push(new THREE.Vector3(sign * (f * half + wobble), ty * H, 0));
         }
@@ -255,6 +275,31 @@ export function buildPavilion(THREE, scene, opts = {}) {
     G.add(rim);
     // Water is not walkable.
     colliders.push({ minX: pool.x0, maxX: pool.x1, minZ: pool.z0, maxZ: pool.z1 });
+  }
+
+  // Georg Kolbe's bronze "Morgen" (Morning) — the figure Mies set on a
+  // plinth in the small water court at the west end. Drawn as a tapered
+  // abstracted form leaning forward with an offset head, the way every
+  // 1929 photograph of the figure has it. Standing in the water itself,
+  // not on a plinth: the plinth is the water.
+  {
+    const sx = -20, sz = 0;
+    const h = 1.5, rTop = 0.16, rBase = 0.28;
+    const body = new THREE.Mesh(
+      new THREE.CylinderGeometry(rTop, rBase, h, 14, 1, false), MATS.chrome);
+    body.material = new THREE.MeshBasicMaterial({
+      color: dark ? 0x4a3a26 : 0x8a6a3c,
+    });
+    body.position.set(sx, 0.02 + h / 2, sz);
+    G.add(body);
+    // Lean forward — the figure is reading the water.
+    body.rotation.x = 0.18;
+    // Head, offset up and forward.
+    const head = new THREE.Mesh(
+      new THREE.SphereGeometry(0.13, 10, 8),
+      new THREE.MeshBasicMaterial({ color: dark ? 0x4a3a26 : 0x8a6a3c }));
+    head.position.set(sx + 0.04, 0.02 + h + 0.08, sz + 0.04);
+    G.add(head);
   }
 
   // Step down off the podium used to be a fall, so the perimeter was

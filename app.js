@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { createDiscovery } from './discover.js';
 import { buildPavilion, PLAN } from './pavilion.js';
 import { buildPool } from './pool.js';
-import { furnishGlassHouse, furnishFarnsworth } from './interiors.js';
+import { furnishGlassHouse, furnishFarnsworth, furnishPavilion } from './interiors.js';
 import { buildGlassHouse, PLAN as GLASS_PLAN, paint as paintGlass } from './glasshouse.js';
 import { buildSavoye, PLAN as SAVOYE_PLAN, paint as paintSavoye } from './savoye.js';
 import { buildFarnsworth, PLAN as FARN_PLAN, paint as paintFarn } from './farnsworth.js';
@@ -82,6 +82,15 @@ const WEBGL2_OK = hasWebGL2();
 //                    shoot games, and Fallingwater pass 3 (stone
 //                    coursing, shadow voids under the trays, warmer
 //                    ochre).
+//   4.25 (2026-08-11) the Pavilion earns its interior — Mies's Barcelona
+//                    chair + daybed joined by Marcel Breuer's Wassily
+//                    chair, Cesca chair and Laccio tables in the 1929
+//                    sitting group; Kolbe's bronze "Morgen" stands in
+//                    the small water court, the onyx is book-matched at
+//                    11 veins (was 7), and the two glass walls now carry
+//                    chrome mullions at the real 1.1m cadence. Without
+//                    the furniture the room was a model of a place that
+//                    had never had a visitor.
 //   4.22 (2026-08-11) Fallingwater actually falls — full rebuild from the
 //                    owner's verdict "looks nothing like the Falling
 //                    Water": crossed cantilever trays (living broad,
@@ -284,7 +293,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.24';
+const NON_VERSION = '4.25';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -959,6 +968,11 @@ if (WEBGL_OK) {
   // fence:false — the podium edge used to be the end of the world.
   const dark = CURRENT_THEME !== 'light';
   PAVILION = buildPavilion(THREE, scene, { dark, fence: false });
+  // Mies's Barcelona pieces plus Marcel Breuer's Wassily, Cesca, and
+  // Laccio — the 1929 sitting group, where the famous photograph was
+  // taken from. Without this the Pavilion is a beautiful room with
+  // nothing in it, which is what every other virtual model of it is.
+  furnishPavilion(THREE, PAVILION.group, dark);
 
   // THE REFLECTING POOL — Mies' black water as a dense estate scoreboard.
   // Built here so it shares the Pavilion's plan (one source of truth for

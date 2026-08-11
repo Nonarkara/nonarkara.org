@@ -81,6 +81,135 @@ function table(THREE, mats, x, z, w, d, h, mat) {
   return g;
 }
 
+/**
+ * Wassily chair (Model B3) — Marcel Breuer, 1925.
+ *
+ * The recognition shape is the two stacked U's of chromium-plated steel
+ * tubing, one forming the arm-to-floor side and the other the seat
+ * support, joined across by a single tube. Sitting in the Pavilion the
+ * chair sat at the living-area end of the onyx wall — a chair that
+ * looks as if it were welded out of bicycle handlebars, which is
+ * exactly what Breuer said about it.
+ */
+function breuerWassily(THREE, mats, x, z, rotY = 0) {
+  const g = new THREE.Group();
+  const T = 0.022;        // tube radius, the chair's own scale
+  const W = 0.79, D = 0.70, H = 0.74, SEAT = 0.44;
+
+  const tube = (a, b) => {
+    const v = [new THREE.Vector3(...a), new THREE.Vector3(...b)];
+    g.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(v), mats.chrome));
+  };
+  // The two side U's: arm+back tube on the outside, seat tube on the inside.
+  // Each side is one continuous path, drawn as a polyline.
+  const sidePath = (sx) => {
+    const pts = [];
+    pts.push([sx, H, -D / 2]);         // top of the back, rear corner
+    pts.push([sx, H,  D / 2 - 0.05]);   // top of the arm front
+    pts.push([sx, 0,  D / 2]);         // front foot
+    // then come back up the inside
+    pts.push([sx, SEAT, D / 2 - 0.04]);
+    pts.push([sx, SEAT, -D / 2 + 0.04]);
+    return pts;
+  };
+  for (const sx of [-W / 2, W / 2]) {
+    for (let i = 0; i < sidePath(sx).length - 1; i++) {
+      tube(sidePath(sx)[i], sidePath(sx)[i + 1]);
+    }
+  }
+  // Cross tubes (chrome) at seat level front, mid-back top, foot rail.
+  tube([-W / 2, H, 0], [W / 2, H, 0]);
+  tube([-W / 2, SEAT, D / 2 - 0.04], [W / 2, SEAT, D / 2 - 0.04]);
+  tube([-W / 2, 0, D / 2], [W / 2, 0, D / 2]);
+
+  // Slings — seat, back, two arm caps. Canvas / leather planes.
+  const sling = (w, d, y, z, rotX = 0) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mats.leather);
+    m.rotation.x = -Math.PI / 2 + rotX;
+    m.position.set(0, y, z);
+    g.add(m);
+  };
+  sling(W - 0.05, D - 0.10, SEAT + 0.005, 0.0);
+  sling(W - 0.05, 0.32, SEAT + 0.16, -D / 2 + 0.20, -0.18);
+
+  g.position.set(x, 0, z);
+  g.rotation.y = rotY;
+  return g;
+}
+
+/**
+ * Cesca chair (Model S32) — Marcel Breuer, 1928.
+ *
+ * A continuous bent tube that makes a C-cantilever, with a cane seat
+ * and back. The frame is the chair — the C is what you recognise. Cane
+ * reads at distance as a single warm plane, which is what Mies would
+ * have used; the frame stays the chrome.
+ */
+function breuerCesca(THREE, mats, x, z, rotY = 0) {
+  const g = new THREE.Group();
+  const W = 0.46, D = 0.52, H = 0.80, SEAT = 0.45;
+
+  const tube = (a, b) => {
+    const v = [new THREE.Vector3(...a), new THREE.Vector3(...b)];
+    g.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(v), mats.chrome));
+  };
+  // The C: a single path that starts at the back top, runs down the
+  // back, across the seat front, down the front leg, under the chair,
+  // and up the rear leg.
+  const c = [
+    [W / 2, H, 0],
+    [W / 2, 0, 0],
+    [-W / 2, 0, 0],
+    [-W / 2, SEAT, 0],
+    [W / 2, SEAT, 0],
+    [W / 2, H, 0],
+  ];
+  for (let i = 0; i < c.length - 1; i++) tube(c[i], c[i + 1]);
+
+  // Seat and back — wood-veneer planes. Cane is too small to read at 5m.
+  const seat = new THREE.Mesh(new THREE.PlaneGeometry(W + 0.02, D), mats.wood);
+  seat.rotation.x = -Math.PI / 2;
+  seat.position.set(0, SEAT + 0.005, D / 2 - 0.05);
+  g.add(seat);
+
+  const back = new THREE.Mesh(new THREE.PlaneGeometry(W + 0.02, 0.32), mats.wood);
+  back.position.set(0, SEAT + 0.18, 0.0);
+  back.rotation.x = -0.16;
+  g.add(back);
+
+  g.position.set(x, 0, z);
+  g.rotation.y = rotY;
+  return g;
+}
+
+/**
+ * Laccio side table — Marcel Breuer, designed for the Pavilion itself.
+ *
+ * A low rectangular table on a chrome-tube ladder frame, a wood top.
+ * Built in two heights: a low coffee version and a slightly higher
+ * side version. The 1929 photographs show one in the sitting group.
+ */
+function breuerLaccio(THREE, mats, x, z, w = 0.65, d = 0.45, h = 0.46) {
+  const g = new THREE.Group();
+  // Ladder frame: two long tubes along X, three rungs in Z.
+  const tube = (a, b) => {
+    const v = [new THREE.Vector3(...a), new THREE.Vector3(...b)];
+    g.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(v), mats.chrome));
+  };
+  tube([-w / 2, h, -d / 2], [w / 2, h, -d / 2]);
+  tube([-w / 2, h,  d / 2], [w / 2, h,  d / 2]);
+  for (const z2 of [-d / 2, 0, d / 2]) tube([w / 2, 0, z2], [-w / 2, 0, z2]);
+  for (const x2 of [-w / 2, w / 2]) for (const z2 of [-d / 2, d / 2]) tube([x2, 0, z2], [x2, h, z2]);
+
+  const top = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mats.wood);
+  top.rotation.x = -Math.PI / 2;
+  top.position.y = h;
+  g.add(top);
+
+  g.position.set(x, 0, z);
+  return g;
+}
+
 /** A bed: low plane, headboard implied by a single line. */
 function bed(THREE, mats, x, z, rotY = 0) {
   const g = new THREE.Group();
@@ -181,6 +310,57 @@ export function furnishFarnsworth(THREE, group, dark, floorY = 1.55) {
   g.add(table(THREE, M, -2.2, 2.8, 1.6, 0.9, 0.74, M.wood));  // dining
   g.add(bed(THREE, M, -2.6, -4.8, 0));
   g.position.y = floorY;
+  group.add(g);
+  return g;
+}
+
+/**
+ * THE PAVILION — Mies's chairs, Marcel Breuer's chairs, Breuer's tables.
+ *
+ * The 1929 photograph everyone knows was taken from the south-east
+ * corner of the podium, looking across the large pool to the onyx wall
+ * with the long travertine back wall behind it. In the foreground of
+ * that photograph are:
+ *
+ *   - the Barcelona daybed (Mies, 1929, designed for this room)
+ *   - two Barcelona chairs (Mies, 1929, also designed for this room)
+ *   - the Wassily chair (Breuer, 1925) — a chromium tube cantilever
+ *   - the Cesca chair (Breuer, 1928) — the cane-seat cantilever
+ *   - the Laccio side table (Breuer, 1929) — chrome ladder, wood top
+ *
+ * All placed in the sitting group south of the onyx, at the same
+ * heights the photographs have them.
+ */
+export function furnishPavilion(THREE, group, dark) {
+  const M = interiorMats(THREE, dark);
+  const g = new THREE.Group();
+
+  // The rug — the only soft edge in the whole building, and it defines
+  // the sitting area under the onyx.
+  g.add(rug(THREE, M, -1.5, 1.2, 4.4, 3.6));
+
+  // The daybed. In the photographs it sits in front of the onyx with
+  // its back to the long travertine wall.
+  g.add(ottoman(THREE, M, -1.2, 1.4, Math.PI * 1.0));
+
+  // Two Barcelona chairs, facing each other across the daybed — the
+  // canonical 1929 photo arrangement.
+  g.add(barcelonaChair(THREE, M, -3.0, 1.0, Math.PI * 0.45));
+  g.add(barcelonaChair(THREE, M,  0.6, 1.6, Math.PI * 0.55));
+
+  // Breuer's Wassily chair at the west end of the onyx — closer to the
+  // travertine back wall, on its own.
+  g.add(breuerWassily(THREE, M, -5.6, 0.4, Math.PI * 0.5));
+
+  // Breuer's Cesca chair at the east end of the onyx, on the green
+  // marble's side of the room.
+  g.add(breuerCesca(THREE, M, 4.4, 0.2, Math.PI * 0.4));
+
+  // Two Laccio tables — a low coffee table in front of the daybed, and
+  // a slightly higher side table at the Wassily.
+  g.add(breuerLaccio(THREE, M, -1.2, 0.4, 0.65, 0.45, 0.40));
+  g.add(breuerLaccio(THREE, M, -4.6, 0.4, 0.55, 0.40, 0.50));
+
   group.add(g);
   return g;
 }
