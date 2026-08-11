@@ -257,18 +257,16 @@ export function floorPatches(plan = PLAN) {
 }
 
 export function paint(M, p) {
-  // The trays STAY pale — they are the building. 70% ochre concrete,
-  // 30% whatever the daylight says travertine is right now.
-  M.terrace.color.setHex(mix(0xd6cba8, p.travertine, 0.28));
-  M.stone.color.setHex(mix(0x453f36, p.bg, 0.2));
+  // The trays STAY pale — they are the building. Bright ochre concrete,
+  // lightly tuned by daylight travertine.
+  M.terrace.color.setHex(mix(0xebdcae, p.travertine, 0.20));
+  M.stone.color.setHex(mix(0x7a6e5a, p.bg, 0.15));
   M.glass.color.setHex(p.water);
   M.water.color.setHex(mix(p.water, 0x3a6a7a, 0.4));
   // The rock recedes: dark slate-moss, barely touched by the palette.
   M.hill.color.setHex(mix(0x272e26, p.podium, 0.12));
   M.foam.color.setHex(mix(0xc8d4da, p.travertine, 0.25));
-  // The cascade is part of the estate's light. The static water body
-  // (upstream channel, ledges, plunge pool) and the moving bands both
-  // follow the palette; only the run animates, not the colour.
+  // The cascade is part of the estate's light.
   for (const c of M.cascadeSheets) c.color.setHex(mix(p.water, 0x3a6a7a, 0.4));
   for (const c of M.cascadeBands)  c.color.setHex(mix(0xc8d4da, p.travertine, 0.25));
 }
@@ -296,12 +294,12 @@ export function buildFallingwater(THREE, scene, opts = {}) {
   });
 
   const MATS = {
-    stone:   mat(dark ? 0x3d3830 : 0x6a6558),
-    terrace: mat(dark ? 0x5c5748 : 0xd6cba8),
-    glass:   mat(dark ? 0x080d12 : 0xa8bcc8, 0.18),
-    water:   mat(dark ? 0x1a3040 : 0x5a8a9a, 0.5),
-    hill:    mat(dark ? 0x1c211b : 0x39413a),
-    foam:    mat(dark ? 0x9fb4be : 0xd8e4e8, 0.7),
+    stone:   mat(dark ? 0x605646 : 0x8a7e6b),
+    terrace: mat(dark ? 0xd0c090 : 0xebdcae),
+    glass:   mat(dark ? 0x080d12 : 0xa8bcc8, 0.22),
+    water:   mat(dark ? 0x1a3848 : 0x3a7080, 0.6),
+    hill:    mat(dark ? 0x1b201a : 0x323a33),
+    foam:    mat(dark ? 0xbfd8e5 : 0xe4f0f6, 0.8),
     // Cascade materials live here so paint() can recolour them when the
     // sun moves. Each sheet/band has its own material (the run animates
     // opacity per-entity), but the colour is set together by the palette.

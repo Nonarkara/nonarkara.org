@@ -57,6 +57,11 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.31 (2026-08-12) architectural modeling refinement pass — Farnsworth
+//                    House steps rendered as solid travertine treads with
+//                    stark white steel channels & warm golden Primavera core;
+//                    Fallingwater cantilevered concrete trays updated to bright
+//                    warm pale ochre with Pottsville sandstone coursing.
 //   4.30 (2026-08-11) finishing the audit. Pavilion now shows only
 //                    Mies's own furniture — the Breuer Wassily, Cesca
 //                    and Laccio were removed; the room got the
@@ -357,7 +362,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.30';
+const NON_VERSION = '4.31';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by

@@ -258,19 +258,20 @@ export function buildFarnsworth(THREE, scene, opts = {}) {
     transparent: o < 1, opacity: o, depthWrite: o > 0.6,
   });
   const line = new THREE.LineBasicMaterial({
-    color: dark ? 0x9aa3ab : 0x5a6068, transparent: true, opacity: 0.5,
+    color: dark ? 0xb0b8c0 : 0x687078, transparent: true, opacity: 0.55,
   });
   const amber = new THREE.LineBasicMaterial({
-    color: 0xf59e0b, transparent: true, opacity: 0.4,
+    color: 0xf59e0b, transparent: true, opacity: 0.5,
   });
 
+  const WOOD = dark ? 0x8a5822 : 0xca9648;
   const MATS = {
-    steel: mat(dark ? 0xd4d0c6 : 0xefeee8),
-    glass: mat(dark ? 0x080d12 : 0xa8bcc8, 0.16),
+    steel: mat(dark ? 0xf0f2f5 : 0xffffff),
+    glass: mat(dark ? 0x080d12 : 0xa8bcc8, 0.22),
     wood:  mat(WOOD),
-    floor: mat(dark ? 0x2a2b28 : 0xd8d2c4),
-    roof:  mat(dark ? 0x1a1c1b : 0xe4e0d6),
-    lower: mat(dark ? 0x2e2f2c : 0xddd6c8),
+    floor: mat(dark ? 0x323330 : 0xded8cc),
+    roof:  mat(dark ? 0x222423 : 0xede9e0),
+    lower: mat(dark ? 0x363734 : 0xe2dccf),
   };
 
   const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
@@ -330,19 +331,23 @@ export function buildFarnsworth(THREE, scene, opts = {}) {
     for (const z of [lcz0, lcz1]) placeH(x, z, loH, loH / 2);
   }
 
-  // Step frames — hairline, south of lower and in the gap.
+  // Steps — solid travertine treads with white steel edge channels.
   const { lo, hi } = stepRises(PLAN);
+  const stepW = 3.6;
   for (let i = 0; i < PLAN.stepsLo; i++) {
     const y = (i + 1) * lo;
     const z = lowerZ0 + L.d + (PLAN.stepsLo - i - 1) * PLAN.stepRun + PLAN.stepRun / 2;
-    at(edges(F.w + 0.3, y, PLAN.stepRun), 0, y / 2, z);
+    at(box(stepW, 0.08, PLAN.stepRun, MATS.lower), 0, y - 0.04, z);
+    at(edges(stepW, 0.08, PLAN.stepRun), 0, y - 0.04, z);
   }
   for (let i = 0; i < PLAN.stepsHi; i++) {
     const y = L.y + (i + 1) * hi;
     const slice = L.gap / PLAN.stepsHi;
     const zz0 = hd + (PLAN.stepsHi - i - 1) * slice;
     const zz1 = hd + (PLAN.stepsHi - i) * slice;
-    at(edges(F.w + 0.3, 0.08, zz1 - zz0), 0, y, (zz0 + zz1) / 2);
+    const stepDepth = zz1 - zz0;
+    at(box(stepW, 0.08, stepDepth, MATS.lower), 0, y - 0.04, (zz0 + zz1) / 2);
+    at(edges(stepW, 0.08, stepDepth), 0, y - 0.04, (zz0 + zz1) / 2);
   }
 
   // ── Upper floor tray ────────────────────────────────────
