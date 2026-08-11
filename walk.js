@@ -16,7 +16,10 @@
  *   - Head bob, tiny. 3cm at 1.9Hz. You do not notice it; you notice its
  *     absence, which reads as floating.
  *
- * Floor height: optional `floors` patches (each exposes heightAt(x,z)).
+ * Floor height: optional `floors` patches (each exposes
+ * heightAt(x, z, curY) — curY lets a patch that occupies the same XZ at
+ * several heights, like a helical stair, answer for the lap you are
+ * actually standing on. Patches that are single-valued ignore it).
  * When several surfaces share an XZ — Savoye's stacked ramp flights —
  * the walker stays on the one nearest its current floorY within a short
  * step. That is how you climb without teleporting to the roof.
@@ -115,7 +118,7 @@ export class Walk {
     const cur = this.floorY;
 
     const sample = (f) => {
-      const fy = f.heightAt(x, z);
+      const fy = f.heightAt(x, z, cur);
       return fy == null || Number.isNaN(fy) ? null : fy;
     };
 
@@ -296,7 +299,7 @@ export class Walk {
     if (!this.floors.length) return false;
     let best = null;
     for (const f of this.floors) {
-      const fy = f.heightAt(x, z);
+      const fy = f.heightAt(x, z, this.floorY);
       if (fy == null || Number.isNaN(fy)) continue;
       if (fy <= this.floorY + 0.02) continue;          // not a climb
       if (fy - this.floorY > FLOOR_STEP) continue;     // that is a wall

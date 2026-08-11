@@ -236,25 +236,12 @@ export function buildGlassHouse(THREE, scene, opts = {}) {
     at(box(0.14, 0.18, h.d, MATS.steel), hw, y, 0);
   }
 
-  // Color panels — the three painted discs Johnson hung in the house
-  // to tune the light. They are the only saturated colour in the
-  // building apart from the brick, and the only ones that move: he
-  // shifted them between seasons. Hung in the dining area at seating-
-  // eye height.
-  {
-    const colors = [0xb53a2a, 0xd6b135, 0x3558a8];   // red, yellow, blue
-    const yEye = 1.55, gap = 0.45;
-    let xStart = -gap;
-    for (const hex of colors) {
-      const disc = new THREE.Mesh(
-        new THREE.CircleGeometry(0.20, 24),
-        new THREE.MeshBasicMaterial({ color: hex, side: THREE.DoubleSide }));
-      disc.position.set(xStart, yEye, -hd + 0.05);
-      disc.rotation.y = 0;
-      G.add(disc);
-      xStart += gap;
-    }
-  }
+  // No colour discs here. Three "painted discs Johnson hung to tune the
+  // light, shifted between seasons" were added in v4.26; the Glass House
+  // has no such objects — what it holds is the brick cylinder, the
+  // Poussin on its easel, and the Nadelman pair. Three saturated colours
+  // also break the one-accent law in the building whose entire argument
+  // is that the brick cylinder is the only warm thing in it.
 
   // 4 secondary circles on the east wall — small round mirrors or
   // painted discs that Johnson hung in addition to the colour panels,

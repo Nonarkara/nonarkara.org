@@ -513,7 +513,11 @@ export function buildFarnsworth(THREE, scene, opts = {}) {
 
   const floors = floorPatches(PLAN).map(f => ({
     ...f,
-    heightAt: (x, z) => f.heightAt(x - o.x, z - o.z),
+    // curY must pass THROUGH: a patch that answers differently at
+    // different heights (a helical stair) sees undefined otherwise and
+    // always answers for the ground lap. The wrapper dropping an
+    // argument is invisible in a module test and total in the scene.
+    heightAt: (x, z, curY) => f.heightAt(x - o.x, z - o.z, curY),
   }));
 
   return { group: G, colliders, floors, surfaces, materials: MATS, plan: PLAN };

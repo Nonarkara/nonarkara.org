@@ -57,6 +57,21 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.29 (2026-08-11) audit of v4.25–4.28. Villa Savoye's ramp is
+//                    STRAIGHT, on the axis, double-flight — v4.28
+//                    replaced it with a helix, which is the SEPARATE
+//                    spiral stair Corbusier built beside it. Ramp
+//                    restored; the helix rebuilt as what it actually is,
+//                    the fast route, so the house now has both routes it
+//                    was designed with. Removed fabricated colour: three
+//                    "famous" solarium panels and three "painted discs
+//                    Johnson hung" in the Glass House — four accent
+//                    colours in a workspace whose law is one amber.
+//                    Two engine finds: floor patches now receive the
+//                    walker's height (a helix cannot exist without it),
+//                    and the origin-offset wrapper was dropping that
+//                    argument — which made the stair work in its module
+//                    test and stall after one turn in the scene.
 //   4.24 (2026-08-11) the phone report, answered — gyro rebuilt around a
 //                    real hold (72°, clamped ±40°, LEVEL chip to
 //                    recentre; the old code zeroed on its first sample,
@@ -330,7 +345,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.28';
+const NON_VERSION = '4.29';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -1026,6 +1041,7 @@ if (WEBGL_OK) {
   // A shell you walk to owes you an interior.
   furnishGlassHouse(THREE, GLASS.group, dark);
   SAVOYE = buildSavoye(THREE, scene, { dark });
+  window.__savoyePlan = SAVOYE_PLAN;   // verification handle
   FARNSWORTH = buildFarnsworth(THREE, scene, { dark });
   furnishFarnsworth(THREE, FARNSWORTH.group, dark, FARN_PLAN.lift);
   FALLINGWATER = buildFallingwater(THREE, scene, { dark });
