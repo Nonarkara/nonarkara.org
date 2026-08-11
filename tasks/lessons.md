@@ -13,3 +13,13 @@
 - **What went wrong:** Farnsworth’s hi-steps between the lower terrace and the upper tray were indexed from the north (low z). The first riser off the lower deck jumped 0.85m; walk.js `FLOOR_STEP` is 0.55m, so the climber stayed on grass and walked under the house at y=0.
 - **Correct behaviour:** order step patches in the direction the walker approaches. Each consecutive rise must be ≤ `FLOOR_STEP`. For a south→north climb, i=0 is the high-z riser.
 - **How to recognise:** a walk test that ends at `floorY=0` under a lifted tray, or any gap flight whose first sample from the approach side jumps more than ~0.55m.
+
+## 2026-08-11 · Flat floor patches swallowed rising stairs (walk.js arbitration asymmetry)
+- **What went wrong:** the sticky floor patch only re-arbitrated when the CURRENT patch descended. On flat ground (Fallingwater's streambed) the walker strolled straight under the hatch stair — the rising patch never won, so the stair was climbable top-down but not bottom-up.
+- **Correct behaviour:** while the sticky patch is flat-or-rising, scan for another patch that is genuinely higher (> 2cm) and still within FLOOR_STEP of the current floor — that is a climb; take it. Symmetric to the existing descend-switch.
+- **How to recognise:** any walkable slope that works in one direction only; a walker whose floorY never changes while crossing a stair's footprint.
+
+## 2026-08-11 · Teleporting into a collider bricks the walker
+- **What went wrong:** teleport() placed the walker wherever asked; inside a solid, per-axis collision zeroes velocity on both axes forever — stuck until reload, no visible cause.
+- **Correct behaviour:** teleport depenetrates — if the target is blocked, spiral-search (12 directions × 0.5m rings, up to 4m) for the nearest open point.
+- **How to recognise:** pos frozen, vel zeroed every frame, keys held; any teleport/travel API without a blocked-target check.

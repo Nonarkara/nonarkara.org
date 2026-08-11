@@ -109,6 +109,12 @@
       opacity: 0; transition: opacity 2.5s ease 2.5s;
     }
     .hint.in { opacity: 0.6; }
+    /* Desktop: the shortcut bar owns the bottom line (centered, and long
+       enough to reach the hint's column). The welcome hint takes the row
+       above — measured overlapping at 1100px, x278–523 shared. */
+    @media (min-width: 900px) {
+      .hint { bottom: calc(50px + var(--sab)); }
+    }
 
     .meta {
       position: absolute; bottom: calc(28px + var(--sab)); right: calc(32px + var(--sar));

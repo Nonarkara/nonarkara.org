@@ -122,10 +122,23 @@ export class Walk {
     if (this._floorPatch) {
       const fy = sample(this._floorPatch);
       if (fy != null && Math.abs(fy - cur) <= FLOOR_STEP) {
-        // Rising or flat: stay. A real frame of ramp descent is ~8mm at
-        // walk speed — anything lower than that is a drop, and at a
-        // switchback another flight will still be at `cur`.
-        if (fy >= cur - 1e-4) return fy;
+        // Rising or flat: stay — unless a stair out of this flat ground
+        // is right here. The descend-case below has always re-arbitrated;
+        // the flat case never did, so a walker on the streambed strolled
+        // straight UNDER Fallingwater's hatch stair instead of onto it.
+        // A patch that is genuinely higher, and still within one step,
+        // is a climb — take it.
+        if (fy >= cur - 1e-4) {
+          for (const f of this.floors) {
+            if (f === this._floorPatch) continue;
+            const ay = sample(f);
+            if (ay != null && ay > fy + 0.02 && Math.abs(ay - cur) <= FLOOR_STEP) {
+              this._floorPatch = f;
+              return ay;
+            }
+          }
+          return fy;
+        }
         for (const f of this.floors) {
           if (f === this._floorPatch) continue;
           const ay = sample(f);
@@ -261,6 +274,19 @@ export class Walk {
   }
 
   teleport(x, z, floorY) {
+    // Never land inside a solid. A walker placed inside a collider is
+    // blocked on both axes every frame — bricked until reload, with no
+    // way to know why. Spiral outward to the nearest open spot instead.
+    if (this._blocked(x, z)) {
+      let found = false;
+      for (let r = 0.5; r <= 4 && !found; r += 0.5) {
+        for (let a = 0; a < 12 && !found; a++) {
+          const cx = x + Math.cos(a * Math.PI / 6) * r;
+          const cz = z + Math.sin(a * Math.PI / 6) * r;
+          if (!this._blocked(cx, cz)) { x = cx; z = cz; found = true; }
+        }
+      }
+    }
     this.pos.x = x; this.pos.z = z;
     this.vel.x = 0; this.vel.z = 0;
     this._floorPatch = null;

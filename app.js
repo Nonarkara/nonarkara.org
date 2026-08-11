@@ -52,6 +52,22 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.22 (2026-08-11) Fallingwater actually falls — full rebuild from the
+//                    owner's verdict "looks nothing like the Falling
+//                    Water": crossed cantilever trays (living broad,
+//                    master perpendicular over the falls, study third),
+//                    water emerging from UNDER the house in two drops,
+//                    chimney cluster out-climbing every tray, rock cut
+//                    to half footprint and darkened so the pale bands
+//                    own the silhouette, hatch stair down to the stream
+//                    (the second exit). Walk: teleports depenetrate,
+//                    and flat ground now yields to a rising stair (the
+//                    streambed used to swallow the climb). Time audit:
+//                    six clock-shimmed checkpoints night→dawn→day→dusk→
+//                    night all correct; Bangkok 06:04/18:42 matches the
+//                    real ephemeris; Helsinki override verified 16h04
+//                    day. Desktop welcome hint no longer prints through
+//                    the shortcut bar.
 //   4.21 (2026-08-11) one astronomical clock now drives sunrise/set
 //                    bearings, real lunar phase, daylight, stars and sky;
 //                    procedural mountain rings give the estate a horizon.
@@ -238,7 +254,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.21';
+const NON_VERSION = '4.22';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -1046,11 +1062,12 @@ if (WEBGL_OK) {
     F.floor.color.setHex(dark ? 0x2a2b28 : 0xd8d2c4);
     F.roof.color.setHex(dark ? 0x1a1c1b : 0xe4e0d6);
     F.lower.color.setHex(dark ? 0x2e2f2c : 0xddd6c8);
-    W.stone.color.setHex(dark ? 0x3a3630 : 0x6a6558);
-    W.terrace.color.setHex(dark ? 0x2a2b28 : 0xc8c2b4);
+    W.stone.color.setHex(dark ? 0x3d3830 : 0x6a6558);
+    // Trays stay pale even in the dark theme — they are the building.
+    W.terrace.color.setHex(dark ? 0x565248 : 0xcfc6b0);
     W.glass.color.setHex(dark ? 0x080d12 : 0xa8bcc8);
-    W.water.color.setHex(dark ? 0x1a3040 : 0x6a9aaa);
-    W.hill.color.setHex(dark ? 0x1e221c : 0x5a5e52);
+    W.water.color.setHex(dark ? 0x1a3040 : 0x5a8a9a);
+    W.hill.color.setHex(dark ? 0x1c211b : 0x39413a);
     // Brick, ramp, primavera, hearth stay warm in both themes, like the onyx.
   });
 }

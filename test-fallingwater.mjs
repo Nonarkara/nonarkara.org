@@ -19,6 +19,8 @@ const THREE = {
   EdgesGeometry: class { constructor(g) { this.g = g; } },
   MeshBasicMaterial: class { constructor(o) { Object.assign(this, o); this.color = { setHex() {} }; } },
   LineBasicMaterial: class { constructor(o) { Object.assign(this, o); } },
+  Vector3: class { constructor(x, y, z) { this.x = x; this.y = y; this.z = z; } },
+  BufferGeometry: class { setFromPoints(p) { this.points = p; return this; } },
   DoubleSide: 2,
 };
 
@@ -132,6 +134,37 @@ const patchesWorld = floorPatches(PLAN).map(f => ({
     `should stand on the living terrace (y=${w.floorY.toFixed(2)}, want ${PLAN.livingY})`);
   assert(Math.abs(w.pos.x - (PLAN.origin.x + PLAN.living.x)) < PLAN.living.w / 2 + 1,
     'never reached the living footprint');
+}
+
+// The hatch stair: from the terrace, walk down beside the falls to the
+// streambank — the second exit. A terrace with one door is a dead end.
+{
+  const st = PLAN.stair;
+  const w = mkWalk(world, {
+    x: PLAN.origin.x + st.x,
+    z: PLAN.origin.z + st.z0 - 0.6,
+    floorY: PLAN.livingY,
+  }, patchesWorld);
+  w.keys.add('w');
+  step(w, Math.PI, 400);           // yaw π = walking +Z, down the stair
+  assert(w.floorY < 0.6,
+    `hatch stair should land at the stream (floorY=${w.floorY.toFixed(2)})`);
+  assert(w.pos.z - PLAN.origin.z > st.z1 - 0.8,
+    `never descended the stair (z=${(w.pos.z - PLAN.origin.z).toFixed(2)})`);
+}
+
+// And back UP: from the streambank, the stair must scoop the walker —
+// this is the flat-to-rising floor arbitration that walk.js once lacked.
+{
+  const st = PLAN.stair;
+  const w = mkWalk(world, {
+    x: PLAN.origin.x + st.x,
+    z: PLAN.origin.z + st.z1 + 0.9,
+  }, patchesWorld);
+  w.keys.add('w');
+  step(w, 0, 500);                 // yaw 0 = walking −Z, up the stair
+  assert(w.floorY > PLAN.livingY - 0.3,
+    `stair should climb to the terrace (floorY=${w.floorY.toFixed(2)})`);
 }
 
 // Stone core blocks.
