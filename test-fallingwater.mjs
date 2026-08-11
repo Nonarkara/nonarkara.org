@@ -17,7 +17,7 @@ const THREE = {
   BoxGeometry: class { constructor(w,h,d) { this.w=w;this.h=h;this.d=d; } },
   PlaneGeometry: class { constructor(w,h) { this.w=w;this.h=h; } },
   EdgesGeometry: class { constructor(g) { this.g = g; } },
-  MeshBasicMaterial: class { constructor(o) { Object.assign(this, o); this.color = { setHex() {} }; } },
+  MeshBasicMaterial: class { constructor(o) { Object.assign(this, o); this.color = { setHex(h) { this.__lastHex = h; } }; } },
   LineBasicMaterial: class { constructor(o) { Object.assign(this, o); } },
   Vector3: class { constructor(x, y, z) { this.x = x; this.y = y; this.z = z; } },
   BufferGeometry: class { setFromPoints(p) { this.points = p; return this; } },
@@ -59,6 +59,22 @@ assert(PLAN.stream.yTop > PLAN.stream.yBot, 'water drops in height');
   built.tick(0.5);
   const y1 = built.water.bands[0].mesh.position.y;
   assert(y1 !== y0, 'tick moves cascade bands down the fall');
+  // The cascade's water must respond to the daylight palette. The static
+  // water body and the moving bands each expose their materials through
+  // MATS so paint() can recolour them as the sun moves.
+  assert(built.materials.cascadeSheets.length >= 4,
+    'cascade sheets expose materials to paint()');
+  assert(built.materials.cascadeBands.length >= 3,
+    'cascade bands expose materials to paint()');
+  const before = built.materials.cascadeSheets[0].color;
+  const fakePalette = { bg: 0x000000, water: 0xff00ff, travertine: 0xffff00,
+    chrome: 0x000000, podium: 0x000000, line: 0x000000, roof: 0x000000,
+    lineOpacity: 0.5 };
+  before.setHex(0x000000);
+  const { paint } = await import('./fallingwater.js');
+  paint(built.materials, fakePalette);
+  assert(before.__lastHex !== 0x000000, 'paint() recolours the cascade sheets');
+  delete before.__lastHex;
 }
 
 // ── Colliders: core + living envelope + rear ──────────────

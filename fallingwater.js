@@ -266,6 +266,11 @@ export function paint(M, p) {
   // The rock recedes: dark slate-moss, barely touched by the palette.
   M.hill.color.setHex(mix(0x272e26, p.podium, 0.12));
   M.foam.color.setHex(mix(0xc8d4da, p.travertine, 0.25));
+  // The cascade is part of the estate's light. The static water body
+  // (upstream channel, ledges, plunge pool) and the moving bands both
+  // follow the palette; only the run animates, not the colour.
+  for (const c of M.cascadeSheets) c.color.setHex(mix(p.water, 0x3a6a7a, 0.4));
+  for (const c of M.cascadeBands)  c.color.setHex(mix(0xc8d4da, p.travertine, 0.25));
 }
 
 const mix = (a, b, t) => {
@@ -297,6 +302,11 @@ export function buildFallingwater(THREE, scene, opts = {}) {
     water:   mat(dark ? 0x1a3040 : 0x5a8a9a, 0.5),
     hill:    mat(dark ? 0x1c211b : 0x39413a),
     foam:    mat(dark ? 0x9fb4be : 0xd8e4e8, 0.7),
+    // Cascade materials live here so paint() can recolour them when the
+    // sun moves. Each sheet/band has its own material (the run animates
+    // opacity per-entity), but the colour is set together by the palette.
+    cascadeSheets: [],
+    cascadeBands:  [],
   };
 
   const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
@@ -493,9 +503,12 @@ export function buildFallingwater(THREE, scene, opts = {}) {
     { mesh: midLedge,   base: 0.5, phase: 0.55 },
     { mesh: fall2,      base: 0.6, phase: 0.8 },
   ];
-  // Each sheet gets its own material so the shimmer is per-sheet.
+  // Each sheet gets its own material so the shimmer is per-sheet. The
+  // colour starts at the dark/light default and is overwritten by
+  // paint() the moment the daylight palette refreshes.
   for (const s of cascadeSheets) {
     s.mesh.material = mat(dark ? 0x1a3040 : 0x5a8a9a, s.base);
+    MATS.cascadeSheets.push(s.mesh.material);
   }
 
   // Moving bands — thin pale streaks falling DOWN each fall face.
@@ -512,6 +525,7 @@ export function buildFallingwater(THREE, scene, opts = {}) {
     const t0 = (i / S.bands) % 1;
     at(band, 0, f.yTop - (f.yTop - f.yBot) * t0, f.z);
     cascadeBands.push({ mesh: band, t0, face: f });
+    MATS.cascadeBands.push(bMat);
   }
 
   let waterT = 0;
