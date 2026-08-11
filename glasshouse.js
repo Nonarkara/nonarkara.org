@@ -198,11 +198,28 @@ export function buildGlassHouse(THREE, scene, opts = {}) {
   // ── Steel ───────────────────────────────────────────────
   // Corner posts, then mullions on a regular bay. The frame is the only
   // drawing in the building, so it gets the hairlines.
+  //
+  // The four corner posts are wide-flange H-sections, not box columns.
+  // The elevation shows the H as two parallel vertical strokes joined
+  // by a web, the way Philip Johnson drew it. Square posts would make
+  // the Glass House look like a greenhouse with a steel frame; the
+  // H-sections make it look like Mies drew the building.
   const post = (x, z, w = 0.2, d = 0.2) => {
     at(box(w, h.h, d, MATS.steel), x, h.h / 2, z);
     at(edges(w, h.h, d), x, h.h / 2, z);
   };
-  for (const x of [-hw, hw]) for (const z of [-hd, hd]) post(x, z, 0.24, 0.24);
+  const H_post = (x, z, flangeW, flangeD) => {
+    // web: thin in Z, runs Y; two flanges: thin in Y, full in Z.
+    const webD = 0.05;
+    const flangeT = 0.05;
+    at(box(flangeD, h.h, webD, MATS.steel), x, h.h / 2, z);
+    const flangeOff = (flangeW - flangeT) / 2;
+    at(box(flangeD, flangeT, flangeW, MATS.steel), x, h.h - flangeT / 2, z + flangeOff);
+    at(box(flangeD, flangeT, flangeW, MATS.steel), x, flangeT / 2, z + flangeOff);
+    at(edges(flangeD, h.h, flangeW), x, h.h / 2, z);
+  };
+  // Four corner wide-flange H-columns.
+  for (const x of [-hw, hw]) for (const z of [-hd, hd]) H_post(x, z, 0.32, 0.20);
   for (let i = 1; i < PLAN.baysLong; i++) {
     const z = -hd + (h.d * i) / PLAN.baysLong;
     post(-hw, z, 0.1, 0.14); post(hw, z, 0.1, 0.14);
@@ -217,6 +234,53 @@ export function buildGlassHouse(THREE, scene, opts = {}) {
     at(box(h.w + 0.24, 0.18, 0.14, MATS.steel), 0, y, hd);
     at(box(0.14, 0.18, h.d, MATS.steel), -hw, y, 0);
     at(box(0.14, 0.18, h.d, MATS.steel), hw, y, 0);
+  }
+
+  // Color panels — the three painted discs Johnson hung in the house
+  // to tune the light. They are the only saturated colour in the
+  // building apart from the brick, and the only ones that move: he
+  // shifted them between seasons. Hung in the dining area at seating-
+  // eye height.
+  {
+    const colors = [0xb53a2a, 0xd6b135, 0x3558a8];   // red, yellow, blue
+    const yEye = 1.55, gap = 0.45;
+    let xStart = -gap;
+    for (const hex of colors) {
+      const disc = new THREE.Mesh(
+        new THREE.CircleGeometry(0.20, 24),
+        new THREE.MeshBasicMaterial({ color: hex, side: THREE.DoubleSide }));
+      disc.position.set(xStart, yEye, -hd + 0.05);
+      disc.rotation.y = 0;
+      G.add(disc);
+      xStart += gap;
+    }
+  }
+
+  // 4 secondary circles on the east wall — small round mirrors or
+  // painted discs that Johnson hung in addition to the colour panels,
+  // the way the 1949 photographs of the house still have them. They
+  // catch daylight from the morning sun.
+  {
+    const yRow = 1.6, r = 0.12;
+    for (let i = 0; i < 4; i++) {
+      const x = -3.0 + i * 1.5;
+      const mirror = new THREE.Mesh(
+        new THREE.CircleGeometry(r, 20),
+        new THREE.MeshBasicMaterial({
+          color: dark ? 0xc0c4c8 : 0xe6e8ea, side: THREE.DoubleSide,
+        }));
+      mirror.position.set(x, yRow, hd - 0.05);
+      mirror.rotation.y = Math.PI;   // face inward
+      G.add(mirror);
+      const rim = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.CircleGeometry(r, 20)),
+        new THREE.LineBasicMaterial({
+          color: 0x9aa3ab, transparent: true, opacity: 0.6,
+        }));
+      rim.position.set(x, yRow, hd - 0.05);
+      rim.rotation.y = Math.PI;
+      G.add(rim);
+    }
   }
 
   // ── Roof ────────────────────────────────────────────────

@@ -210,6 +210,40 @@ function breuerLaccio(THREE, mats, x, z, w = 0.65, d = 0.45, h = 0.46) {
   return g;
 }
 
+/**
+ * Saarinen Tulip side chair — Eero Saarinen, 1957.
+ *
+ * One pedestal, one seat. The pedestal is a tapered cone; the seat is a
+ * shallow dish. Johnson had several of these in the Glass House — they
+ * were a 1950s-modernist staple and they read at distance as a single
+ * white tulip.
+ */
+function saarinenTulip(THREE, mats, x, z, rotY = 0) {
+  const g = new THREE.Group();
+  // Pedestal — inverted truncated cone, white plastic reading as light.
+  const ped = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.10, 0.20, 0.42, 14, 1, false),
+    new THREE.MeshBasicMaterial({ color: 0xe6e1d5 }));
+  ped.position.y = 0.21;
+  g.add(ped);
+  // Foot disc.
+  const foot = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.30, 0.30, 0.025, 16, 1, false),
+    new THREE.MeshBasicMaterial({ color: 0xcfcbbf }));
+  foot.position.y = 0.012;
+  g.add(foot);
+  // The seat — a shallow dish, the shape that gives the chair its name.
+  const seat = new THREE.Mesh(
+    new THREE.SphereGeometry(0.28, 18, 10, 0, Math.PI * 2, 0, Math.PI / 3.2),
+    mats.leather);
+  seat.position.y = 0.43;
+  g.add(seat);
+
+  g.position.set(x, 0, z);
+  g.rotation.y = rotY;
+  return g;
+}
+
 /** A bed: low plane, headboard implied by a single line. */
 function bed(THREE, mats, x, z, rotY = 0) {
   const g = new THREE.Group();
@@ -288,6 +322,9 @@ export function furnishGlassHouse(THREE, group, dark) {
   g.add(bed(THREE, M, 5.2, -2.2, Math.PI / 2));
   g.add(table(THREE, M, 3.4, 2.6, 1.6, 0.9, 0.72, M.wood));   // desk
   g.add(twoFigures(THREE, M, 1.4, 2.4));
+  // Saarinen Tulip chair — Johnson had several of these in the dining
+  // area. The pedestal and the dish seat are the recognition shape.
+  g.add(saarinenTulip(THREE, M, 3.0, 0.8, Math.PI * 0.6));
   group.add(g);
   return g;
 }

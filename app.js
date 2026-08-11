@@ -82,6 +82,15 @@ const WEBGL2_OK = hasWebGL2();
 //                    shoot games, and Fallingwater pass 3 (stone
 //                    coursing, shadow voids under the trays, warmer
 //                    ochre).
+//   4.26 (2026-08-11) the Glass House earns its steel and its colour —
+//                    the four corner posts are wide-flange H-columns
+//                    (the elevation shows the two vertical strokes Mies
+//                    would have drawn, not four square boxes); Johnson's
+//                    three colour panels (red/yellow/blue discs) hang in
+//                    the dining area at eye height; four small round
+//                    mirrors on the east wall catch the morning sun; and
+//                    a Saarinen Tulip chair joins the furnishing — the
+//                    other 1950s-modernist piece that lived in this room.
 //   4.25 (2026-08-11) the Pavilion earns its interior — Mies's Barcelona
 //                    chair + daybed joined by Marcel Breuer's Wassily
 //                    chair, Cesca chair and Laccio tables in the 1929
@@ -293,7 +302,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.25';
+const NON_VERSION = '4.26';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
