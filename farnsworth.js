@@ -422,6 +422,82 @@ export function buildFarnsworth(THREE, scene, opts = {}) {
   wash.rotation.x = -Math.PI / 2;
   at(wash, c.x, floorTop + 0.02, c.z);
 
+  // Ipe grain — the primavera core is wrapped in Ipe (a dark tropical
+  // hardwood). The verticals draw as hairlines so the core reads as a
+  // piece of cabinetry, not a flat brown box. Vertical every ~0.18m.
+  for (let i = 1; i < Math.floor(c.w / 0.18); i++) {
+    const x = c.x - c.w / 2 + i * 0.18;
+    for (const z of [c.z - c.d / 2 - 0.005, c.z + c.d / 2 + 0.005]) {
+      G.add(new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(x, floorTop, z),
+          new THREE.Vector3(x, floorTop + c.h, z),
+        ]),
+        new THREE.LineBasicMaterial({ color: dark ? 0x2a1606 : 0x6a3a18, transparent: true, opacity: 0.5 })));
+    }
+  }
+
+  // Fireplace — a black recess cut into the south face of the core.
+  // Edith's complaint about the house included that the fireplace "is
+  // so far from the living area you might as well not have one"; the
+  // pavilion put the fire on the south face of the core, the way the
+  // BIM has it. Drawn as a dark rectangle with an amber glow inside.
+  {
+    const fpW = 0.9, fpH = 0.9;
+    const fpZ = c.z + c.d / 2 + 0.005;
+    const fpY = floorTop + 0.6;
+    // Outer surround.
+    const surround = box(fpW + 0.30, fpH + 0.30, 0.04, MATS.steel);
+    surround.position.set(c.x, fpY, fpZ + 0.01);
+    G.add(surround);
+    // The dark recess.
+    const hole = box(fpW, fpH, 0.04, new THREE.MeshBasicMaterial({ color: 0x0a0a0a }));
+    hole.position.set(c.x, fpY, fpZ + 0.025);
+    G.add(hole);
+    // The fire itself — a small amber plane inside the recess.
+    const fire = new THREE.Mesh(
+      new THREE.PlaneGeometry(fpW * 0.78, fpH * 0.55),
+      new THREE.MeshBasicMaterial({
+        color: 0xf59e0b, transparent: true, opacity: 0.85, depthWrite: false,
+      }));
+    fire.position.set(c.x, fpY - fpH * 0.15, fpZ + 0.04);
+    G.add(fire);
+    // Mantel — a thin steel shelf above the fire.
+    const mantel = box(fpW + 0.5, 0.04, 0.18, MATS.steel);
+    mantel.position.set(c.x, fpY + fpH / 2 + 0.18, fpZ + 0.05);
+    G.add(mantel);
+  }
+
+  // Two Black Locust trees. The real Farnsworth has two of them on the
+  // south side, mature, ~15m tall. Procedural: dark trunk + irregular
+  // canopy. They are NOT in the collider set — scenery the walker passes
+  // around, not through.
+  {
+    const placeTree = (x, z) => {
+      const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.20, 0.32, 4.0, 8),
+        new THREE.MeshBasicMaterial({ color: dark ? 0x0c0a08 : 0x2a221c }));
+      trunk.position.set(x, 2.0, z);
+      G.add(trunk);
+      // Canopy — three overlapping spheres of dark green, slightly
+      // off-axis so the silhouette is not a perfect globe.
+      const green = new THREE.MeshBasicMaterial({
+        color: dark ? 0x0e1810 : 0x1f2c1a, transparent: true, opacity: 0.92 });
+      for (const [dx, dy, dz, r] of [
+        [0, 9.0, 0, 3.8], [-1.2, 7.0, 0.6, 3.0], [1.4, 7.5, -0.4, 3.2],
+        [0.4, 10.8, 0.2, 2.4], [-0.6, 11.4, -0.2, 2.2],
+      ]) {
+        const c = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8), green);
+        c.position.set(x + dx, dy, z + dz);
+        G.add(c);
+      }
+    };
+    // South of the lower terrace (z > lowerZ1) and clear of the porch
+    // approach on the east side.
+    placeTree(-9.5, 24);
+    placeTree(9.5, 26);
+  }
+
   const o = PLAN.origin;
   const colliders = colliderBoxes(PLAN).map(b => ({
     minX: b.minX + o.x, maxX: b.maxX + o.x,
