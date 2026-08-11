@@ -243,32 +243,10 @@ export function buildGlassHouse(THREE, scene, opts = {}) {
   // also break the one-accent law in the building whose entire argument
   // is that the brick cylinder is the only warm thing in it.
 
-  // 4 secondary circles on the east wall — small round mirrors or
-  // painted discs that Johnson hung in addition to the colour panels,
-  // the way the 1949 photographs of the house still have them. They
-  // catch daylight from the morning sun.
-  {
-    const yRow = 1.6, r = 0.12;
-    for (let i = 0; i < 4; i++) {
-      const x = -3.0 + i * 1.5;
-      const mirror = new THREE.Mesh(
-        new THREE.CircleGeometry(r, 20),
-        new THREE.MeshBasicMaterial({
-          color: dark ? 0xc0c4c8 : 0xe6e8ea, side: THREE.DoubleSide,
-        }));
-      mirror.position.set(x, yRow, hd - 0.05);
-      mirror.rotation.y = Math.PI;   // face inward
-      G.add(mirror);
-      const rim = new THREE.LineSegments(
-        new THREE.EdgesGeometry(new THREE.CircleGeometry(r, 20)),
-        new THREE.LineBasicMaterial({
-          color: 0x9aa3ab, transparent: true, opacity: 0.6,
-        }));
-      rim.position.set(x, yRow, hd - 0.05);
-      rim.rotation.y = Math.PI;
-      G.add(rim);
-    }
-  }
+  // No "4 secondary circles on the east wall" either. The 4 round
+  // mirrors added in v4.26 alongside the colour discs were a companion
+  // fabrication — the Glass House's east wall holds the Poussin, not
+  // a row of small mirrors. Removed.
 
   // ── Roof ────────────────────────────────────────────────
   const rt = PLAN.roofT;

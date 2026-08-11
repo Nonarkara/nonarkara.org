@@ -244,6 +244,63 @@ function saarinenTulip(THREE, mats, x, z, rotY = 0) {
   return g;
 }
 
+/**
+ * Barcelona stool — the same X-frame as the chair, lower and without
+ * a back. The third piece in the Pavilion's "Barcelona set" (chair,
+ * stool, daybed), used as an ottoman for the chair or as a side seat.
+ */
+function barcelonaStool(THREE, mats, x, z, rotY = 0) {
+  const g = new THREE.Group();
+  const W = 0.62, D = 0.62, SEAT = 0.40;
+  const pts = [
+    [[-W / 2, SEAT, -D / 2], [-W / 2, 0, D / 2 - 0.08]],
+    [[-W / 2, 0, -D / 2 + 0.08], [-W / 2, SEAT, D / 2 - 0.04]],
+    [[W / 2, SEAT, -D / 2], [W / 2, 0, D / 2 - 0.08]],
+    [[W / 2, 0, -D / 2 + 0.08], [W / 2, SEAT, D / 2 - 0.04]],
+  ];
+  const v = [];
+  for (const [a, b] of pts) v.push(new THREE.Vector3(...a), new THREE.Vector3(...b));
+  g.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(v), mats.chrome));
+
+  const seat = new THREE.Mesh(new THREE.PlaneGeometry(W, D * 0.7), mats.leather);
+  seat.rotation.x = -Math.PI / 2;
+  seat.position.set(0, SEAT, 0.02);
+  g.add(seat);
+
+  g.position.set(x, 0, z);
+  g.rotation.y = rotY;
+  return g;
+}
+
+/**
+ * Barcelona lamp — the chrome rod and frosted white globe Mies designed
+ * for the 1929 Pavilion. Tall, slim, the only vertical in the room
+ * apart from the columns themselves. Reads as a single luminous dot
+ * at night and a thin line in daylight.
+ */
+function barcelonaLamp(THREE, mats, x, z) {
+  const g = new THREE.Group();
+  const rod = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.012, 0.012, 1.85, 6),
+    new THREE.MeshBasicMaterial({ color: 0xb0b4b8 }));
+  rod.position.set(0, 0.92, 0);
+  g.add(rod);
+  // A small base disc where the rod meets the floor.
+  const base = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.10, 0.12, 0.04, 12),
+    new THREE.MeshBasicMaterial({ color: 0xa0a4a8 }));
+  base.position.y = 0.02;
+  g.add(base);
+  // The globe — the only lit thing in the building, white on dark.
+  const globe = new THREE.Mesh(
+    new THREE.SphereGeometry(0.20, 18, 12),
+    new THREE.MeshBasicMaterial({ color: 0xf2efe8 }));
+  globe.position.set(0, 1.92, 0);
+  g.add(globe);
+  g.position.set(x, 0, z);
+  return g;
+}
+
 /** A bed: low plane, headboard implied by a single line. */
 function bed(THREE, mats, x, z, rotY = 0) {
   const g = new THREE.Group();
@@ -352,21 +409,19 @@ export function furnishFarnsworth(THREE, group, dark, floorY = 1.55) {
 }
 
 /**
- * THE PAVILION — Mies's chairs, Marcel Breuer's chairs, Breuer's tables.
+ * THE PAVILION — only Mies's own furniture.
  *
- * The 1929 photograph everyone knows was taken from the south-east
- * corner of the podium, looking across the large pool to the onyx wall
- * with the long travertine back wall behind it. In the foreground of
- * that photograph are:
+ * v4.25 furnished the room with Marcel Breuer's Wassily, Cesca and
+ * Laccio. The 1929 photograph does not show them: Mies and Lilly Reich
+ * designed the Barcelona chair, stool, daybed, table and lamp for
+ * this room, and that is what was in it. Breuer's pieces belong to
+ * Dessau, not Barcelona. The set below is the full Mies 1929 suite.
  *
- *   - the Barcelona daybed (Mies, 1929, designed for this room)
- *   - two Barcelona chairs (Mies, 1929, also designed for this room)
- *   - the Wassily chair (Breuer, 1925) — a chromium tube cantilever
- *   - the Cesca chair (Breuer, 1928) — the cane-seat cantilever
- *   - the Laccio side table (Breuer, 1929) — chrome ladder, wood top
- *
- * All placed in the sitting group south of the onyx, at the same
- * heights the photographs have them.
+ * The famous photograph was taken from the south-east corner of the
+ * podium, looking across the large pool to the onyx wall with the
+ * long travertine back wall behind it. In the foreground of that
+ * photograph are: the daybed and two Barcelona chairs, with the
+ * small stool as ottoman and the lamp at the eastern end.
  */
 export function furnishPavilion(THREE, group, dark) {
   const M = interiorMats(THREE, dark);
@@ -385,18 +440,18 @@ export function furnishPavilion(THREE, group, dark) {
   g.add(barcelonaChair(THREE, M, -3.0, 1.0, Math.PI * 0.45));
   g.add(barcelonaChair(THREE, M,  0.6, 1.6, Math.PI * 0.55));
 
-  // Breuer's Wassily chair at the west end of the onyx — closer to the
-  // travertine back wall, on its own.
-  g.add(breuerWassily(THREE, M, -5.6, 0.4, Math.PI * 0.5));
+  // The Barcelona stool — the third piece of the set, used as ottoman
+  // for the chair. At the east end of the onyx on the green marble's
+  // side of the room.
+  g.add(barcelonaStool(THREE, M, 4.4, 0.2, Math.PI * 0.4));
 
-  // Breuer's Cesca chair at the east end of the onyx, on the green
-  // marble's side of the room.
-  g.add(breuerCesca(THREE, M, 4.4, 0.2, Math.PI * 0.4));
+  // The low Mies table in front of the daybed — chrome frame, onyx top.
+  g.add(table(THREE, M, -1.2, 0.4, 0.65, 0.45, 0.40, M.wood));
 
-  // Two Laccio tables — a low coffee table in front of the daybed, and
-  // a slightly higher side table at the Wassily.
-  g.add(breuerLaccio(THREE, M, -1.2, 0.4, 0.65, 0.45, 0.40));
-  g.add(breuerLaccio(THREE, M, -4.6, 0.4, 0.55, 0.40, 0.50));
+  // The Barcelona lamp at the west end — the only lit thing in the
+  // building after the onyx wash, the dot of white that draws the eye
+  // to the lamp's own end of the onyx wall.
+  g.add(barcelonaLamp(THREE, M, -5.6, 0.4));
 
   group.add(g);
   return g;

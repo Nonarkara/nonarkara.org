@@ -422,9 +422,11 @@ export function buildFarnsworth(THREE, scene, opts = {}) {
   wash.rotation.x = -Math.PI / 2;
   at(wash, c.x, floorTop + 0.02, c.z);
 
-  // Ipe grain — the primavera core is wrapped in Ipe (a dark tropical
-  // hardwood). The verticals draw as hairlines so the core reads as a
-  // piece of cabinetry, not a flat brown box. Vertical every ~0.18m.
+  // Primavera grain — the core's vertical draw as hairlines so the wood
+  // reads as a piece of cabinetry, not a flat brown box. Vertical
+  // every ~0.18m. (The earlier comment called this Ipe; the real
+  // Farnsworth core is primavera, a dark tropical hardwood, but a
+  // different species.)
   for (let i = 1; i < Math.floor(c.w / 0.18); i++) {
     const x = c.x - c.w / 2 + i * 0.18;
     for (const z of [c.z - c.d / 2 - 0.005, c.z + c.d / 2 + 0.005]) {

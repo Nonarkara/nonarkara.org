@@ -57,6 +57,18 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.30 (2026-08-11) finishing the audit. Pavilion now shows only
+//                    Mies's own furniture — the Breuer Wassily, Cesca
+//                    and Laccio were removed; the room got the
+//                    Barcelona stool, a low Mies table and the
+//                    Barcelona lamp in their place so it still reads
+//                    as a complete 1929 set. The 4 "secondary mirrors"
+//                    on the Glass House's east wall (a companion
+//                    fabrication of the colour discs) removed too. The
+//                    Farnsworth "Ipe grain" comment corrected to
+//                    primavera — the real Farnsworth core is
+//                    primavera, a dark tropical hardwood, but a
+//                    different species.
 //   4.29 (2026-08-11) audit of v4.25–4.28. Villa Savoye's ramp is
 //                    STRAIGHT, on the axis, double-flight — v4.28
 //                    replaced it with a helix, which is the SEPARATE
@@ -345,7 +357,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.29';
+const NON_VERSION = '4.30';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
