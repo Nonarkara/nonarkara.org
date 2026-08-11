@@ -3105,8 +3105,9 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
     }
 
     /* WALK — mode switch and the phone thumbstick.
-       The stick sits bottom-left because that is where a left thumb
-       already rests when a phone is held in two hands. */
+       The stick is at the bottom RIGHT (see the .walk-stick rule below
+       for the actual position and the "why" — the right thumb owns
+       movement, the left thumb takes the cheap taps). */
     .walk-btn.on { color: var(--amber); border-color: var(--amber); }
 
     /* ── Contextual chips: LEVEL, DRIVE, SHOOT ────────────────

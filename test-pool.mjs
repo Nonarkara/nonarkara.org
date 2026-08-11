@@ -14,7 +14,8 @@ function biggestMover(d, keys) {
   return best;
 }
 
-const KEYS = ['set','ptt','usdthb','sgdthb','dji','nasdaq','nvda','tsla','googl','btc','gold','brent'];
+const KEYS = ['set','ptt','usdthb','sgdthb','dji','nasdaq','nvda','tsla','googl',
+               'btc','eth','sol','gold','brent'];
 
 // ── The one amber goes to the largest ABSOLUTE mover ──────────
 // A 4% fall matters more than a 1% rise; picking by signed value would
