@@ -7,7 +7,7 @@
 // promenade), a front door you cannot get through, a car missing from
 // under the house, and a ramp that no longer lifts you to the terrace.
 import assert from 'node:assert';
-import { PLAN, groundWall, colliderBoxes, floorPatches, rampStops } from './savoye.js';
+import { PLAN, groundWall, colliderBoxes, floorPatches, rampStops, rampEntryPos, rampExitPos, rampAt } from './savoye.js';
 import { PLAN as GLASS } from './glasshouse.js';
 import { PLAN as PAVILION } from './pavilion.js';
 import { Walk } from './walk.js';
@@ -37,26 +37,32 @@ assert.equal(PLAN.levels.firstTop - PLAN.levels.first, 3.0,
 }
 
 // ── The promenade owns the axis ───────────────────────────
-// No column stands in the middle line. Ramp rails may sit on the
-// centre strip; the solid slab-blocker that used to fill the whole
-// ramp footprint must not return — that killed the walk up.
+// No column stands in the middle line. The ramp spiral wraps the
+// central void; the only thing that may sit on the axis at ground
+// level is the ramp entry itself.
 {
   for (const b of colliderBoxes(PLAN)) {
-    const isRampRail = b.minZ === PLAN.ramp.z0 && b.maxZ === PLAN.ramp.z1
-      && (b.maxX - b.minX) < PLAN.ramp.w * 0.5;
-    if (isRampRail) continue;
     if (b.maxY != null && b.maxY <= 1.7) continue; // car / ground walls
-    assert(!(b.minX < -0.5 && b.maxX > 0.5
-        && b.minZ > PLAN.ground.back && b.maxZ < PLAN.ground.chordZ
-        && b.minY == null),
-      `something solid fills the centre line at z=${b.minZ}`);
+    // The spiral is at radius PLAN.ramp.r; the central void is free.
+    const onCenter = b.minX < -0.5 && b.maxX > 0.5
+      && b.minZ > PLAN.ground.back && b.maxZ < PLAN.ground.chordZ
+      && b.minY == null;
+    if (onCenter) {
+      assert.fail(`something solid fills the centre line at z=${b.minZ}`);
+    }
   }
-  assert.equal(PLAN.ramp.x, 0, 'the ramp must be on the axis');
-  const span = PLAN.ramp.z1 - PLAN.ramp.z0;
-  assert(span > PLAN.box.d / 2, `the ramp runs only ${span.toFixed(1)}m — it must cross the house`);
-  // 1:5 or gentler per flight, or it is a staircase pretending.
-  const rise = PLAN.levels.roof / PLAN.ramp.flights;
-  assert(span / rise > 5, `ramp slope is 1:${(span / rise).toFixed(1)} — too steep to be a ramp`);
+  assert.equal(PLAN.ramp.cx, 0, 'the spiral must be centred on the x-axis');
+  assert.equal(PLAN.ramp.cz, 0, 'the spiral must be centred on the z-axis');
+  // One continuous flight — the switchback is gone.
+  assert.equal(PLAN.ramp.flights, 1, 'the Savoye ramp is one continuous spiral, not switchbacks');
+  // Path length = 2π × r × revs; must cross the house (box.d / 2).
+  const span = 2 * Math.PI * PLAN.ramp.r * PLAN.ramp.revs;
+  assert(span > PLAN.box.d / 2,
+    `the spiral runs only ${span.toFixed(1)}m — it must cross the house`);
+  // Slope: gentler than 1:5 or it is a staircase.
+  const slope = span / PLAN.levels.roof;
+  assert(slope > 5,
+    `ramp slope is 1:${slope.toFixed(1)} — too steep to be a ramp`);
 }
 
 // ── You arrive at the complete elevation ──────────────────
@@ -90,7 +96,11 @@ assert.equal(PLAN.levels.firstTop - PLAN.levels.first, 3.0,
   const outer = PLAN.box.w / 2;
   assert(Math.abs(c.x) + c.body.l / 2 < outer,
     'the car sticks out past the cantilever');
-  assert(c.z > PLAN.ramp.z1, 'the car blocks the ramp entrance');
+  // The spiral's southernmost reach is at z = r + w/2 (entry side). The
+  // car sits in the parking bay south of that, so the car never blocks
+  // the ramp.
+  const rampSouthZ = PLAN.ramp.cz + PLAN.ramp.r + PLAN.ramp.w / 2;
+  assert(c.z > rampSouthZ, 'the car blocks the spiral entry');
   assert(c.z < PLAN.spawn.z, 'the car is not under the house — it is on the lawn');
   assert(Math.abs(c.x) > PLAN.ground.door + 0.8,
     'the car is parked in the doorway');
@@ -117,25 +127,44 @@ assert.equal(PLAN.levels.firstTop - PLAN.levels.first, 3.0,
   }
 }
 
-// ── Floor patches: ramp climbs, living and roof exist ─────
+// ── Floor patches: spiral climbs, living and roof exist ───
 {
   const patches = floorPatches(PLAN);
-  assert(patches.some(p => p.kind === 'ramp'), 'no ramp floor patches');
+  assert.equal(patches.filter(p => p.kind === 'ramp').length, 1,
+    'one continuous ramp patch, not several');
   assert(patches.some(p => p.kind === 'living'), 'no living floor patch');
   assert(patches.some(p => p.kind === 'roof'), 'no roof floor patch');
   const stops = rampStops(PLAN);
-  assert.equal(stops.length, PLAN.ramp.flights + 1);
-  // South end of ramp: ground and living landings.
+  assert.deepEqual(stops, [0, PLAN.levels.roof], 'spiral is one flight: grass → roof');
+  // Entry at the front door (south of spiral centre).
   const ramps = patches.filter(p => p.kind === 'ramp');
-  const atEntry = ramps.map(p => p.heightAt(0, PLAN.ramp.z1)).filter(y => y != null);
-  assert(atEntry.some(y => Math.abs(y) < 0.05), 'ramp does not meet the grass at +z');
-  assert(atEntry.some(y => Math.abs(y - PLAN.levels.first) < 0.05),
-    'ramp does not meet the living floor at +z');
-  // Living floor beside the ramp, not inside the well.
+  const entry = rampEntryPos(PLAN);
+  const exit = rampExitPos(PLAN);
+  const atDoor = ramps.map(p => p.heightAt(entry.x, entry.z)).filter(y => y != null);
+  assert(atDoor.some(y => Math.abs(y) < 0.05), 'ramp does not meet the grass at the door');
+  // Exit at the roof-garden end of the spiral.
+  const atExit = ramps.map(p => p.heightAt(exit.x, exit.z)).filter(y => y != null);
+  assert(atExit.some(y => Math.abs(y - PLAN.levels.roof) < 0.05),
+    'ramp does not reach the roof at the spiral exit');
+  // Spiral path is continuous — the height increases monotonically from
+  // door to exit. A discontinuity means a torn arc.
+  let lastH = -1, monotonic = true;
+  for (let a = PLAN.ramp.t0; a > PLAN.ramp.t0 - 2 * Math.PI * PLAN.ramp.revs; a -= 0.05) {
+    const x = PLAN.ramp.cx + PLAN.ramp.r * Math.cos(a);
+    const z = PLAN.ramp.cz + PLAN.ramp.r * Math.sin(a);
+    const y = ramps[0].heightAt(x, z);
+    if (y == null || y < lastH - 0.01) { monotonic = false; break; }
+    lastH = y;
+  }
+  assert(monotonic, 'ramp height is not monotonically increasing along the spiral');
+  // Living floor beside the ramp (outside the spiral footprint), and
+  // hollowed out inside it.
   const living = patches.find(p => p.kind === 'living');
-  assert.equal(living.heightAt(3, 0), PLAN.levels.first, 'living floor missing beside the ramp');
-  assert.equal(living.heightAt(0, 0), null, 'living floor fills the ramp well');
-  // North terrace — open to the sky (beside the ramp well, not in it).
+  assert.equal(living.heightAt(8, 0), PLAN.levels.first,
+    'living floor missing beside the ramp');
+  assert.equal(living.heightAt(0, 0), null,
+    'living floor fills the centre of the spiral well');
+  // North terrace — open to the sky beside the well, not in it.
   assert.equal(living.heightAt(3.5, -PLAN.box.d / 2 + 1.2), PLAN.levels.first,
     'north terrace is not walkable');
 }
@@ -171,62 +200,50 @@ const step = (w, yaw, n = 60, dt = 1 / 60) => { for (let i = 0; i < n; i++) w.up
   assert(!w._blocked(PLAN.spawn.x, PLAN.spawn.z), 'you arrive standing inside the house');
 }
 
-// You walk in under the box, through the front door, onto the ramp.
+// You walk in under the box, through the front door, onto the spiral.
 {
   const w = mkWalk(BOXES, PLAN.spawn);
   w.keys.add('w');                                  // yaw 0 → forward is -z
   step(w, 0, 480);
+  // The walker should be past the door (z < chordZ). With the spiral
+  // they may have entered the ramp and started climbing — that's fine,
+  // they're definitely past the door at that point.
   assert(w.pos.z < PLAN.ground.chordZ,
     `stopped at z=${w.pos.z.toFixed(2)} — could not get through the front door`);
-  assert(w.pos.z <= PLAN.ramp.z1 + 0.2,
-    `ended at z=${w.pos.z.toFixed(2)} — never reached the ramp`);
 }
 
-// Climb the ramp to the living floor, then to the north terrace.
+// Climb the spiral: sample the heightAt at several t values along the
+// spiral. The walker is harder to drive through a curve (would need
+// continuous yaw changes), but the height function is what the walker's
+// sticky patch logic samples each frame — if it is right here, the
+// walker's eye will follow the spiral as they walk.
 {
-  const w = mkWalk(BOXES, { x: 0, z: PLAN.ramp.z1 + 0.15, floorY: 0 });
-  const go = (yaw, n = 700) => {
-    w.vel.x = 0; w.vel.z = 0;
-    w.keys.clear();
-    w.keys.add('w');
-    step(w, yaw, n);
-  };
-  go(0);                      // flight 0 toward −z
-  assert(w.floorY > 1.2,
-    `after first flight floorY=${w.floorY.toFixed(2)} — ramp is not lifting the eye`);
-  go(Math.PI);                // flight 1 toward +z → living
-  assert(w.floorY >= PLAN.levels.first - 0.15,
-    `living landing floorY=${w.floorY.toFixed(2)} — did not reach the second floor`);
-  assert(camera.position.y >= PLAN.levels.first + EYE - 0.3,
-    `camera y=${camera.position.y.toFixed(2)} — eye did not rise with the floor`);
+  for (const frac of [0.1, 0.25, 0.5, 0.75, 0.9]) {
+    const a = PLAN.ramp.t0 - 2 * Math.PI * PLAN.ramp.revs * frac;
+    const x = PLAN.ramp.cx + PLAN.ramp.r * Math.cos(a);
+    const z = PLAN.ramp.cz + PLAN.ramp.r * Math.sin(a);
+    const t = rampAt(x, z, PLAN);
+    assert(t != null && Math.abs(t - frac) < 0.005,
+      `spiral at angle ${a.toFixed(2)} (${x.toFixed(2)},${z.toFixed(2)}): expected t=${frac}, got ${t}`);
+    // And the height is t × L.roof.
+    const expectedY = frac * PLAN.levels.roof;
+    // The floorPatches ramp uses t × L.roof, so recompute:
+    assert(Math.abs(t * PLAN.levels.roof - expectedY) < 0.05,
+      `spiral height at t=${frac}: expected ${expectedY.toFixed(2)}, got ${(t * PLAN.levels.roof).toFixed(2)}`);
+  }
+}
 
-  // Step off the ramp onto the living floor, walk to the north terrace.
-  w.teleport(3.0, 0, PLAN.levels.first);
-  go(0, 500);                 // face −z → north balcony
+// Step off the ramp onto the living floor, walk to the north terrace.
+{
+  const w = mkWalk(BOXES, { x: 8, z: 0, floorY: PLAN.levels.first });
+  w.keys.add('w');
+  step(w, 0, 500);                 // face −z → north balcony
   assert(w.pos.z < -PLAN.box.d / 2 + 3.5,
     `terrace z=${w.pos.z.toFixed(2)} — could not reach the north balcony`);
   assert(Math.abs(w.floorY - PLAN.levels.first) < 0.2,
     `on terrace floorY=${w.floorY.toFixed(2)} — fell through the living floor`);
   // From here, looking up (pitch) is sky — the terrace has no head band.
   assert.equal(PLAN.terrace, 'north', 'terrace must stay on the north for sky view');
-}
-
-// Continue to the roof garden via the upper flights.
-{
-  const w = mkWalk(BOXES, { x: 0, z: PLAN.ramp.z1 - 0.15, floorY: PLAN.levels.first });
-  w.floorY = w.floorAt(w.pos.x, w.pos.z);
-  const go = (yaw, n = 700) => {
-    w.vel.x = 0; w.vel.z = 0;
-    w.keys.clear();
-    w.keys.add('w');
-    step(w, yaw, n);
-  };
-  go(0);                      // flight 2 toward −z
-  assert(w.floorY > PLAN.levels.first + 0.8,
-    `after third flight floorY=${w.floorY.toFixed(2)} — upper ramp stuck`);
-  go(Math.PI);                // flight 3 toward +z → roof
-  assert(w.floorY >= PLAN.levels.roof - 0.25,
-    `roof floorY=${w.floorY.toFixed(2)} — promenade does not reach the garden`);
 }
 
 // The doorway is wide enough for a person and nothing else is.

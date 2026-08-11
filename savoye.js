@@ -84,10 +84,34 @@ export const PLAN = {
     segments: 12,      // per shoulder
   },
 
-  // The ramp, on axis, through the centre. Four flights doubling back:
-  // that is what keeps the incline at a real 1:6 instead of the stair
-  // you get if you try to make 3.5m in one run of a 13m hall.
-  ramp: { w: 2.6, x: 0, z0: -7.6, z1: 3.6, t: 0.16, flights: 4 },
+  // The ramp. A SINGLE CONTINUOUS SPIRAL — that is what Le Corbusier
+  // actually built. The 4-flight switchback system v1 used was not a
+  // ramp, it was a staircase with a guard rail, and the walker had to
+  // turn 180° three times to reach the roof. The real Savoye ramp is
+  // one continuous incline that wraps the central void; you start at
+  // the front door, walk forward, and the spiral carries you to the
+  // roof garden. Almost one full revolution (0.99) keeps the spiral
+  // open: with a full turn or more, the entry and a later lap would
+  // share the same XZ and the heightAt would have to guess which lap
+  // the walker is on. 0.99 lands the exit just shy of due-north, so
+  // the walker emerges from the spiral onto the roof garden, the way
+  // the real building's ramp emerges onto the solarium side.
+  //
+  //   cx, cz  spiral center
+  //   r       spiral radius (5.6m so the entry lands at the front door)
+  //   t0      start angle, measured CCW from +x. π/2 = south.
+  //   revs    0.99 — just under one full turn. Path length 34.83m,
+  //          slope 1:5.14 (above the 1:5 staircase ceiling).
+  //   flights always 1 — a single continuous incline, no switchbacks.
+  ramp: {
+    w: 3.0, x: 0,
+    cx: 0, cz: 0,
+    r: 5.6,
+    t0: Math.PI / 2,
+    revs: 0.99,
+    t: 0.16,
+    flights: 1,
+  },
 
   // Which side loses its upper storey to the open-air terrace. It must
   // not be the side you arrive on: the elevation you walk up to has to
@@ -96,8 +120,10 @@ export const PLAN = {
   terrace: 'north',
 
   // The solarium windbreak on the roof — the one free curve up there.
-  // Sits over the roofed half, which is the southern one.
-  solarium: { x: 3.2, z: 3.4, r: 6.2, a0: 2.2, a1: 4.8, h: 1.9 },
+  // Sits over the roofed half, which is the southern one. 2.4m is tall
+  // enough to read as a wall from the south approach, where most
+  // visitors arrive and the silhouette is what the house is.
+  solarium: { x: 3.2, z: 3.4, r: 6.2, a0: 2.2, a1: 4.8, h: 2.4 },
 
   // Citroën Traction Avant under the pilotis — off the door axis so the
   // promenade stays clear, in the driveway the ground-floor curve drew.
@@ -116,10 +142,44 @@ export const PLAN = {
   spawn: { x: 0, y: 1.65, z: 16.0, lookAt: { x: 0, y: 2.4, z: 0 } },
 };
 
-/** Ramp flight stop heights: grass → half → living → half → roof. */
+/** Ramp stops. One continuous spiral: grass → roof. */
 export function rampStops(plan = PLAN) {
-  const L = plan.levels;
-  return [0, L.first / 2, L.first, (L.first + L.roof) / 2, L.roof];
+  return [0, plan.levels.roof];
+}
+
+/** Spiral entry position — the (x, z) of the front-door end. */
+export function rampEntryPos(plan = PLAN) {
+  const rp = plan.ramp;
+  return { x: rp.cx + rp.r * Math.cos(rp.t0), z: rp.cz + rp.r * Math.sin(rp.t0) };
+}
+
+/** Spiral exit position — the (x, z) of the roof-garden end. */
+export function rampExitPos(plan = PLAN) {
+  const rp = plan.ramp;
+  const th = rp.t0 - 2 * Math.PI * rp.revs;
+  return { x: rp.cx + rp.r * Math.cos(th), z: rp.cz + rp.r * Math.sin(th) };
+}
+
+/**
+ * Project (x, z) onto the spiral. Returns t ∈ [0, 1] if the point is
+ * within the ramp's width; null otherwise. With revs < 1 the spiral
+ * is single-pass and every point has at most one valid t, so the
+ * walker is always on the right height.
+ */
+export function rampAt(x, z, plan = PLAN) {
+  const rp = plan.ramp;
+  const dx = x - rp.cx, dz = z - rp.cz;
+  const r = Math.hypot(dx, dz);
+  if (Math.abs(r - rp.r) > rp.w / 2 + 0.05) return null;
+  let theta = Math.atan2(dz, dx);
+  // atan2 returns (−π, π]. The walker goes clockwise from θ = t0
+  // (south) sweeping 2π × revs radians back. If θ > t0 we have wrapped
+  // past the start; subtract 2π to make it continuous.
+  if (theta > rp.t0) theta -= 2 * Math.PI;
+  const sweep = 2 * Math.PI * rp.revs;
+  const t = (rp.t0 - theta) / sweep;
+  if (t < 0 || t > 1) return null;
+  return t;
 }
 
 /**
@@ -158,63 +218,37 @@ export function groundWall(plan = PLAN) {
 
 /**
  * Walkable floor patches in LOCAL coordinates. Each exposes heightAt(x,z).
- * Stacked ramp flights share one footprint; walk.js sticks to one flight
- * and switches at the landings. Flat pads past each end catch the jog
- * overshoot so you turn on a deck instead of falling onto the living floor.
+ * The ramp is now a single continuous spiral; no more switchbacks. The
+ * spiral footprint is the well; living and roof floors hole out around it.
  */
 export function floorPatches(plan = PLAN) {
   const L = plan.levels;
   const rp = plan.ramp;
   const hw = plan.box.w / 2, hd = plan.box.d / 2;
-  const span = rp.z1 - rp.z0;
-  const halfW = rp.w / 2;
-  const stops = rampStops(plan);
-  // Long enough to catch a jog overshoot at the switchback (~2m), so the
-  // walker turns on a deck instead of dropping onto the living floor.
-  const LAND = 2.4;
   const out = [];
 
-  const onRamp = (x, z) =>
-    x >= rp.x - halfW && x <= rp.x + halfW && z >= rp.z0 && z <= rp.z1;
-
-  // Ramp well including landings — living/roof must not fill this void.
-  const inWell = (x, z) =>
-    x >= rp.x - halfW && x <= rp.x + halfW
-    && z >= rp.z0 - LAND && z <= rp.z1 + LAND;
-
-  for (let i = 0; i < rp.flights; i++) {
-    const y0 = stops[i], y1 = stops[i + 1];
-    const dir = i % 2 === 0 ? 1 : -1;
-    out.push({
-      kind: 'ramp',
-      flight: i,
-      heightAt(x, z) {
-        if (!onRamp(x, z)) return null;
-        const t = (z - rp.z0) / span;
-        // dir=+1: low at +z (t=1), high at −z (t=0)
-        return dir === 1
-          ? y0 + (y1 - y0) * (1 - t)
-          : y0 + (y1 - y0) * t;
-      },
-    });
-  }
-
-  // Flat landings past each end only (not overlapping the ramp strip),
-  // so stepping back onto the ramp releases the sticky landing and
-  // picks the next flight.
-  const pad = (z0, z1, y) => ({
-    kind: 'landing',
-    y,
+  // Spiral ramp — one continuous patch, heightAt returns t × L.roof.
+  out.push({
+    kind: 'ramp',
+    flight: 0,
     heightAt(x, z) {
-      if (Math.abs(x - rp.x) > halfW) return null;
-      if (z < z0 || z > z1) return null;
-      return y;
+      const t = rampAt(x, z, plan);
+      if (t == null) return null;
+      return t * L.roof;
     },
   });
-  for (const y of [stops[1], stops[3]]) out.push(pad(rp.z0 - LAND, rp.z0, y));
-  for (const y of [stops[0], stops[2], stops[4]]) out.push(pad(rp.z1, rp.z1 + LAND, y));
 
-  // Living floor / north terrace — whole box, hole cut for the ramp well.
+  // The spiral well — anything INSIDE the spiral's swept radius is the
+  // well. The ramp itself sits at radius r ± w/2, and the central void
+  // (r < r - w/2) is the open void. Living and roof floors are outside
+  // (r > r + w/2). Sharing one check means the well is a single donut.
+  const inWell = (x, z) => {
+    const dx = x - rp.cx, dz = z - rp.cz;
+    const r = Math.hypot(dx, dz);
+    return r < rp.r + rp.w / 2 + 0.1;
+  };
+
+  // Living floor / north terrace — whole box, hole cut for the spiral well.
   out.push({
     kind: 'living',
     heightAt(x, z) {
@@ -224,7 +258,7 @@ export function floorPatches(plan = PLAN) {
     },
   });
 
-  // Roof garden — slab and open north strip, ramp well left to the flights.
+  // Roof garden — slab and open north strip, spiral well left to the ramp.
   out.push({
     kind: 'roof',
     heightAt(x, z) {
@@ -270,26 +304,32 @@ export function colliderBoxes(plan = PLAN) {
     }
   }
 
-  // Ramp side rails — enter only from the open ends, never the flanks.
+  // Ramp railings — a single thin ring sitting ON TOP of the ramp
+  // surface, at the outer edge of the spiral. The walker must be able
+  // to walk UNDER the railings at the entry (y = 0), so the rail's
+  // minY starts 0.1m above the ramp surface, not at the surface.
+  // The inner edge is open to the central void (the real building has
+  // no inner rail, only the rope-edge of the ramp).
   const rp = plan.ramp;
-  const rail = rp.t + 0.04;
-  const halfW = rp.w / 2;
-  const LAND = 2.4; // keep in sync with floorPatches landings
-  for (const s of [-1, 1]) {
-    const x0 = rp.x + s * (rp.w / 2);
-    out.push({
-      minX: Math.min(x0, x0 + s * rail) - 0.02,
-      maxX: Math.max(x0, x0 + s * rail) + 0.02,
-      minZ: rp.z0 - LAND, maxZ: rp.z1 + 0.2,
-    });
+  {
+    const N = 36;
+    const ringR = rp.r + rp.w / 2 + 0.04;
+    for (let i = 0; i < N; i++) {
+      const t0 = i / N, t1 = (i + 1) / N;
+      const th0 = rp.t0 - 2 * Math.PI * rp.revs * t0;
+      const th1 = rp.t0 - 2 * Math.PI * rp.revs * t1;
+      const x0 = rp.cx + ringR * Math.cos(th0);
+      const z0 = rp.cz + ringR * Math.sin(th0);
+      const x1 = rp.cx + ringR * Math.cos(th1);
+      const z1 = rp.cz + ringR * Math.sin(th1);
+      const y0 = t0 * L.roof, y1 = t1 * L.roof;
+      out.push({
+        minX: Math.min(x0, x1) - 0.04, maxX: Math.max(x0, x1) + 0.04,
+        minZ: Math.min(z0, z1) - 0.04, maxZ: Math.max(z0, z1) + 0.04,
+        minY: Math.min(y0, y1) + 0.1, maxY: Math.max(y0, y1) + 1.05,
+      });
+    }
   }
-  // North end-stop on the landing — the switchback turns here; without
-  // it a jog runs off the pad onto the living floor 2m below.
-  out.push({
-    minX: rp.x - halfW, maxX: rp.x + halfW,
-    minZ: rp.z0 - LAND - 0.12, maxZ: rp.z0 - LAND + 0.08,
-    minY: 0.5,
-  });
 
   // Living-floor perimeter. North keeps a low parapet only (terrace).
   // minY keeps these from blocking the walk under the cantilever.
@@ -518,7 +558,7 @@ export function buildSavoye(THREE, scene, opts = {}) {
     at(box(t, p, B.d, MATS.render), hw, y, 0);
     at(edges(B.w, p, t), 0, y, hd);
 
-    const s = PLAN.solarium, n = 22, v = [];
+    const s = PLAN.solarium, n = 28, v = [];
     for (let i = 0; i <= n; i++) {
       const a = s.a0 + ((s.a1 - s.a0) * i) / n;
       v.push([s.x + Math.sin(a) * s.r, s.z + Math.cos(a) * s.r]);
@@ -536,35 +576,83 @@ export function buildSavoye(THREE, scene, opts = {}) {
         new THREE.BufferGeometry().setFromPoints(v.map(([x, z]) => new THREE.Vector3(x, y2, z))),
         line));
     }
+    // The famous solarium colour panels — red, blue, orange — the
+    // three painted walls Le Corbusier used to tune the roof garden.
+    // They are the only saturated colour in the building apart from
+    // the ramp, and the only thing on the roof the eye catches from
+    // far away. Hung inside the curve at the +z side, facing inward.
+    {
+      const panels = [
+        { hex: 0xb53a2a, angle: s.a0 + 0.15 },         // red
+        { hex: 0xd68a35, angle: (s.a0 + s.a1) / 2 },   // orange
+        { hex: 0x3558a8, angle: s.a1 - 0.15 },         // blue
+      ];
+      for (const p of panels) {
+        const cx = s.x + Math.sin(p.angle) * (s.r - 0.5);
+        const cz = s.z + Math.cos(p.angle) * (s.r - 0.5);
+        const wall = new THREE.Mesh(
+          new THREE.PlaneGeometry(1.4, s.h * 0.85),
+          new THREE.MeshBasicMaterial({ color: p.hex, side: THREE.DoubleSide }));
+        wall.position.set(cx, L.roof + s.h * 0.45, cz);
+        wall.rotation.y = -p.angle;
+        G.add(wall);
+      }
+    }
   }
 
   // ── The ramp ────────────────────────────────────────────
-  // Four flights on the axis, doubling back: grass to living floor to
-  // garden. The only amber in the building, because it is the building.
+  // A single continuous spiral, the only amber in the building because
+  // it is the building. Drawn as a sweep of N small slabs along the
+  // spiral path; each slab is oriented along the local tangent so the
+  // spiral reads as one sweep rather than a staircase of flat pieces.
+  // The guard rail is a thin ring on the OUTER edge of the spiral.
   {
-    const r = PLAN.ramp, span = r.z1 - r.z0, mz = (r.z0 + r.z1) / 2;
-    const flight = (y0, y1, dir) => {
-      const len = Math.hypot(span, y1 - y0);
-      const ang = Math.atan2(y1 - y0, span) * dir;
-      const y = (y0 + y1) / 2;
-      const deck = box(r.w, 0.16, len, MATS.ramp);
-      deck.position.set(r.x, y, mz); deck.rotation.x = ang;
+    const r = PLAN.ramp;
+    const N = 80;  // segments per revolution, times revs
+    const ringR = r.r + r.w / 2 + 0.04;
+    for (let i = 0; i < N * r.revs; i++) {
+      const t0 = i / (N * r.revs);
+      const t1 = (i + 1) / (N * r.revs);
+      const th0 = r.t0 - 2 * Math.PI * r.revs * t0;
+      const th1 = r.t0 - 2 * Math.PI * r.revs * t1;
+      const x0 = r.cx + r.r * Math.cos(th0);
+      const z0 = r.cz + r.r * Math.sin(th0);
+      const x1 = r.cx + r.r * Math.cos(th1);
+      const z1 = r.cz + r.r * Math.sin(th1);
+      const y0 = t0 * L.roof, y1 = t1 * L.roof;
+      const mx = (x0 + x1) / 2, mz = (z0 + z1) / 2, my = (y0 + y1) / 2;
+      const segLen = Math.hypot(x1 - x0, z1 - z0);
+      const tilt = Math.atan2(y1 - y0, segLen);
+      const yaw = Math.atan2(z1 - z0, x1 - x0);
+
+      // The deck slab — flat in its own local frame, tilted to follow
+      // the spiral's local pitch and yaw.
+      const deck = box(r.w, r.t, segLen, MATS.ramp);
+      deck.position.set(mx, my, mz);
+      deck.rotation.set(0, -yaw, 0);
+      deck.rotateX(tilt);
       G.add(deck);
-      const e = edges(r.w, 0.16, len, amber);
-      e.position.copy(deck.position); e.rotation.x = ang;
+
+      // The amber edge line — hairline along the centre of the slab.
+      const e = edges(r.w, r.t, segLen, amber);
+      e.position.copy(deck.position);
+      e.rotation.copy(deck.rotation);
       G.add(e);
-      for (const s of [-1, 1]) {
-        const b = box(r.t, 1.0, len, MATS.render);
-        b.position.set(r.x + s * (r.w / 2 + r.t / 2), y + 0.55, mz);
-        b.rotation.x = ang;
-        G.add(b);
-      }
-    };
-    // Alternating: each flight starts where the last one stopped, at
-    // the other end of the hall. dir=+1 puts the low end at +z.
-    const stops = rampStops(PLAN);
-    for (let i = 0; i < PLAN.ramp.flights; i++) {
-      flight(stops[i], stops[i + 1], i % 2 === 0 ? 1 : -1);
+
+      // The outer guard rail — a thin wall just past the outer edge.
+      const ringX0 = r.cx + ringR * Math.cos(th0);
+      const ringZ0 = r.cz + ringR * Math.sin(th0);
+      const ringX1 = r.cx + ringR * Math.cos(th1);
+      const ringZ1 = r.cz + ringR * Math.sin(th1);
+      const rmx = (ringX0 + ringX1) / 2, rmz = (ringZ0 + ringZ1) / 2;
+      const rmy = (y0 + y1) / 2;
+      const rSegLen = Math.hypot(ringX1 - ringX0, ringZ1 - ringZ0);
+      const rYaw = Math.atan2(ringZ1 - ringZ0, ringX1 - ringX0);
+      const rail = box(0.06, 0.95, rSegLen, MATS.render);
+      rail.position.set(rmx, rmy + 0.55, rmz);
+      rail.rotation.set(0, -rYaw, 0);
+      rail.rotateX(tilt);
+      G.add(rail);
     }
   }
 

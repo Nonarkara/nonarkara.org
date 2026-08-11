@@ -82,6 +82,24 @@ const WEBGL2_OK = hasWebGL2();
 //                    shoot games, and Fallingwater pass 3 (stone
 //                    coursing, shadow voids under the trays, warmer
 //                    ochre).
+//   4.28 (2026-08-11) Villa Savoye's ramp is now a SINGLE CONTINUOUS
+//                    SPIRAL — what Le Corbusier actually built. The
+//                    4-flight switchback required three 180° turns to
+//                    reach the roof and felt like a staircase with a
+//                    guard rail; the spiral wraps the central void in
+//                    0.99 turns (path 34.83m, slope 1:5.14), the walker
+//                    turns gently to follow the curve, and the eye
+//                    rises continuously from the front door to the
+//                    roof garden. The 0.99 (just under a full turn)
+//                    keeps the spiral single-pass: every (x, z) on the
+//                    path has one unique heightAt, so the sticky-patch
+//                    walker is always on the right height. Solarium
+//                    also earns its silhouette: 1.9m → 2.4m wall, 22
+//                    → 28 segments, and Le Corbusier's three colour
+//                    panels (red, blue, orange) hung inside the
+//                    curve — the only saturated colour on the roof,
+//                    and the thing the eye catches from the south
+//                    approach.
 //   4.27 (2026-08-11) Farnsworth earns its site — the two Black Locust
 //                    trees on the south lawn (procedural, ~15m, irregular
 //                    canopies in five overlapping spheres) stand where the
@@ -312,7 +330,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.27';
+const NON_VERSION = '4.28';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
