@@ -102,7 +102,10 @@ export const PLAN = {
   // Citroën Traction Avant under the pilotis — off the door axis so the
   // promenade stays clear, in the driveway the ground-floor curve drew.
   car: {
-    x: 4.4, z: 7.4, yaw: -0.55,
+    // On the drive apron, just clear of the ground-floor curve — where
+    // the photographs put the car, and where a 5.2m truck can actually
+    // pull away without kissing the entrance wall.
+    x: 7.6, z: 11.6, yaw: -2.35,
     body: { l: 4.6, w: 1.72, h: 0.72 },
     cabin: { l: 2.2, w: 1.55, h: 0.55, z: -0.15 },
     wheel: { r: 0.32, t: 0.18, axle: 1.45, track: 0.72 },
@@ -309,19 +312,9 @@ export function colliderBoxes(plan = PLAN) {
   out.push({ minX: -hw - wt, maxX: -hw + wt, minZ: -hd, maxZ: hd, minY: pLo, maxY: pHi });
   out.push({ minX: hw - wt, maxX: hw + wt, minZ: -hd, maxZ: hd, minY: pLo, maxY: pHi });
 
-  // The car under the pilotis — solid enough to walk around, not through.
-  {
-    const c = plan.car, b = c.body;
-    const ca = Math.cos(c.yaw), sa = Math.sin(c.yaw);
-    // Axis-aligned bounds of the rotated footprint (ponytail AABB).
-    const hx = (Math.abs(ca) * b.l + Math.abs(sa) * b.w) / 2;
-    const hz = (Math.abs(sa) * b.l + Math.abs(ca) * b.w) / 2;
-    out.push({
-      minX: c.x - hx, maxX: c.x + hx,
-      minZ: c.z - hz, maxZ: c.z + hz,
-      maxY: 1.6,
-    });
-  }
+  // The car's collider is DYNAMIC now — the parking bay hosts the
+  // drivable Cybertruck (drive.js), a world-level object whose solid
+  // box follows wherever it is parked. app.js owns that box.
 
   return out;
 }
@@ -431,49 +424,12 @@ export function buildSavoye(THREE, scene, opts = {}) {
     }
   }
 
-  // ── Traction Avant under the pilotis ────────────────────
-  // Low long hood, short cabin, four wheels. Not a mesh library car —
-  // the silhouette the photographs remember, parked in the driveway
-  // the ground-floor curve was drawn around.
-  {
-    const c = PLAN.car, b = c.body, cab = c.cabin, w = c.wheel;
-    const car = new THREE.Group();
-    car.position.set(c.x, 0, c.z);
-    car.rotation.y = c.yaw;
-    G.add(car);
-
-    const body = new THREE.Mesh(new THREE.BoxGeometry(b.w, b.h, b.l), MATS.car);
-    body.position.y = w.r + b.h / 2;
-    car.add(body);
-    const bodyEdges = new THREE.LineSegments(
-      new THREE.EdgesGeometry(new THREE.BoxGeometry(b.w, b.h, b.l)), line);
-    bodyEdges.position.copy(body.position);
-    car.add(bodyEdges);
-
-    const cabin = new THREE.Mesh(
-      new THREE.BoxGeometry(cab.w, cab.h, cab.l), MATS.glass);
-    cabin.position.set(0, w.r + b.h + cab.h / 2 - 0.02, cab.z);
-    car.add(cabin);
-
-    // Hood crease — one amber hairline, the car's only accent nod to
-    // the ramp (chrome catch light, not a second brand colour).
-    const hood = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0, w.r + b.h + 0.01, b.l / 2 - 0.1),
-        new THREE.Vector3(0, w.r + b.h + 0.01, 0.3),
-      ]), amber);
-    car.add(hood);
-
-    for (const zx of [-w.axle, w.axle]) {
-      for (const s of [-1, 1]) {
-        const wheel = new THREE.Mesh(
-          new THREE.CylinderGeometry(w.r, w.r, w.t, 10), MATS.car);
-        wheel.rotation.z = Math.PI / 2;
-        wheel.position.set(s * w.track, w.r, zx);
-        car.add(wheel);
-      }
-    }
-  }
+  // ── The parking bay under the pilotis ────────────────────
+  // PLAN.car is the pose. The vehicle itself is the estate's drivable
+  // Cybertruck — built at world level by drive.js so it can leave —
+  // and it parks exactly where the Traction Avant used to sit, in the
+  // driveway the ground-floor curve was drawn around. The curve keeps
+  // its reason; the car keeps up with the estate.
 
   // ── First-floor slab, cantilevered, with a ramp well ────
   {

@@ -259,7 +259,7 @@ export function floorPatches(plan = PLAN) {
 export function paint(M, p) {
   // The trays STAY pale — they are the building. 70% ochre concrete,
   // 30% whatever the daylight says travertine is right now.
-  M.terrace.color.setHex(mix(0xcfc6b0, p.travertine, 0.3));
+  M.terrace.color.setHex(mix(0xd6cba8, p.travertine, 0.28));
   M.stone.color.setHex(mix(0x453f36, p.bg, 0.2));
   M.glass.color.setHex(p.water);
   M.water.color.setHex(mix(p.water, 0x3a6a7a, 0.4));
@@ -297,7 +297,7 @@ export function buildFallingwater(THREE, scene, opts = {}) {
 
   const MATS = {
     stone:   mat(dark ? 0x3d3830 : 0x6a6558),
-    terrace: mat(dark ? 0x565248 : 0xcfc6b0),
+    terrace: mat(dark ? 0x5c5748 : 0xd6cba8),
     glass:   mat(dark ? 0x080d12 : 0xa8bcc8, 0.18),
     water:   mat(dark ? 0x1a3040 : 0x5a8a9a, 0.5),
     hill:    mat(dark ? 0x1c211b : 0x39413a),
@@ -361,6 +361,40 @@ export function buildFallingwater(THREE, scene, opts = {}) {
   const c2 = PLAN.core2;
   at(box(c2.w, c2.h, c2.d, MATS.stone), c2.x, c2.h / 2, c2.z);
   at(edges(c2.w, c2.h, c2.d), c2.x, c2.h / 2, c2.z);
+
+  // Stone COURSING — Wright's Pottsville sandstone is laid in long
+  // rough strata, and those horizontal lines are half of what the eye
+  // recognises as "that chimney". Hairline loops every course.
+  {
+    const coursePts = [];
+    const loop = (m, y) => {
+      const hx = m.w / 2 + 0.012, hz = m.d / 2 + 0.012;
+      const corners = [
+        [m.x - hx, m.z - hz], [m.x + hx, m.z - hz],
+        [m.x + hx, m.z + hz], [m.x - hx, m.z + hz],
+      ];
+      for (let i = 0; i < 4; i++) {
+        const a = corners[i], b = corners[(i + 1) % 4];
+        coursePts.push(new THREE.Vector3(a[0], y, a[1]), new THREE.Vector3(b[0], y, b[1]));
+      }
+    };
+    for (let y = 0.55; y < c.h; y += 0.55) loop(c, y);
+    for (let y = 0.55; y < c2.h; y += 0.55) loop(c2, y);
+    const courseMat = new THREE.LineBasicMaterial({
+      color: dark ? 0x5c5346 : 0x8a8070, transparent: true, opacity: 0.35,
+    });
+    G.add(new THREE.LineSegments(
+      new THREE.BufferGeometry().setFromPoints(coursePts), courseMat));
+  }
+
+  // Shadow voids — the near-black glass volumes between the trays.
+  // The trays read as floating precisely because what carries them
+  // reads as nothing. One dark box under each upper tray.
+  const voidMat = mat(dark ? 0x05080b : 0x14181c, 0.92);
+  at(box(5.4, PLAN.upperY - PLAN.slabT - PLAN.livingY - 0.02, 3.4, voidMat),
+    PLAN.upper.x + 0.4, (PLAN.livingY + PLAN.upperY - PLAN.slabT) / 2, -0.4);
+  at(box(3.6, PLAN.study.y - PLAN.slabT - PLAN.upperY - 0.02, 2.8, voidMat),
+    PLAN.study.x + 0.3, (PLAN.upperY + PLAN.study.y - PLAN.slabT) / 2, PLAN.study.z + 0.3);
   // Amber hearth — the one accent.
   const hearth = box(1.4, 1.1, 0.12, mat(0xf59e0b, 0.35));
   at(hearth, c.x + c.w / 2 - 0.05, PLAN.livingY + 0.7, c.z + 0.4);

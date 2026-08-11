@@ -94,10 +94,15 @@ assert.equal(PLAN.levels.firstTop - PLAN.levels.first, 3.0,
   assert(c.z < PLAN.spawn.z, 'the car is not under the house — it is on the lawn');
   assert(Math.abs(c.x) > PLAN.ground.door + 0.8,
     'the car is parked in the doorway');
-  // Collider present near the car.
-  const hit = colliderBoxes(PLAN).some(b =>
-    b.minX <= c.x && b.maxX >= c.x && b.minZ <= c.z && b.maxZ >= c.z && (b.maxY ?? 99) <= 2);
-  assert(hit, 'no collider under the car — you can walk through it');
+  // The vehicle is the estate's drivable Cybertruck now (drive.js); its
+  // collider is DYNAMIC — app.js keeps a box on the truck wherever it
+  // parks. At module level we hold the bay contract instead: the truck
+  // must fit the bay the plan reserves for it.
+  const { TRUCK } = await import('./drive.js');
+  assert(TRUCK.LEN / 2 + Math.abs(c.x) < PLAN.box.w / 2 + 1.6,
+    'the truck overhangs the cantilever');
+  assert(TRUCK.WID < PLAN.ground.fillet,
+    'the truck is wider than the turning bay that was drawn for a car');
 }
 
 // ── The wall closes: every segment meets the next ─────────

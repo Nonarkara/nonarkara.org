@@ -14,6 +14,10 @@ import {
   cardinal as astroCardinal, moonHorizontal, moonPhase, solarEvents, sunHorizontal,
 } from './astronomy.js';
 import { buildMountains } from './world.js';
+import { buildYard } from './yard.js';
+import { buildCybertruck, Drive, TRUCK } from './drive.js';
+import { buildArcade, KIOSKS, colliderBoxes as kioskColliders } from './arcade.js';
+import { buildExhibit } from './exhibit.js';
 import { poemForDate } from './poems.js';
 import * as STARLORE_MOD from './starlore.js';
 
@@ -52,6 +56,19 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.23 (2026-08-11) the estate becomes a place you DO things —
+//                    departure-board pool (14 instruments, split-flap
+//                    rows, status column; plate finally fits the water),
+//                    arcade kiosks in the Glass House (Non-Gaming System,
+//                    playable in-modal), the Bangkok Room on Savoye's
+//                    living floor (9 real BKKx photographs), the parked
+//                    Traction Avant replaced by a DRIVABLE Cybertruck
+//                    (T or tap to enter, bicycle physics, chase camera),
+//                    Harvard-Yard paths between all five houses, a
+//                    soccer pitch and a basketball court with aim-and-
+//                    shoot games, and Fallingwater pass 3 (stone
+//                    coursing, shadow voids under the trays, warmer
+//                    ochre).
 //   4.22 (2026-08-11) Fallingwater actually falls — full rebuild from the
 //                    owner's verdict "looks nothing like the Falling
 //                    Water": crossed cantilever trays (living broad,
@@ -254,7 +271,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.22';
+const NON_VERSION = '4.23';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -1090,8 +1107,128 @@ const WALK = new Walk(
 WALK.attach();
 window.__walk = WALK;
 
-// ── Interactables registry ───────────────────────────────
+// ════════════════════════════════════════════════════════
+// THE YARD, THE ARCADE, THE BANGKOK ROOM, THE TRUCK
+// Everything the estate does between its houses. Built after the
+// walker so they can push their solids into the same collider array —
+// one list, one truth, for walking AND driving.
+// ════════════════════════════════════════════════════════
 const INTERACTABLES = [];
+const INTERACTABLES_PENDING = INTERACTABLES;   // same list, honest name below
+const YARD = buildYard(THREE, scene, { dark: true });
+WALK.colliders.push(...YARD.colliders);
+window.__yard = YARD;
+
+// Arcade kiosks inside the Glass House (local coords ride its group).
+const ARCADE = buildArcade(THREE, GLASS.group, GLASS_PLAN, { dark: true });
+{
+  const o = GLASS_PLAN.origin;
+  for (const b of kioskColliders(GLASS_PLAN)) {
+    WALK.colliders.push({
+      minX: b.minX + o.x, maxX: b.maxX + o.x,
+      minZ: b.minZ + o.z, maxZ: b.maxZ + o.z,
+    });
+  }
+  ARCADE.kiosks.forEach((k, i) => {
+    k.holder.userData = { kind: 'arcade', key: KIOSKS[i].key, def: KIOSKS[i], hit: k.hit };
+    INTERACTABLES_PENDING.push(k.holder);
+  });
+}
+window.__arcade = ARCADE;
+
+// The Bangkok Room on Savoye's living floor.
+const EXHIBIT = buildExhibit(THREE, SAVOYE.group, SAVOYE_PLAN, { dark: true });
+EXHIBIT.frames.forEach((f) => {
+  f.holder.userData = { kind: 'exhibit', key: f.photo.file, photo: f.photo, hit: f.hit };
+  INTERACTABLES_PENDING.push(f.holder);
+});
+window.__exhibit = EXHIBIT;
+
+// Shot targets: goal mouths and hoops, clickable from anywhere near.
+for (const target of YARD.targets) {
+  const hitMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(target.hit.w, target.hit.h, target.hit.d),
+    new THREE.MeshBasicMaterial({ visible: false }));
+  const g = new THREE.Group();
+  g.position.set(target.x, target.kind === 'hoop' ? target.y : target.hit.h / 2, target.z);
+  g.add(hitMesh);
+  g.userData = { kind: 'shoot', key: target.kind + target.side, target, hit: hitMesh };
+  scene.add(g);
+  INTERACTABLES_PENDING.push(g);
+}
+
+// The Cybertruck, parked in Savoye's bay, drivable across the estate.
+const TRUCK_BUILD = buildCybertruck(THREE, { dark: true });
+const TRUCK_POSE = {
+  x: SAVOYE_PLAN.origin.x + SAVOYE_PLAN.car.x,
+  z: SAVOYE_PLAN.origin.z + SAVOYE_PLAN.car.z,
+  yaw: SAVOYE_PLAN.car.yaw,
+};
+TRUCK_BUILD.group.position.set(TRUCK_POSE.x, 0, TRUCK_POSE.z);
+TRUCK_BUILD.group.rotation.y = TRUCK_POSE.yaw;
+scene.add(TRUCK_BUILD.group);
+const DRIVE = new Drive(camera, WALK.colliders, TRUCK_POSE);
+DRIVE.group = TRUCK_BUILD.group;
+DRIVE.keys = WALK.keys;
+window.__drive = DRIVE;
+// The truck's own solid — a mutable box the walker collides with,
+// skipped by the truck itself, moved whenever it parks.
+const TRUCK_BOX = { minX: 0, maxX: 0, minZ: 0, maxZ: 0, maxY: 1.9, skipForTruck: true };
+function parkTruckBox() {
+  const r = Math.max(TRUCK.LEN, TRUCK.WID) / 2;
+  TRUCK_BOX.minX = DRIVE.pos.x - r; TRUCK_BOX.maxX = DRIVE.pos.x + r;
+  TRUCK_BOX.minZ = DRIVE.pos.z - r; TRUCK_BOX.maxZ = DRIVE.pos.z + r;
+}
+parkTruckBox();
+WALK.colliders.push(TRUCK_BOX);
+{
+  const hit = new THREE.Mesh(
+    new THREE.BoxGeometry(TRUCK.WID + 0.6, 2.1, TRUCK.LEN + 0.6),
+    new THREE.MeshBasicMaterial({ visible: false }));
+  hit.position.y = 1.0;
+  TRUCK_BUILD.group.add(hit);
+  TRUCK_BUILD.group.userData = { kind: 'truck', key: 'cybertruck', hit };
+  INTERACTABLES_PENDING.push(TRUCK_BUILD.group);
+}
+
+function yardToast(msg, ms = 2600) {
+  const el = document.getElementById('discover-toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('in');
+  clearTimeout(yardToast._t);
+  yardToast._t = setTimeout(() => el.classList.remove('in'), ms);
+}
+
+function enterTruck() {
+  if (DRIVE.active) return;
+  DRIVE.active = true;
+  WALK.enabled = false;
+  document.body.classList.add('driving');
+  yardToast('W/S DRIVE · A/D STEER · TAP TRUCK OR PRESS T TO STEP OUT');
+}
+function exitTruck() {
+  if (!DRIVE.active) return;
+  DRIVE.active = false;
+  parkTruckBox();
+  const s = DRIVE.exitSpot();
+  WALK.enabled = true;
+  WALK.teleport(s.x, s.z);
+  document.body.classList.remove('driving');
+  yardToast('PARKED');
+}
+window.addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() !== 't') return;
+  const t2 = e.target;
+  if (t2 && (t2.tagName === 'INPUT' || t2.tagName === 'TEXTAREA' || t2.isContentEditable)) return;
+  if (DRIVE.active) { exitTruck(); return; }
+  const d = Math.hypot(camera.position.x - DRIVE.pos.x, camera.position.z - DRIVE.pos.z);
+  if (d < 6) enterTruck();
+});
+window.__enterTruck = enterTruck;
+window.__exitTruck = exitTruck;
+
+// ── Interactables registry (declared above the yard block) ──
 function register(group, ud) {
   group.userData = { ...ud };
   INTERACTABLES.push(group);
@@ -3075,7 +3212,54 @@ function onClick(e) {
       try { window.__discover?.('portraits'); } catch (_) {}
       try { openPortraitGallery(); } catch (_) {}
     }
+  } else if (ud.kind === 'arcade') {
+    try { window.__discover?.('arcade'); } catch (_) {}
+    openArcadeModal(ud.def);
+  } else if (ud.kind === 'exhibit') {
+    try { window.__discover?.('bkkroom'); } catch (_) {}
+    openExhibitModal(ud.photo);
+  } else if (ud.kind === 'truck') {
+    if (window.__drive?.active) { try { window.__exitTruck?.(); } catch (_) {} }
+    else {
+      const d = Math.hypot(
+        camera.position.x - window.__drive.pos.x,
+        camera.position.z - window.__drive.pos.z);
+      if (d < 7) { try { window.__discover?.('truck'); } catch (_) {} window.__enterTruck?.(); }
+    }
+  } else if (ud.kind === 'shoot') {
+    const p = hits[0].point;
+    const from = {
+      x: camera.position.x, y: Math.max(1.0, camera.position.y - 0.35), z: camera.position.z,
+    };
+    const res = window.__yard?.shoot(from, { x: p.x, y: p.y, z: p.z }, ud.target);
+    if (res == null) {
+      // Out of range — the game starts when you're on the field.
+    }
   }
+}
+
+/** Arcade kiosk → the Non-Gaming System, playable in place. */
+function openArcadeModal(def) {
+  const html = `
+    <div class="modal-arcade">
+      <iframe src="${def.url}" title="${def.label} — Non-Gaming System"
+        style="width:100%;height:min(62vh,560px);border:1px solid var(--line);background:#0a0e14"
+        loading="lazy" allow="fullscreen"></iframe>
+    </div>
+    <div class="modal-domain" style="margin-top:10px">
+      <a href="${def.url}" target="_blank" rel="noopener">games.nonarkara.org · ${def.label} — open full screen →</a>
+    </div>`;
+  showModal('ARCADE · NON-GAMING SYSTEM', def.label, html);
+}
+
+/** Exhibition frame → the photograph, full width, with its story. */
+function openExhibitModal(photo) {
+  const html = `
+    <img src="bkk-photos/${photo.file}" alt="${photo.title}"
+      style="width:100%;height:auto;border:1px solid var(--line)">
+    <div class="modal-cap" style="margin-top:10px;text-align:left;line-height:1.6">${photo.cap}</div>
+    <div class="modal-domain" style="margin-top:8px">DR NON · BANGKOK · FROM THE BKKX ARCHIVE</div>`;
+  showModal('THE BANGKOK ROOM · VILLA SAVOYE', photo.title, html);
 }
 window.addEventListener('click', onClick);
 window.addEventListener('touchend', onClick);
@@ -5250,7 +5434,9 @@ function animate() {
         ud.frame.material = matBright;
         ud.screenTargetOpacity = 0.82;
       } else {
-        ud.lines.forEach(l => l.material = ud.baseMaterial);
+        // Newer interactables (arcade, exhibit, truck, shoot) carry no
+        // hover lines — their geometry is its own signifier.
+        (ud.lines || []).forEach(l => l.material = ud.baseMaterial);
       }
     }
     hovered = hit;
@@ -5296,6 +5482,18 @@ function animate() {
           tip.innerHTML = `TOTAL DOMINATION<span class="url">tap · gallery focus · 25 min</span>`;
         else
           tip.innerHTML = `DR NON · PORTRAITS<span class="url">tap · view + share hi-res</span>`;
+      } else if (ud.kind === 'arcade') {
+        tip.innerHTML = `▚ ${ud.def.label}<span class="url">tap · insert coin · non-gaming system</span>`;
+      } else if (ud.kind === 'exhibit') {
+        tip.innerHTML = `${ud.photo.title}<span class="url">tap · the bangkok room</span>`;
+      } else if (ud.kind === 'truck') {
+        tip.innerHTML = window.__drive?.active
+          ? `CYBERTRUCK<span class="url">tap · step out</span>`
+          : `CYBERTRUCK<span class="url">tap or press T · drive the estate</span>`;
+      } else if (ud.kind === 'shoot') {
+        tip.innerHTML = ud.target.kind === 'goal'
+          ? `THE GOAL<span class="url">tap the mouth · score</span>`
+          : `THE HOOP<span class="url">tap the ring · swish</span>`;
       }
       tip.classList.add('in');
       document.body.style.cursor = 'pointer';
@@ -5347,19 +5545,32 @@ function animate() {
       * dampingFactor(5, dtLook);
   }
 
-  const eff = LOOK.tick(dtLook);
-  camera.rotation.set(eff.pitch, eff.yaw, 0);
+  // Driving owns the camera — chase view, lookAt the truck, your yaw is
+  // the steering wheel. Everything else in the loop (falls, pool,
+  // daylight, screens) keeps ticking: the world does not freeze because
+  // you are in a car; that is rather the point of the car.
+  const driving = !!window.__drive?.active;
+  const eff = driving ? { pitch: camera.rotation.x, yaw: camera.rotation.y }
+                      : LOOK.tick(dtLook);
+  if (!driving) camera.rotation.set(eff.pitch, eff.yaw, 0);
 
   // The sky and the ground are places, not modes: how much of each you
   // see comes from nothing but where you are looking. Look up — stars.
   // Look down — the map of where you stand. Look back — the room.
-  window.__skyBlend = overheadBlend(eff.pitch);
-  window.__groundBlend = underfootBlend(eff.pitch);
+  window.__skyBlend = driving ? 0 : overheadBlend(eff.pitch);
+  window.__groundBlend = driving ? 0 : underfootBlend(eff.pitch);
 
   // Walking owns the camera's position when it is on; otherwise the room
   // keeps its slow idle float. Movement is relative to where you are
   // looking, so it reads the yaw the line above just settled.
-  if (window.__tickTravel && window.__tickTravel()) {
+  if (driving) {
+    const D = window.__drive;
+    D.stick = WALK.stick;
+    const now = performance.now();
+    const dt = Math.min((now - (window.__lastWalkT || now)) / 1000, 0.05);
+    window.__lastWalkT = now;
+    D.update(dt);
+  } else if (window.__tickTravel && window.__tickTravel()) {
     // Travelling between buildings owns the camera outright — input is
     // ignored for the 1.6s, which is why it cannot fight the walker.
     window.__lastWalkT = performance.now();
@@ -5373,6 +5584,8 @@ function animate() {
     camera.position.y = prefersReducedMotion ? 1.7 : (1.7 + Math.sin(t * 0.4) * 0.015);
   }
   if (window.__tickWeather) window.__tickWeather();
+  if (window.__yard) window.__yard.tick(dtLook);
+  if (window.__arcade) window.__arcade.tick(dtLook);
 
   // The pool brightens as you look down at it — the way water only
   // shows you anything when you stand over it and lower your eyes. It
@@ -7157,6 +7370,7 @@ if (WEBGL_OK && PAVILION) {
     if (SAVOYE) paintSavoye(SAVOYE.materials, p);
     if (FARNSWORTH) paintFarn(FARNSWORTH.materials, p);
     if (FALLINGWATER) paintFall(FALLINGWATER.materials, p);
+    if (window.__yard) window.__yard.paint(p);
     _worldBg.setHex(p.bg);
     if (scene.background) scene.background.copy(_worldBg);
     else scene.background = _worldBg.clone();
