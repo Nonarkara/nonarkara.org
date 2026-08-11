@@ -24,6 +24,12 @@ export const SECRETS = [
   { id: 'chandelier',  title: 'day / night',      whisper: 'the light above' },
   { id: 'konami',      title: '↑↑↓↓←→←→BA',       whisper: 'an old code' },
   { id: 'tv',          title: 'the work',         whisper: 'any screen on the wall' },
+  // The estate does things now, and finding them counts.
+  { id: 'arcade',      title: 'insert coin',      whisper: 'the glass house has cabinets' },
+  { id: 'bkkroom',     title: 'bangkok, framed',  whisper: 'savoye’s living floor' },
+  { id: 'truck',       title: 'the keys',         whisper: 'something is parked' },
+  { id: 'goal',        title: 'back of the net',  whisper: 'there is a pitch' },
+  { id: 'hoop',        title: 'swish',            whisper: 'there is a court' },
 ];
 
 function readFound() {

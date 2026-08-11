@@ -3109,6 +3109,36 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
        already rests when a phone is held in two hands. */
     .walk-btn.on { color: var(--amber); border-color: var(--amber); }
 
+    /* ── Contextual chips: LEVEL, DRIVE, SHOOT ────────────────
+       All three are hidden until they mean something. A control that
+       does nothing is worse than no control (Norman: a signifier that
+       lies). LEVEL only exists on a device with motion sensors; DRIVE
+       only when the truck is within reach; SHOOT only with a ball in
+       your hands. Desktop keeps them on the right rail; the phone block
+       above moves LEVEL over the stick. */
+    .level-chip, .drive-chip, .shoot-chip { display: none; }
+    body[data-gyro="1"][data-view="room"] .level-chip,
+    body[data-near-truck="1"][data-view="room"] .drive-chip,
+    body[data-holding="1"][data-view="room"] .shoot-chip { display: inline-flex; }
+    .level-chip  { top: calc(150px + var(--sat)); }
+    .drive-chip  { top: calc(198px + var(--sat)); }
+    .shoot-chip  { top: calc(246px + var(--sat)); }
+    .shoot-chip  { color: var(--amber); border-color: var(--amber); }
+    body.driving .drive-chip { color: var(--amber); border-color: var(--amber); }
+
+    /* On a phone the three contextual chips stack above the stick, in the
+       right thumb's arc, and never under it. */
+    @media (max-width: 640px) {
+      body[data-view="room"] .drive-chip {
+        right: calc(22px + var(--sar)); left: auto;
+        bottom: calc(264px + var(--sab)); top: auto;
+      }
+      body[data-view="room"] .shoot-chip {
+        right: calc(22px + var(--sar)); left: auto;
+        bottom: calc(312px + var(--sab)); top: auto;
+      }
+    }
+
     /* The right rail is a COLUMN. Every chip that anchors top-right
        declares its row here, in one place — WALK, then FOCUS, then the
        language toggle. Before this, WALK and FOCUS both defaulted to the
@@ -3125,9 +3155,14 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
        you still need it to click a TV. */
     body.walking.pointer-locked { cursor: none; }
 
+    /* The stick is on the RIGHT because most people are right-handed and
+       the dominant thumb should own movement — the reported complaint,
+       and the same reasoning every console controller settled on. The
+       left thumb keeps the cheap taps (PLAN, MENU), which moved over to
+       make room; see the phone block below for the whole reshuffle. */
     .walk-stick {
       position: fixed;
-      left: 22px; bottom: 90px;
+      right: 22px; bottom: 90px;
       z-index: 60;
       opacity: 0; pointer-events: none;
       transition: opacity 0.18s ease-out;
@@ -3238,8 +3273,29 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
       }
       body[data-view="room"] .sky-hint { bottom: 188px; }
       body[data-view="room"] .ground-hint { bottom: 142px; }
-      body[data-view="room"] .discover-chip { left: 14px; bottom: 24px; }
       .nav-pad { bottom: 78px; }
+
+      /* ── The phone room, right-thumb layout ──────────────
+         The thumbstick owns the bottom RIGHT (dominant thumb, movement).
+         Everything that used to live there moves to the left, where the
+         other thumb already rests: PLAN above MENU, then the discovery
+         count above those. Nothing overlaps the 116px stick ring. */
+      body[data-view="room"] .menu-btn {
+        right: auto; left: calc(14px + var(--sal));
+      }
+      body[data-view="room"] .view-toggle {
+        right: auto; left: calc(14px + var(--sal));
+      }
+      body[data-view="room"] #discover-chip {
+        left: calc(14px + var(--sal)); right: auto;
+        bottom: calc(146px + var(--sab)); top: auto;
+        transform: none;
+      }
+      /* RECENTRE sits under the stick's thumb, where a hand already is. */
+      body[data-view="room"] .level-chip {
+        right: calc(22px + var(--sar)); left: auto;
+        bottom: calc(216px + var(--sab)); top: auto;
+      }
 
       /* The phone top strip, measured at 390px and resolved so no edge
          lands on another element:

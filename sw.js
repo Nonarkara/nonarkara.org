@@ -6,7 +6,7 @@
  * for same-origin, so a stale version means users keep the old shell.
  */
 
-const CACHE_VERSION = 'non-2026-08-11-v4.23';
+const CACHE_VERSION = 'non-2026-08-11-v4.24';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 // The app's own code. These are always revalidated when online so a
@@ -16,7 +16,7 @@ const CODE = new Set([
   '/styles.css', '/app.js', '/discover.js', '/sky.js', '/ground.js',
   '/pavilion.js', '/glasshouse.js', '/savoye.js', '/farnsworth.js', '/fallingwater.js',
   '/walk.js', '/daylight.js', '/astronomy.js', '/world.js', '/poems.js', '/starlore.js', '/look.js', '/pool.js', '/interiors.js',
-  '/yard.js', '/drive.js', '/arcade.js', '/exhibit.js',
+  '/yard.js', '/drive.js', '/arcade.js', '/exhibit.js', '/balls.js',
   // Must be network-first or the staleness check reads a stale answer
   // about staleness, which is a very good way to never fix anything.
   '/version.json',
@@ -46,6 +46,7 @@ const SHELL = [
   '/pool.js',                       // the world, reflected in the water
   '/interiors.js',                  // the furniture that IS the plan
   '/yard.js',                       // paths, pitch, court, the shooting games
+  '/balls.js',                      // the ball you carry, and the shootout
   '/drive.js',                      // the Cybertruck, and the driving of it
   '/arcade.js',                     // kiosks in the Glass House
   '/exhibit.js',                    // the Bangkok Room on Savoye's living floor

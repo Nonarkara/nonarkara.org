@@ -14,9 +14,10 @@ import {
   cardinal as astroCardinal, moonHorizontal, moonPhase, solarEvents, sunHorizontal,
 } from './astronomy.js';
 import { buildMountains } from './world.js';
-import { buildYard } from './yard.js';
+import { buildYard, PITCH, COURT } from './yard.js';
 import { buildCybertruck, Drive, TRUCK } from './drive.js';
 import { buildArcade, KIOSKS, colliderBoxes as kioskColliders } from './arcade.js';
+import { buildBalls, crossedGoal, throughHoop } from './balls.js';
 import { buildExhibit } from './exhibit.js';
 import { poemForDate } from './poems.js';
 import * as STARLORE_MOD from './starlore.js';
@@ -56,6 +57,18 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.24 (2026-08-11) the phone report, answered — gyro rebuilt around a
+//                    real hold (72°, clamped ±40°, LEVEL chip to
+//                    recentre; the old code zeroed on its first sample,
+//                    which arrives while the phone is still on a table,
+//                    so every natural hold read as 70° of sky), the
+//                    thumbstick moved to the RIGHT and made permanent
+//                    (it used to appear only after finding WALK, and
+//                    vanished when you got in the truck — which is why
+//                    the truck was undrivable), PLAN/MENU/DISCOVERY
+//                    moved left, real carryable balls with a 60-second
+//                    SHOOTOUT and a geofence, and step-up assist so
+//                    stairs, ramps and lips are climbable.
 //   4.23 (2026-08-11) the estate becomes a place you DO things —
 //                    departure-board pool (14 instruments, split-flap
 //                    rows, status column; plate finally fits the water),
@@ -271,7 +284,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.23';
+const NON_VERSION = '4.24';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -1200,12 +1213,224 @@ function yardToast(msg, ms = 2600) {
   yardToast._t = setTimeout(() => el.classList.remove('in'), ms);
 }
 
+// ════════════════════════════════════════════════════════
+// THE BALL GAMES — pick one up, shoot, chase, score
+//
+// A football on the pitch and a basketball on the court, each fenced to
+// its own field so a bad shot is a bounce off the touchline and never a
+// walk to the horizon. Scoring starts a sixty-second SHOOTOUT; the ball
+// respawns further out with every goal.
+// ════════════════════════════════════════════════════════
+const PITCH_FENCE = {
+  x0: PITCH.cx - PITCH.w / 2 - 1.2, x1: PITCH.cx + PITCH.w / 2 + 1.2,
+  z0: PITCH.cz - PITCH.d / 2 - 1.2, z1: PITCH.cz + PITCH.d / 2 + 1.2,
+};
+const COURT_FENCE = {
+  x0: COURT.cx - COURT.w / 2 - 1.0, x1: COURT.cx + COURT.w / 2 + 1.0,
+  z0: COURT.cz - COURT.d / 2 - 1.0, z1: COURT.cz + COURT.d / 2 + 1.0,
+};
+const BALLS = buildBalls(THREE, scene, [
+  { kind: 'soccer', fence: PITCH_FENCE, home: { x: PITCH.cx + 5, z: PITCH.cz + 2 },
+    field: { cx: PITCH.cx, cz: PITCH.cz, w: PITCH.w, d: PITCH.d } },
+  { kind: 'basket', fence: COURT_FENCE, home: { x: COURT.cx - 4, z: COURT.cz + 1.5 },
+    field: { cx: COURT.cx, cz: COURT.cz, w: COURT.w, d: COURT.d } },
+], { dark: true });
+window.__balls = BALLS;
+
+// Where a shot can score. Goals are planes; hoops are rings.
+const GOALS = [-1, 1].map(s => ({
+  kind: 'soccer',
+  x: PITCH.cx + s * PITCH.w / 2, z: PITCH.cz,
+  halfW: PITCH.goalW / 2, height: PITCH.goalH,
+  // The direction a ball must TRAVEL to be in — the same sign as the
+  // side it is on. (Getting this backwards means no shot ever counts,
+  // because the crossing test is looking for the ball leaving the net.)
+  inward: s,
+  // Aim BEYOND the line, not at it. A parabola solved to arrive exactly
+  // on the goal plane stops 0cm short of crossing it, which is a shot
+  // that hits the net and scores nothing.
+  aim: { x: PITCH.cx + s * (PITCH.w / 2 + 0.55), y: PITCH.goalH * 0.5, z: PITCH.cz },
+}));
+const HOOPS = [-1, 1].map(s => {
+  const px = COURT.cx + s * COURT.w / 2;
+  const rx = px - s * (0.12 + COURT.rimR + 0.05);
+  return {
+    kind: 'basket',
+    x: rx, y: COURT.rimH, z: COURT.cz, r: COURT.rimR + 0.16,
+    // Aim EXACTLY at the ring. The arc is already descending when it
+    // arrives (T is past the apex at every real distance), so the frame
+    // that crosses rim height is the frame that reaches the ring. Aiming
+    // 22cm below instead put the crossing 1.2m downrange of the hoop —
+    // a shot that looked perfect and scored nothing.
+    aim: { x: rx, y: COURT.rimH, z: COURT.cz },
+  };
+});
+
+for (const b of BALLS) {
+  b.hitGroup.userData = { kind: 'ball', key: b.ball.kind, ballRef: b, hit: b.hit };
+  INTERACTABLES_PENDING.push(b.hitGroup);
+}
+
+/**
+ * Where a shot is aimed. Look roughly at a goal or hoop and the ball
+ * goes to it — the assist window is 20°, so you must genuinely be
+ * facing the target, but you do not have to be a sniper on a phone.
+ * Otherwise the ball goes where you are looking, 14m out.
+ */
+function aimPoint(held) {
+  const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+  const targets = (held.ball.kind === 'soccer' ? GOALS : HOOPS);
+  let best = null, bestAng = 0.35;
+  for (const t of targets) {
+    const to = new THREE.Vector3(t.aim.x - camera.position.x, t.aim.y - camera.position.y,
+      t.aim.z - camera.position.z);
+    const dist = to.length();
+    if (dist > 28) continue;
+    const ang = fwd.angleTo(to.clone().normalize());
+    if (ang < bestAng) { bestAng = ang; best = t; }
+  }
+  if (best) return { ...best.aim, assisted: true };
+  const p = camera.position.clone().add(fwd.multiplyScalar(14));
+  return { x: p.x, y: Math.max(0.4, p.y), z: p.z, assisted: false };
+}
+
+function shootHeldBall() {
+  const held = BALLS.find(b => b.ball.held);
+  if (!held) return false;
+  const from = {
+    x: camera.position.x, y: Math.max(1.0, camera.position.y - 0.3), z: camera.position.z,
+  };
+  const to = aimPoint(held);
+  // A basket must fall through the ring; a goal only has to cross a line.
+  held.ball.shoot(from, to, { descend: held.ball.kind === 'basket' });
+  held.mat.color.setHex(0xd6dee6);
+  document.body.dataset.holding = '0';
+  return true;
+}
+window.__shootBall = shootHeldBall;
+
+function pickUpBall(b) {
+  // Whatever you were holding is dropped where you stand — and a ball
+  // dropped on the wrong field walks itself home, because its geofence
+  // says so. That is how you can carry the football onto the court and
+  // still end up able to play basketball.
+  for (const other of BALLS) {
+    if (!other.ball.held) continue;
+    other.ball.held = false;
+    other.ball.pos.y = other.ball.r;
+    other.ball.rest = true;
+    other.ball.cool = 0.5;
+    other.mat.color.setHex(0xd6dee6);
+  }
+  b.ball.held = true;
+  b.mat.color.setHex(0xf59e0b);        // the one amber: what you can act with
+  document.body.dataset.holding = '1';
+  const label = document.getElementById('shoot-chip-label');
+  if (label) label.textContent = b.ball.kind === 'soccer' ? 'SHOOT' : 'SHOOT';
+  yardToast(b.ball.kind === 'soccer'
+    ? 'BALL IN HAND · LOOK AT THE GOAL AND SHOOT'
+    : 'BALL IN HAND · LOOK AT THE HOOP AND SHOOT');
+}
+
+let _ballT = performance.now();
+function tickBalls() {
+  const now = performance.now();
+  const dt = Math.min((now - _ballT) / 1000, 0.05);
+  _ballT = now;
+  const px = camera.position.x, pz = camera.position.z;
+
+  for (const b of BALLS) {
+    const ball = b.ball;
+    // Pick up by walking into it — no button to learn.
+    if (!ball.held && ball.canPickUp(px, pz)) pickUpBall(b);
+    if (ball.held) {
+      ball.carryTo(px, pz, camera.rotation.y, camera.position.y);
+    } else {
+      // Substep so a 14 m/s shot cannot tunnel through a goal plane.
+      const steps = 2;
+      for (let i = 0; i < steps; i++) {
+        const prev = ball.step(dt / steps);
+        if (ball.rest) break;
+        const next = ball.pos;
+        if (ball.kind === 'soccer') {
+          for (const g of GOALS) {
+            if (crossedGoal(prev, next, g)) { scoreBall(b, now); break; }
+          }
+        } else {
+          for (const h of HOOPS) {
+            if (throughHoop(prev, next, h)) { scoreBall(b, now); break; }
+          }
+        }
+      }
+    }
+    b.mesh.position.set(ball.pos.x, ball.pos.y, ball.pos.z);
+    b.mesh.rotation.x = ball.spin;
+    b.shadow.position.set(ball.pos.x, 0.02, ball.pos.z);
+    const lift = Math.max(0, ball.pos.y - ball.r);
+    b.shadow.material.opacity = Math.max(0.05, 0.22 - lift * 0.02);
+    b.shadow.scale.setScalar(1 + lift * 0.06);
+    b.hitGroup.position.set(ball.pos.x, ball.pos.y, ball.pos.z);
+
+    // The clock, and the end of a round.
+    if (b.game.tick(now)) {
+      const g = b.game;
+      yardToast(g.lastResult === 'best'
+        ? `TIME · ${g.score} — NEW BEST`
+        : `TIME · ${g.score} · BEST ${g.best}`, 4200);
+      if (window.__yard) window.__yard.setBoard?.(ball.kind, g);
+    }
+  }
+  // The scoreboard shows the live clock while a round runs.
+  const running = BALLS.find(b => b.game.running);
+  if (running && window.__yard?.setBoard) {
+    window.__yard.setBoard(running.ball.kind, running.game, running.game.secondsLeft(now));
+  }
+}
+
+function scoreBall(b, now) {
+  const g = b.game;
+  const n = g.onScore(now);
+  if (window.__yard) {
+    window.__yard.celebrate?.(b.ball.kind);
+    window.__yard.setBoard?.(b.ball.kind, g, g.secondsLeft(now));
+  }
+  const left = g.secondsLeft(now);
+  yardToast(g.streak > 1
+    ? `${b.ball.kind === 'soccer' ? 'GOAL' : 'SWISH'} · ${n} · STREAK ${g.streak} · ${left}s`
+    : `${b.ball.kind === 'soccer' ? 'GOAL' : 'SWISH'} · ${n} · ${left}s LEFT`);
+  // Respawn further out, so the game gets harder as you get better.
+  const goalX = b.ball.kind === 'soccer'
+    ? (b.ball.pos.x > PITCH.cx ? GOALS[1].x : GOALS[0].x)
+    : (b.ball.pos.x > COURT.cx ? HOOPS[1].x : HOOPS[0].x);
+  // Push the respawn clear of the shooter: landing inside pickup range
+  // means the ball is back in your hands before you have moved, and the
+  // "further out every time" difficulty curve never happens.
+  let spot = g.respawn(b.def.field, goalX);
+  for (let i = 0; i < 8; i++) {
+    if (Math.hypot(spot.x - camera.position.x, spot.z - camera.position.z) > 3.2) break;
+    spot = g.respawn(b.def.field, goalX);
+  }
+  b.ball.reset(spot);
+  b.mat.color.setHex(0xd6dee6);
+  document.body.dataset.holding = '0';
+  try { window.__discover?.(b.ball.kind === 'soccer' ? 'goal' : 'hoop'); } catch (_) {}
+}
+
 function enterTruck() {
   if (DRIVE.active) return;
   DRIVE.active = true;
-  WALK.enabled = false;
+  // The walker stays ENABLED but frozen. On a phone the thumbstick only
+  // exists while walking is on (`.walk-stick.in`), so disabling the
+  // walker to drive removed the only control a phone has — the truck was
+  // enterable and then undrivable, which is exactly what was reported.
+  // walk.update() is simply never called while driving; the stick's
+  // vector is read by the truck instead.
+  WALK.keys.clear();
   document.body.classList.add('driving');
-  yardToast('W/S DRIVE · A/D STEER · TAP TRUCK OR PRESS T TO STEP OUT');
+  document.body.dataset.driving = '1';
+  const lbl = document.getElementById('drive-chip-label');
+  if (lbl) lbl.textContent = 'STEP OUT';
+  yardToast('DRIVE · STICK STEERS · TAP STEP OUT WHEN YOU ARE DONE', 4000);
 }
 function exitTruck() {
   if (!DRIVE.active) return;
@@ -1213,20 +1438,58 @@ function exitTruck() {
   parkTruckBox();
   const s = DRIVE.exitSpot();
   WALK.enabled = true;
+  WALK.stick = null;
   WALK.teleport(s.x, s.z);
   document.body.classList.remove('driving');
+  document.body.dataset.driving = '0';
+  const lbl = document.getElementById('drive-chip-label');
+  if (lbl) lbl.textContent = 'DRIVE';
   yardToast('PARKED');
 }
+const nearTruck = () => Math.hypot(
+  camera.position.x - DRIVE.pos.x, camera.position.z - DRIVE.pos.z) < 7.5;
 window.addEventListener('keydown', (e) => {
   if (e.key.toLowerCase() !== 't') return;
   const t2 = e.target;
   if (t2 && (t2.tagName === 'INPUT' || t2.tagName === 'TEXTAREA' || t2.isContentEditable)) return;
   if (DRIVE.active) { exitTruck(); return; }
-  const d = Math.hypot(camera.position.x - DRIVE.pos.x, camera.position.z - DRIVE.pos.z);
-  if (d < 6) enterTruck();
+  if (nearTruck()) enterTruck();
 });
 window.__enterTruck = enterTruck;
 window.__exitTruck = exitTruck;
+window.__nearTruck = nearTruck;
+
+// ── The contextual chips ─────────────────────────────────
+// Each appears only when it does something (see styles.css), and each is
+// a tap target of its own so nothing depends on a keyboard.
+document.getElementById('drive-chip')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (DRIVE.active) exitTruck(); else if (nearTruck()) enterTruck();
+});
+document.getElementById('shoot-chip')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  shootHeldBall();
+});
+document.getElementById('level-chip')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  recentreGyro();
+});
+// Space shoots, because it always has.
+window.addEventListener('keydown', (e) => {
+  if (e.code !== 'Space' && e.key !== ' ') return;
+  const t2 = e.target;
+  if (t2 && (t2.tagName === 'INPUT' || t2.tagName === 'TEXTAREA' ||
+      t2.isContentEditable || t2.tagName === 'BUTTON')) return;
+  if (document.body.dataset.view !== 'room') return;
+  if (BALLS.some(b => b.ball.held)) { e.preventDefault(); shootHeldBall(); }
+});
+
+/** Chip visibility, four times a second — not in the render loop. */
+setInterval(() => {
+  if (document.body.dataset.view !== 'room') return;
+  document.body.dataset.nearTruck = (DRIVE.active || nearTruck()) ? '1' : '0';
+  document.body.dataset.gyro = gyroEnabled ? '1' : '0';
+}, 250);
 
 // ── Interactables registry (declared above the yard block) ──
 function register(group, ud) {
@@ -3040,31 +3303,99 @@ let hovered = null;
 let gyroEnabled = false;
 let gyroAvailable = (typeof DeviceOrientationEvent !== 'undefined');
 let gyroNeedsPermission = gyroAvailable && typeof DeviceOrientationEvent.requestPermission === 'function';
-let gyroSmoothX = 0, gyroSmoothY = 0;        // -1..1 normalised, smoothed
-let gyroBetaZero = null;                     // the user's natural hold pitch
+let gyroSmoothX = 0, gyroSmoothY = 0;        // radians, smoothed
 function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+/**
+ * THE HOLD — where "level" is, and why this was broken.
+ *
+ * Reported on a real phone: "I have to put the phone parallel to the
+ * floor to navigate, otherwise I'm looking at the sky or the floor."
+ * That is the signature of a neutral captured at the wrong instant. The
+ * old code took the FIRST orientation sample as zero — and that sample
+ * arrives the moment permission is granted, which is while the phone is
+ * still on a table, or moving in your hand as you tap. Calibrate to a
+ * flat phone and every natural hold (beta ≈ 60–80°) reads as a 70° tilt
+ * upward: you are staring at the zenith and nothing you do fixes it,
+ * because nothing ever re-zeroed.
+ *
+ * So: the neutral is NOT whatever happened first. It is the angle people
+ * actually hold a phone at — 72° — and it only moves when the visitor
+ * asks (the RECENTRE chip, or a two-finger tap), or when a first sample
+ * arrives that is plausibly a hold rather than a table.
+ *
+ * The gyro is also demoted to what it should always have been: a window
+ * shift of at most ±40°, not an authority that can pin the camera at
+ * the sky. The thumb still owns the frame (look.js rule 3).
+ */
+const GYRO_HOLD_DEG = 72;        // how a phone is actually held
+const GYRO_GAIN = 0.85;          // slightly under 1:1 — calmer, still a window
+const GYRO_MAX_DEG = 40;         // the gyro can never dominate the look
+const GYRO_DEADZONE_DEG = 2.5;   // a walking hand jitters; ignore that much
+let gyroBetaZero = GYRO_HOLD_DEG;
+let gyroCalibrated = false;
+
+/**
+ * Device attitude → additive look offsets, in radians. Absolute and
+ * shared-convention with pitchFromBeta: tip the phone down and you look
+ * down, hold it naturally and you are at the horizon.
+ * Exported shape kept pure so test-gyro.mjs can check the physics.
+ */
+function gyroOffsets(beta, gamma, screenAngle, zeroDeg) {
+  // Which axis is "front-back" depends on how the screen is rotated.
+  let pitchAxis = beta, rollAxis = gamma;
+  if (screenAngle === 90) { pitchAxis = -gamma; rollAxis = beta; }
+  else if (screenAngle === -90 || screenAngle === 270) { pitchAxis = gamma; rollAxis = -beta; }
+  let dPitch = zeroDeg - pitchAxis;                 // + = looking up
+  dPitch = Math.abs(dPitch) < GYRO_DEADZONE_DEG ? 0
+    : dPitch - Math.sign(dPitch) * GYRO_DEADZONE_DEG;
+  const pitch = clamp(dPitch * GYRO_GAIN, -GYRO_MAX_DEG, GYRO_MAX_DEG) * Math.PI / 180;
+  // Roll nudges yaw a little — leaning the phone peeks around, it does
+  // not turn you. Turning is the joystick's job.
+  const yaw = clamp(rollAxis / 35, -1, 1) * 0.42;
+  return { pitch, yaw };
+}
+window.__gyroOffsets = gyroOffsets;   // verification handle
+
+let gyroLastBeta = GYRO_HOLD_DEG;
 function onDeviceOrientation(e) {
   if (!gyroEnabled) return;
-  // gamma: left-right tilt, -90..90
-  // beta:  front-back tilt, -180..180 (with portrait device, ~70 = held in front of face)
   const gamma = e.gamma || 0;
   const beta  = e.beta  || 0;
-  // Calibrate the "neutral" beta on first sample so wherever the
-  // user is holding the phone becomes 0.
-  if (gyroBetaZero === null) gyroBetaZero = beta;
-  const betaRel = beta - gyroBetaZero;
-  const rawX = clamp(gamma / 35, -1, 1);     // ±35° fills the range
-  // Radians, 1:1: tilt the phone up 40° and the view pitches up 40°.
-  // The old ±21°-max normalised form is why holding the phone up read
-  // as nothing happening.
-  const rawY = clamp(betaRel * Math.PI / 180, -1.35, 1.35);
+  const screenAngle = (screen.orientation && screen.orientation.angle) || 0;
+  gyroLastBeta = (screenAngle === 90) ? -gamma
+    : (screenAngle === -90 || screenAngle === 270) ? gamma : beta;
+  // A first sample only earns the right to set neutral if it looks like
+  // a hand holding a phone. 5° is a table; 150° is a pocket.
+  if (!gyroCalibrated) {
+    gyroCalibrated = true;
+    if (gyroLastBeta > 30 && gyroLastBeta < 110) gyroBetaZero = gyroLastBeta;
+  }
+  const o = gyroOffsets(beta, gamma, screenAngle, gyroBetaZero);
   // Exponential moving average — kills hand tremor.
-  gyroSmoothX += (rawX - gyroSmoothX) * 0.18;
-  gyroSmoothY += (rawY - gyroSmoothY) * 0.18;
+  gyroSmoothX += (o.yaw - gyroSmoothX) * 0.18;
+  gyroSmoothY += (o.pitch - gyroSmoothY) * 0.18;
 }
+
+/** The escape hatch: whatever you are holding right now is level. */
+function recentreGyro() {
+  if (gyroLastBeta > 5 && gyroLastBeta < 150) gyroBetaZero = gyroLastBeta;
+  else gyroBetaZero = GYRO_HOLD_DEG;
+  gyroSmoothX = 0; gyroSmoothY = 0;
+  try { LOOK.pitch = 0; LOOK.cancelAim(); } catch (_) {}
+  const el = document.getElementById('discover-toast');
+  if (el) {
+    el.textContent = 'LEVEL SET · THIS IS YOUR HORIZON';
+    el.classList.add('in');
+    clearTimeout(recentreGyro._t);
+    recentreGyro._t = setTimeout(() => el.classList.remove('in'), 2000);
+  }
+}
+window.__recentreGyro = recentreGyro;
+
 async function enableGyro() {
   if (!gyroAvailable) return;
-  if (gyroEnabled) { gyroBetaZero = null; return; }    // recalibrate on re-entry
+  if (gyroEnabled) return;
   if (gyroNeedsPermission) {
     try {
       const p = await DeviceOrientationEvent.requestPermission();
@@ -3073,7 +3404,7 @@ async function enableGyro() {
   }
   window.addEventListener('deviceorientation', onDeviceOrientation, true);
   gyroEnabled = true;
-  gyroBetaZero = null;     // recalibrate on next sample
+  gyroCalibrated = false;
 }
 function disableGyro() {
   if (!gyroEnabled) return;
@@ -3226,14 +3557,21 @@ function onClick(e) {
         camera.position.z - window.__drive.pos.z);
       if (d < 7) { try { window.__discover?.('truck'); } catch (_) {} window.__enterTruck?.(); }
     }
+  } else if (ud.kind === 'ball') {
+    // Tapping a loose ball fetches it; tapping the one you hold shoots.
+    if (ud.ballRef.ball.held) shootHeldBall();
+    else pickUpBall(ud.ballRef);
   } else if (ud.kind === 'shoot') {
-    const p = hits[0].point;
-    const from = {
-      x: camera.position.x, y: Math.max(1.0, camera.position.y - 0.35), z: camera.position.z,
-    };
-    const res = window.__yard?.shoot(from, { x: p.x, y: p.y, z: p.z }, ud.target);
-    if (res == null) {
-      // Out of range — the game starts when you're on the field.
+    // One mechanic, not two: the goal and the hoop are aim targets for
+    // the REAL ball. Tapping them with empty hands says where the ball is
+    // rather than firing a phantom one.
+    if (BALLS.some(b => b.ball.held)) shootHeldBall();
+    else {
+      const want = ud.target.kind === 'goal' ? 'soccer' : 'basket';
+      const b = BALLS.find(x => x.ball.kind === want);
+      const d = b ? Math.hypot(b.ball.pos.x - camera.position.x, b.ball.pos.z - camera.position.z) : 0;
+      yardToast(b ? `THE BALL IS ${Math.round(d)}M AWAY · WALK OVER IT TO PICK IT UP`
+                  : 'NO BALL HERE');
     }
   }
 }
@@ -5492,8 +5830,12 @@ function animate() {
           : `CYBERTRUCK<span class="url">tap or press T · drive the estate</span>`;
       } else if (ud.kind === 'shoot') {
         tip.innerHTML = ud.target.kind === 'goal'
-          ? `THE GOAL<span class="url">tap the mouth · score</span>`
-          : `THE HOOP<span class="url">tap the ring · swish</span>`;
+          ? `THE GOAL<span class="url">shoot here · 60s shootout</span>`
+          : `THE HOOP<span class="url">shoot here · 60s shootout</span>`;
+      } else if (ud.kind === 'ball') {
+        tip.innerHTML = ud.ballRef.ball.held
+          ? `IN YOUR HANDS<span class="url">tap or space · shoot</span>`
+          : `${ud.ballRef.ball.kind === 'soccer' ? 'FOOTBALL' : 'BASKETBALL'}<span class="url">walk into it · pick it up</span>`;
       }
       tip.classList.add('in');
       document.body.style.cursor = 'pointer';
@@ -5525,8 +5867,11 @@ function animate() {
   // easing. The old 5%/frame lerp meant the view trailed a third of a
   // second behind every input — the "swimming". Gyro rides on top as an
   // additive offset that fades while the finger is down.
-  LOOK.gyroYaw   = gyroEnabled ? -gyroSmoothX * 0.45 * window.__gyroBlend : 0;
-  LOOK.gyroPitch = gyroEnabled ? -gyroSmoothY * window.__gyroBlend : 0;
+  // Both already carry their own scale and sign from gyroOffsets(); the
+  // old call site re-scaled and re-negated them, which is how a sign
+  // convention gets lost twice in one line.
+  LOOK.gyroYaw   = gyroEnabled ? -gyroSmoothX * window.__gyroBlend : 0;
+  LOOK.gyroPitch = gyroEnabled ?  gyroSmoothY * window.__gyroBlend : 0;
 
   // In the sky with a compass: ease yaw toward the real heading so the
   // stars sit where the sky sits. Gentle, so a jittery compass reads
@@ -5586,6 +5931,7 @@ function animate() {
   if (window.__tickWeather) window.__tickWeather();
   if (window.__yard) window.__yard.tick(dtLook);
   if (window.__arcade) window.__arcade.tick(dtLook);
+  tickBalls();
 
   // The pool brightens as you look down at it — the way water only
   // shows you anything when you stand over it and lower your eyes. It
@@ -6966,6 +7312,12 @@ const IS_TOUCH = window.matchMedia?.('(pointer: coarse)').matches
   ?? ('ontouchstart' in window);
 
 let stickEl = null;
+// On a touch device the stick exists from the start — the room's primary
+// control should never be something you have to unlock.
+if (IS_TOUCH) {
+  stickEl = attachStick(WALK);
+  stickEl.classList.add('in');
+}
 
 function setWalk(on) {
   if (on === WALK.enabled) return;
@@ -6991,7 +7343,12 @@ function setWalk(on) {
     try { window.__discover?.('walk'); } catch (_) {}
   } else {
     WALK.stick = null;
-    if (stickEl) stickEl.classList.remove('in');
+    // The stick STAYS. It used to vanish with walk mode, which meant a
+    // phone arrived in the room with no visible way to move until the
+    // visitor guessed that the WALK chip was the answer — and it
+    // disappeared again the moment they got into the truck. Touching it
+    // is itself the request to move (attachStick turns walking on), so
+    // there is nothing to discover. CSS gates it to the room view.
     if (document.pointerLockElement) document.exitPointerLock();
   }
 }

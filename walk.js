@@ -180,8 +180,8 @@ export class Walk {
   }
 
   /** Axis-aligned box test with the player treated as a circle-ish box. */
-  _blocked(x, z) {
-    const y = this.floorY;
+  _blocked(x, z, atY) {
+    const y = atY != null ? atY : this.floorY;
     for (const c of this.colliders) {
       if (c.minY != null && y < c.minY - 0.05) continue;
       if (c.maxY != null && y > c.maxY + 0.05) continue;
@@ -239,9 +239,13 @@ export class Walk {
     // Per-axis resolution — this is what lets you slide along a wall
     // instead of sticking to it.
     const nx = this.pos.x + this.vel.x * dt;
-    if (!this._blocked(nx, this.pos.z)) this.pos.x = nx; else this.vel.x = 0;
+    if (!this._blocked(nx, this.pos.z)) this.pos.x = nx;
+    else if (this._stepUp(nx, this.pos.z)) this.pos.x = nx;
+    else this.vel.x = 0;
     const nz = this.pos.z + this.vel.z * dt;
-    if (!this._blocked(this.pos.x, nz)) this.pos.z = nz; else this.vel.z = 0;
+    if (!this._blocked(this.pos.x, nz)) this.pos.z = nz;
+    else if (this._stepUp(this.pos.x, nz)) this.pos.z = nz;
+    else this.vel.z = 0;
 
     this.floorY = this.floorAt(this.pos.x, this.pos.z);
 
@@ -271,6 +275,39 @@ export class Walk {
     if (this.keys.has('pageup')) p += 1;
     if (this.keys.has('pagedown')) p -= 1;
     return p;
+  }
+
+  /**
+   * STEP UP — the reason stairs were "not accessible".
+   *
+   * A collider blocks you at every height it declares, so the lip of a
+   * step, the edge of a podium and the first tread of a stair all stop
+   * you dead even though a person would simply step onto them. That is
+   * also what makes a ramp feel like it "doesn't work": you approach at
+   * a slight angle, clip the side, and stop with the way up visibly in
+   * front of you.
+   *
+   * So: if the way is blocked but there is walkable floor just past it
+   * that is no more than one step above you, take the step. A person
+   * lifts a foot; this lifts the eye. Anything taller than FLOOR_STEP is
+   * still a wall, which is what keeps you out of the Pavilion's onyx.
+   */
+  _stepUp(x, z) {
+    if (!this.floors.length) return false;
+    let best = null;
+    for (const f of this.floors) {
+      const fy = f.heightAt(x, z);
+      if (fy == null || Number.isNaN(fy)) continue;
+      if (fy <= this.floorY + 0.02) continue;          // not a climb
+      if (fy - this.floorY > FLOOR_STEP) continue;     // that is a wall
+      if (best == null || fy < best) best = fy;        // the gentlest step wins
+    }
+    if (best == null) return false;
+    // The step is only real if standing there is not itself inside a
+    // solid at the new height.
+    if (this._blocked(x, z, best)) return false;
+    this.floorY = best;
+    return true;
   }
 
   teleport(x, z, floorY) {

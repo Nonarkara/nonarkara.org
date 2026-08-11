@@ -293,28 +293,63 @@ export function buildYard(THREE, scene, opts = {}) {
     m.position.set(x, 2.6, z);
     m.rotation.y = ry;
     G.add(m);
-    boards[key] = { cv, c2, tex, label };
+    boards[key] = { cv, c2, tex, label, best: scores[key], seconds: 0 };
     paintBoard(key);
   };
   function paintBoard(key) {
     const b = boards[key];
     if (!b) return;
-    b.c2.fillStyle = 'rgba(6,10,14,0.9)';
-    b.c2.fillRect(0, 0, 256, 64);
-    b.c2.strokeStyle = 'rgba(150,168,186,0.4)';
-    b.c2.strokeRect(1, 1, 254, 62);
-    b.c2.font = '600 15px "JetBrains Mono", monospace';
-    b.c2.fillStyle = 'rgba(226,238,248,0.9)';
-    b.c2.fillText(b.label, 12, 26);
-    b.c2.font = '600 26px "JetBrains Mono", monospace';
-    b.c2.fillStyle = '#f59e0b';
-    b.c2.textAlign = 'right';
-    b.c2.fillText(String(scores[key]), 244, 44);
-    b.c2.textAlign = 'left';
+    const c2 = b.c2;
+    c2.fillStyle = 'rgba(6,10,14,0.9)';
+    c2.fillRect(0, 0, 256, 64);
+    c2.strokeStyle = 'rgba(150,168,186,0.4)';
+    c2.strokeRect(1, 1, 254, 62);
+    c2.textBaseline = 'alphabetic';
+    c2.font = '600 13px "JetBrains Mono", monospace';
+    c2.fillStyle = 'rgba(226,238,248,0.9)';
+    c2.fillText(b.label, 12, 22);
+    // The live score, big. Amber, because it is the number you are
+    // playing for — and the only amber on this board.
+    c2.font = '600 26px "JetBrains Mono", monospace';
+    c2.fillStyle = '#f59e0b';
+    c2.textAlign = 'right';
+    c2.fillText(String(scores[key]), 244, 46);
+    c2.textAlign = 'left';
+    // The clock while a round runs; the best when it is not.
+    c2.font = '500 12px "JetBrains Mono", monospace';
+    if (b.seconds > 0) {
+      c2.fillStyle = b.seconds <= 10 ? '#f59e0b' : 'rgba(88,166,255,0.85)';
+      c2.fillText(`${b.seconds}s`, 12, 46);
+    } else {
+      c2.fillStyle = 'rgba(150,168,186,0.7)';
+      c2.fillText(`BEST ${b.best}`, 12, 46);
+    }
     b.tex.needsUpdate = true;
   }
-  makeBoard('YARD FC · GOALS', 'goal', PITCH.cx, PITCH.cz - PITCH.d / 2 - 1.2, 0);
-  makeBoard('THE HOOP · MADE', 'hoop', COURT.cx, COURT.cz - COURT.d / 2 - 1.2, 0);
+  makeBoard('YARD FC · SHOOTOUT', 'goal', PITCH.cx, PITCH.cz - PITCH.d / 2 - 1.2, 0);
+  makeBoard('THE HOOP · SHOOTOUT', 'hoop', COURT.cx, COURT.cz - COURT.d / 2 - 1.2, 0);
+
+  /**
+   * The board reads the game, rather than keeping its own count. Two
+   * numbers for the same score is how they end up disagreeing.
+   * @param kind 'soccer' | 'basket' — the ball's own word
+   */
+  function setBoard(kind, game, seconds = 0) {
+    const key = kind === 'soccer' ? 'goal' : 'hoop';
+    if (!boards[key]) return;
+    scores[key] = game.score;
+    boards[key].best = game.best;
+    boards[key].seconds = seconds;
+    paintBoard(key);
+  }
+
+  /** A score pulses the net or the ring it went through. */
+  function celebrate(kind) {
+    const mats = kind === 'soccer' ? nets : ringMats;
+    for (const m of mats) {
+      pulses.push({ mat: m, t: 0, base: kind === 'soccer' ? 0.22 : 0.9 });
+    }
+  }
 
   // ── Balls in flight ───────────────────────────────────────
   const balls = [];
@@ -386,7 +421,7 @@ export function buildYard(THREE, scene, opts = {}) {
   }
 
   return {
-    group: G, materials: MATS, shoot, tick, paint,
+    group: G, materials: MATS, shoot, tick, paint, setBoard, celebrate,
     targets: [...goalDefs, ...hoopDefs],
     scores, balls,
     colliders: colliderBoxes(),

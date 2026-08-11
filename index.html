@@ -261,6 +261,22 @@
       <span class="hud-chip-glyph" aria-hidden="true">⇱</span>
       <span class="hud-chip-label" data-i18n="walk">WALK</span>
     </button>
+    <!-- The escape hatch for the phone's idea of level. Only appears on
+         a device that actually has motion sensors. -->
+    <button id="level-chip" class="hud-chip level-chip" aria-label="Set this phone position as level">
+      <span class="hud-chip-glyph" aria-hidden="true">⊕</span>
+      <span class="hud-chip-label">LEVEL</span>
+    </button>
+    <!-- Appears only when you are standing next to the truck or in it. -->
+    <button id="drive-chip" class="hud-chip drive-chip" aria-label="Drive the Cybertruck">
+      <span class="hud-chip-glyph" aria-hidden="true">▮</span>
+      <span class="hud-chip-label" id="drive-chip-label">DRIVE</span>
+    </button>
+    <!-- Appears only when you are holding a ball. -->
+    <button id="shoot-chip" class="hud-chip shoot-chip" aria-label="Shoot the ball">
+      <span class="hud-chip-glyph" aria-hidden="true">◉</span>
+      <span class="hud-chip-label" id="shoot-chip-label">SHOOT</span>
+    </button>
     <button id="room-hud-focus" class="hud-chip" aria-label="Open Pomodoro focus timer">
       <span class="hud-chip-glyph">▷</span>
       <span class="hud-chip-label">FOCUS</span>
