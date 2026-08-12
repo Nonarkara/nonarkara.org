@@ -78,6 +78,17 @@ const deg = r => r * 180 / Math.PI;
   assert(Math.abs(l.pitch - 0.2) < 1e-9, 'but never touches the state itself');
 }
 
+// ── Temporary camera ownership hands back without a snap ───────
+{
+  const l = new Look();
+  l.gyroYaw = 0.12;
+  l.gyroPitch = -0.08;
+  l.adopt(1.4, -0.25);
+  const eff = l.tick(1 / 60);
+  assert(Math.abs(eff.yaw - 1.4) < 1e-9, 'adopted yaw is the same view next frame');
+  assert(Math.abs(eff.pitch + 0.25) < 1e-9, 'adopted pitch is the same view next frame');
+}
+
 // ── Sky and ground come from pitch alone ──────────────────────
 {
   assert.equal(overheadBlend(0), 0, 'level: no sky');

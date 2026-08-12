@@ -180,7 +180,7 @@ export class Drive {
     this.v = Math.max(VMIN, Math.min(VMAX, this.v));
 
     // Steering eases toward the input; yaw follows the bicycle model.
-    this.steer += (st * STEER_MAX - this.steer) * Math.min(1, STEER_EASE * dt);
+    this.steer += (st * STEER_MAX - this.steer) * (1 - Math.exp(-STEER_EASE * dt));
     if (Math.abs(this.v) > 0.15) {
       this.yaw -= (this.v / WHEELBASE) * Math.tan(this.steer) * dt;
     }
@@ -207,7 +207,16 @@ export class Drive {
     cam.position.x += (cx - cam.position.x) * ease;
     cam.position.y += (up - cam.position.y) * ease;
     cam.position.z += (cz - cam.position.z) * ease;
-    cam.lookAt(this.pos.x, 1.25, this.pos.z);
+
+    // Return the chase view; the app's single camera writer applies it.
+    // Drive owns the desired pose while active, never camera.rotation.
+    const dx = this.pos.x - cam.position.x;
+    const dy = 1.25 - cam.position.y;
+    const dz = this.pos.z - cam.position.z;
+    return {
+      yaw: Math.atan2(-dx, -dz),
+      pitch: Math.atan2(dy, Math.hypot(dx, dz)),
+    };
   }
 
   /** Where a walker should stand after stepping out — beside the door. */

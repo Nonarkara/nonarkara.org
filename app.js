@@ -57,6 +57,11 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.33 (2026-08-12) five-level mechanics audit — one camera writer
+//                    across walking/driving; seamless truck handoff;
+//                    independent two-thumb look/move; plan view suspends
+//                    locomotion; compass transfers fly one clean arc;
+//                    world HUD chrome leaves immediately with the world.
 //   4.31 (2026-08-12) architectural modeling refinement pass — Farnsworth
 //                    House steps rendered as solid travertine treads with
 //                    stark white steel channels & warm golden Primavera core;
@@ -362,7 +367,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.31';
+const NON_VERSION = '4.33';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -1502,6 +1507,18 @@ function scoreBall(b, now) {
 
 function enterTruck() {
   if (DRIVE.active) return;
+  window.__cancelTravel?.();
+  endDolly();
+  // A held ball stays with the person, not attached to the chase camera.
+  for (const b of BALLS) {
+    if (!b.ball.held) continue;
+    b.ball.held = false;
+    b.ball.pos.y = b.ball.r;
+    b.ball.rest = true;
+    b.ball.cool = 0.5;
+    b.mat.color.setHex(0xd6dee6);
+  }
+  document.body.dataset.holding = '0';
   DRIVE.active = true;
   // The walker stays ENABLED but frozen. On a phone the thumbstick only
   // exists while walking is on (`.walk-stick.in`), so disabling the
@@ -1518,7 +1535,13 @@ function enterTruck() {
 }
 function exitTruck() {
   if (!DRIVE.active) return;
+  // Hand the exact chase direction back to Look before the drive owner
+  // releases it. Without this, the next frame snapped to the gaze from
+  // before entering the truck.
+  LOOK.adopt(camera.rotation.y, camera.rotation.x);
   DRIVE.active = false;
+  DRIVE.v = 0;
+  DRIVE.steer = 0;
   parkTruckBox();
   const s = DRIVE.exitSpot();
   WALK.enabled = true;
@@ -3536,13 +3559,19 @@ window.addEventListener('mouseup', () => { mouseDrag = null; window.__dragActive
 
 // ── Touch: drag-to-rotate camera + tap detection
 // (a "tap" is a touchend with very little drag, handled by onClick)
-let touchAnchor = null;       // {x, y, targetX, targetY}
+let touchAnchor = null;       // {id, x, y, lastX, lastY}
 let touchMoved = false;
 let touchStartTs = 0;
 function onTouchStart(e) {
-  if (e.touches.length !== 1) return;
-  const t = e.touches[0];
-  touchAnchor = { x: t.clientX, y: t.clientY, lastX: t.clientX, lastY: t.clientY };
+  if (touchAnchor || e.changedTouches.length !== 1) return;
+  // Controls own their finger. The old window handler also claimed the
+  // thumbstick touch, so moving meant looking and looking meant moving.
+  if (e.target.closest?.('button, a, input, textarea, select, .modal, .drawer, .nav-pad, .hud-chip, .walk-stick')) return;
+  const t = e.changedTouches[0];
+  touchAnchor = {
+    id: t.identifier, x: t.clientX, y: t.clientY,
+    lastX: t.clientX, lastY: t.clientY,
+  };
   window.__dragActive = true;
   touchMoved = false;
   touchStartTs = Date.now();
@@ -3551,8 +3580,9 @@ function onTouchStart(e) {
   mouse.y = -(t.clientY / window.innerHeight) * 2 + 1;
 }
 function onTouchMove(e) {
-  if (!touchAnchor || e.touches.length !== 1) return;
-  const t = e.touches[0];
+  if (!touchAnchor) return;
+  const t = Array.from(e.touches).find(p => p.identifier === touchAnchor.id);
+  if (!t) return;
   // Deltas, 1:1 with the finger, applied the same frame. The old
   // anchor-and-set form went through an easing lerp that trailed a
   // third of a second behind the finger — technically responsive,
@@ -3568,7 +3598,9 @@ function onTouchMove(e) {
   mouse.x = (t.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(t.clientY / window.innerHeight) * 2 + 1;
 }
-function onTouchEnd() {
+function onTouchEnd(e) {
+  if (touchAnchor && e?.touches &&
+      Array.from(e.touches).some(p => p.identifier === touchAnchor.id)) return;
   touchAnchor = null;
   window.__dragActive = false;
 }
@@ -4485,15 +4517,18 @@ function chooseDefaultView() {
 }
 function setView(v) {
   try {
+    if (v !== 'room') window.__suspendWorldMechanics?.();
     document.body.dataset.view = v;
     lsSet('nonarkara.view', v);
     if (planEl) planEl.setAttribute('aria-hidden', v === 'plan' ? 'false' : 'true');
+    document.getElementById('room-hud')?.setAttribute('aria-hidden', v === 'room' ? 'false' : 'true');
     if (v === 'plan') { renderPlan(); refreshStatus(); }
   } catch (_) {}
 }
 try {
   document.body.dataset.view = chooseDefaultView();
   if (planEl) planEl.setAttribute('aria-hidden', document.body.dataset.view === 'plan' ? 'false' : 'true');
+  document.getElementById('room-hud')?.setAttribute('aria-hidden', document.body.dataset.view === 'room' ? 'false' : 'true');
 } catch (_) {
   document.body.dataset.view = 'room';
 }
@@ -5200,7 +5235,7 @@ if (planRoomBtn)   planRoomBtn.addEventListener('click', () => {
   enableGyro()
     .then(() => { if (gyroEnabled) showTiltHint(); })
     .catch(() => {});
-  setView('room');
+  (window.setView || setView)('room');
 });
 if (viewToggleBtn) viewToggleBtn.addEventListener('click', () => setView('plan'));
 if (planThemeBtn)  planThemeBtn.addEventListener('click', toggleTheme);
@@ -5530,13 +5565,6 @@ window.setView = function(v) {
     _origSetView(v);
   }
 };
-// Re-wire buttons to the wrapped version
-document.getElementById('plan-room')?.addEventListener('click', null);
-document.getElementById('plan-room')?.addEventListener('click', () => {
-  enableGyro().then(() => { if (gyroEnabled) showTiltHint(); }).catch(() => {});
-  window.setView('room');
-});
-
 const startTime = performance.now();
 document.querySelector('.veil').classList.add('gone');
 setTimeout(() => {
@@ -5974,14 +6002,20 @@ function animate() {
       * dampingFactor(5, dtLook);
   }
 
-  // Driving owns the camera — chase view, lookAt the truck, your yaw is
-  // the steering wheel. Everything else in the loop (falls, pool,
-  // daylight, screens) keeps ticking: the world does not freeze because
-  // you are in a car; that is rather the point of the car.
+  // Driving owns the desired chase pose, but this remains the ONE place
+  // that writes camera.rotation. Everything else in the loop (falls,
+  // pool, daylight, screens) keeps ticking: the world does not freeze
+  // because you are in a car; that is rather the point of the car.
   const driving = !!window.__drive?.active;
-  const eff = driving ? { pitch: camera.rotation.x, yaw: camera.rotation.y }
-                      : LOOK.tick(dtLook);
-  if (!driving) camera.rotation.set(eff.pitch, eff.yaw, 0);
+  let eff;
+  if (driving) {
+    const D = window.__drive;
+    D.stick = WALK.stick;
+    eff = D.update(dtLook) || { pitch: camera.rotation.x, yaw: camera.rotation.y };
+  } else {
+    eff = LOOK.tick(dtLook);
+  }
+  camera.rotation.set(eff.pitch, eff.yaw, 0);
 
   // The sky and the ground are places, not modes: how much of each you
   // see comes from nothing but where you are looking. Look up — stars.
@@ -5993,12 +6027,7 @@ function animate() {
   // keeps its slow idle float. Movement is relative to where you are
   // looking, so it reads the yaw the line above just settled.
   if (driving) {
-    const D = window.__drive;
-    D.stick = WALK.stick;
-    const now = performance.now();
-    const dt = Math.min((now - (window.__lastWalkT || now)) / 1000, 0.05);
-    window.__lastWalkT = now;
-    D.update(dt);
+    window.__lastWalkT = performance.now();
   } else if (window.__tickTravel && window.__tickTravel()) {
     // Travelling between buildings owns the camera outright — input is
     // ignored for the 1.6s, which is why it cannot fight the walker.
@@ -7404,6 +7433,7 @@ if (IS_TOUCH) {
 }
 
 function setWalk(on) {
+  if (on && DRIVE.active) return;
   if (on === WALK.enabled) return;
   WALK.enabled = on;
   document.body.classList.toggle('walking', on);
@@ -7487,14 +7517,17 @@ if (WEBGL_OK && SITE.length > 1) {
   const nextBuilding = () => byDistance()[1];
 
   const travelTo = (b) => {
-    if (TRAVEL) return;
+    if (TRAVEL || DRIVE.active) return;
     const to = doorstep(b);
     // Face the building on arrival: aim the head through the same
     // integrator every other input uses, eased to land as the feet do.
     LOOK.aimAt(Math.atan2(-(to.lookX - to.x), -(to.lookZ - to.z)), 0, 0.055);
     // Pointer lock has to be asked for inside the tap, not 1.6s later.
     setWalk(true);
-    TRAVEL = { from: { ...WALK.pos }, to, t0: performance.now(), ms: 1600 };
+    TRAVEL = {
+      from: { ...WALK.pos, y: camera.position.y }, to,
+      t0: performance.now(), ms: 1600,
+    };
     document.body.classList.add('travelling');
   };
 
@@ -7503,14 +7536,32 @@ if (WEBGL_OK && SITE.length > 1) {
     if (!TRAVEL) return false;
     const t = Math.min(1, (performance.now() - TRAVEL.t0) / TRAVEL.ms);
     const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-    WALK.teleport(
+    WALK.transferTo(
       TRAVEL.from.x + (TRAVEL.to.x - TRAVEL.from.x) * e,
       TRAVEL.from.z + (TRAVEL.to.z - TRAVEL.from.z) * e,
-      0, // travel is across the plain — never carry a ramp height with you
+      0,
     );
-    camera.position.set(WALK.pos.x, 1.65, WALK.pos.z);
-    if (t >= 1) { TRAVEL = null; document.body.classList.remove('travelling'); }
+    // Lift over walls, fields and hills. Collision-solving every point of
+    // a scripted transfer made the route wobble around whatever it crossed.
+    camera.position.set(
+      WALK.pos.x,
+      1.65 + Math.sin(Math.PI * t) * 4.2,
+      WALK.pos.z,
+    );
+    if (t >= 1) {
+      WALK.teleport(TRAVEL.to.x, TRAVEL.to.z);
+      camera.position.set(WALK.pos.x, WALK.floorY + 1.65, WALK.pos.z);
+      TRAVEL = null;
+      document.body.classList.remove('travelling');
+    }
     return true;
+  };
+
+  window.__cancelTravel = () => {
+    if (!TRAVEL) return;
+    TRAVEL = null;
+    document.body.classList.remove('travelling');
+    WALK.teleport(camera.position.x, camera.position.z);
   };
 
   chip?.addEventListener('click', () => {
@@ -7556,10 +7607,25 @@ if (WEBGL_OK && SITE.length > 1) {
   }, 250);
 }
 
+// Leaving the 3D surface suspends every locomotion owner. The plan is an
+// operating surface, not a world that keeps walking or driving behind it.
+window.__suspendWorldMechanics = () => {
+  window.__cancelTravel?.();
+  endDolly();
+  if (DRIVE.active) exitTruck();
+  setWalk(false);
+  WALK.keys.clear();
+  WALK.stick = null;
+  LOOK.setTurnRate(0);
+  mouseDrag = null;
+  touchAnchor = null;
+  window.__dragActive = false;
+};
+
 // Full mouse-look while the pointer is locked. Without the lock the
 // existing gentle parallax stays exactly as it was.
 document.addEventListener('mousemove', (e) => {
-  if (!WALK.enabled || !document.pointerLockElement) return;
+  if (DRIVE.active || !WALK.enabled || !document.pointerLockElement) return;
   LOOK.addDelta(-e.movementX * 0.0022, -e.movementY * 0.0018);
 }, { passive: true });
 

@@ -66,6 +66,19 @@ export class Look {
   cancelAim() { this.aim = null; }
 
   /**
+   * Adopt a direction produced by a temporary camera owner (the truck).
+   * Gyro is already folded into the direction on screen, so subtract its
+   * offsets before storing the base angles. The next tick then returns the
+   * exact same view: ownership changes hands without a one-frame snap.
+   */
+  adopt(yaw, pitch) {
+    this.yaw = yaw - this.gyroYaw;
+    this.pitch = clampPitch(pitch - this.gyroPitch);
+    this.aim = null;
+    this.turnRate = 0;
+  }
+
+  /**
    * Integrate one frame. Returns the effective direction (gyro folded
    * in) which is what the camera is set to — directly, no lag.
    */

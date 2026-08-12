@@ -28,8 +28,8 @@ assert.equal(clampPitch(-2.0), -1.42, 'Pitch < -1.42 must clamp to -1.42');
 const app = readFileSync(new URL('./app.js', import.meta.url), 'utf8');
 assert.equal((app.match(/camera\.rotation\.set\(/g) || []).length, 1,
   'the frame loop must have exactly one direct camera rotation writer');
-assert(app.includes(': LOOK.tick(dtLook);') &&
-  app.includes('if (!driving) camera.rotation.set(eff.pitch, eff.yaw, 0);'),
-  'the sole writer must consume the Look integrator (except while the truck owns the camera via lookAt)');
+assert(app.includes('eff = LOOK.tick(dtLook);') &&
+  app.includes('camera.rotation.set(eff.pitch, eff.yaw, 0);'),
+  'the sole writer must consume the selected walking or driving view');
 
 console.log('camera: all checks passed · one runtime writer · YXZ · short path · pitch clamp');

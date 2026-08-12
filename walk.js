@@ -333,6 +333,19 @@ export class Walk {
     if (floorY != null) this.floorY = floorY;
     else this.floorY = this.floorAt(x, z);
   }
+
+  /**
+   * Scripted transfer through open air. Unlike teleport(), intermediate
+   * points deliberately do not collision-resolve; the caller owns a safe
+   * final destination and may lift the camera over solids on the way.
+   */
+  transferTo(x, z, floorY = 0) {
+    this.pos.x = x; this.pos.z = z;
+    this.floorY = floorY;
+    this.vel.x = 0; this.vel.z = 0;
+    this.heldFor = 0;
+    this._floorPatch = null;
+  }
 }
 
 /**

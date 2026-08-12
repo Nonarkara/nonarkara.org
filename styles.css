@@ -1210,6 +1210,24 @@
     }
     body[data-view="plan"] .menu-btn,
     body[data-view="plan"] .tip { display: none !important; }   /* these are tiny, safe to hide */
+    /* World chrome must leave with the world. Several controls use
+       delayed room-entry fades; without an explicit plan rule that
+       delay leaves them floating over the dashboard during handoff. */
+    body[data-view="plan"] .room-hud,
+    body[data-view="plan"] .discover-toast,
+    body[data-view="plan"] .tilt-hint,
+    body[data-view="plan"] .intent-line,
+    body[data-view="plan"] .shortcut-hints,
+    body[data-view="plan"] .walk-stick,
+    body[data-view="plan"] .nav-pad,
+    body[data-view="plan"] .sky-hud,
+    body[data-view="plan"] .sky-hint,
+    body[data-view="plan"] .ground-hint {
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+      transition-delay: 0s !important;
+    }
     body[data-view="room"] #plan { display: none; }
 
     #plan {

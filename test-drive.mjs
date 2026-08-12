@@ -16,7 +16,6 @@ import { Drive, PROFILE, TRUCK } from './drive.js';
 
 const cam = {
   position: { x: 0, y: 0, z: 0 },
-  lookAt() {},
 };
 
 const mk = (colliders = [], spawn = { x: 0, z: 0, yaw: 0 }) => {
@@ -54,6 +53,28 @@ const run = (d, n = 60, dt = 1 / 60) => { for (let i = 0; i < n; i++) d.update(d
   d.keys.add('w');
   run(d, 120);
   assert(Math.abs(d.yaw) > 0.15, 'a moving truck turns');
+}
+
+// ── Drive proposes a chase view; it never writes camera rotation ──
+{
+  const d = mk();
+  d.keys.add('w');
+  const view = d.update(1 / 60);
+  assert(Number.isFinite(view.yaw) && Number.isFinite(view.pitch), 'chase view is finite');
+  assert(view.pitch < 0, 'the elevated chase camera looks down toward the truck');
+}
+
+// ── Steering response is elapsed-time based ────────────────
+{
+  const a = mk(), b = mk();
+  a.keys.add('w'); a.keys.add('a');
+  b.keys.add('w'); b.keys.add('a');
+  run(a, 60, 1 / 60);
+  run(b, 120, 1 / 120);
+  assert(Math.abs(a.steer - b.steer) < 0.002,
+    `one second of steering must agree at 60/120Hz (${a.steer} vs ${b.steer})`);
+  assert(Math.abs(a.yaw - b.yaw) < 0.03,
+    `turning must stay close at 60/120Hz (${a.yaw} vs ${b.yaw})`);
 }
 
 // ── A wall stops it (soft bounce, never through) ──────────
