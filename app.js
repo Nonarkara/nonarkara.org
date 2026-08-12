@@ -57,6 +57,22 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.34 (2026-08-12) travel camera Y snap. The compass flight eased
+//                    its base Y from a fixed 1.65, so standing on
+//                    Fallingwater's living tray (y=3.2) and flying to
+//                    the Pavilion used to drop the eye 3m the instant
+//                    the chip fired. v4.33 verified "stable landings"
+//                    but the start of the flight was still a snap,
+//                    and the seam at the end snapped the other way
+//                    when the destination was a hill. v4.34 computes
+//                    destFloorY from the destination's patches at
+//                    travel start, then interpolates the camera Y
+//                    linearly from source to destination with the
+//                    sine arc on top. transferTo()'s JSDoc sharpened
+//                    so the next agent does not use it for ordinary
+//                    floor changes. test-mechanics now runtime-checks
+//                    the destination-floorY resolver, not just
+//                    source tokens.
 //   4.33 (2026-08-12) five-level mechanics audit — one camera writer
 //                    across walking/driving; seamless truck handoff;
 //                    independent two-thumb look/move; plan view suspends
@@ -367,7 +383,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.33';
+const NON_VERSION = '4.34';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -7524,9 +7540,19 @@ if (WEBGL_OK && SITE.length > 1) {
     LOOK.aimAt(Math.atan2(-(to.lookX - to.x), -(to.lookZ - to.z)), 0, 0.055);
     // Pointer lock has to be asked for inside the tap, not 1.6s later.
     setWalk(true);
+    // The destination floorY is needed up front so the camera can ease
+    // to it during the lift, not snap to it at the end. Without this,
+    // any travel to or from a hill (Fallingwater's crest at y=3, or
+    // Farnsworth's lifted tray at y=1.55) would teleport the eye at
+    // the seam between flight and standing.
+    let destY = 0;
+    for (const p of WALK.floors) {
+      const fy = p.heightAt(to.x, to.z);
+      if (fy != null && fy > destY) destY = fy;
+    }
     TRAVEL = {
       from: { ...WALK.pos, y: camera.position.y }, to,
-      t0: performance.now(), ms: 1600,
+      t0: performance.now(), ms: 1600, destY,
     };
     document.body.classList.add('travelling');
   };
@@ -7541,11 +7567,16 @@ if (WEBGL_OK && SITE.length > 1) {
       TRAVEL.from.z + (TRAVEL.to.z - TRAVEL.from.z) * e,
       0,
     );
-    // Lift over walls, fields and hills. Collision-solving every point of
-    // a scripted transfer made the route wobble around whatever it crossed.
+    // Lift over walls, fields and hills. The base is the linear
+    // interpolation from source Y to destination Y; the sine adds the
+    // arc on top. Either end of the flight now matches the walker's
+    // standing height — no snap, even to a hilltop doorstep.
+    const fromY = TRAVEL.from.y;
+    const toY = TRAVEL.destY + 1.65;
+    const baseY = fromY + (toY - fromY) * e;
     camera.position.set(
       WALK.pos.x,
-      1.65 + Math.sin(Math.PI * t) * 4.2,
+      baseY + Math.sin(Math.PI * t) * 4.2,
       WALK.pos.z,
     );
     if (t >= 1) {

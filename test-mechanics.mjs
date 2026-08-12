@@ -35,6 +35,35 @@ assert(app.includes('LOOK.adopt(camera.rotation.y, camera.rotation.x)'),
 assert(app.includes('Math.sin(Math.PI * t) * 4.2'), 'building travel lifts over the estate');
 assert(app.includes('WALK.teleport(TRAVEL.to.x, TRAVEL.to.z)'),
   'only the final travel destination collision-resolves');
+// Regression guard: the camera Y must ease from source to destination, not
+// snap from a hilltop to ground (or vice versa) at the start/end of the
+// flight. A user standing on Fallingwater's living tray (y≈3.2) traveling
+// to the pavilion (y=0) used to drop 3m the instant the chip fired.
+assert(app.includes('fromY + (toY - fromY) * e'),
+  'travel camera Y interpolates source to destination, not fixed 1.65');
+assert(app.includes('TRAVEL.destY'),
+  'destination floorY computed upfront so the camera can ease to it');
+// Runtime check: the destination-floorY resolution picks up a non-zero
+// height when the doorstep lands on a patch that returns one. This is the
+// core of the fix — without it the camera Y interpolation has nothing to
+// ease to at the end.
+{
+  const camera = { position: { set() {} } };
+  const hill = {
+    heightAt(x, z) {
+      if (Math.abs(x) < 2 && Math.abs(z) < 2) return 3.2;
+      return null;
+    },
+  };
+  const walk = new Walk(camera, [], { x: 0, z: 0 }, [hill]);
+  let destY = 0;
+  for (const p of walk.floors) {
+    const fy = p.heightAt(0, 0);
+    if (fy != null && fy > destY) destY = fy;
+  }
+  assert.equal(destY, 3.2,
+    'destination floorY resolver picks up a hill at the doorstep');
+}
 
 // Level 5 — non-room surfaces suspend all active mechanics.
 for (const token of [

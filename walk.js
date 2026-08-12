@@ -335,9 +335,14 @@ export class Walk {
   }
 
   /**
-   * Scripted transfer through open air. Unlike teleport(), intermediate
-   * points deliberately do not collision-resolve; the caller owns a safe
-   * final destination and may lift the camera over solids on the way.
+   * Scripted transfer through open air. Used by app.js's compass travel
+   * to fly the walker from one building to another over walls, fields
+   * and hills. Intermediate points deliberately do NOT collision-resolve
+   * — the caller owns a safe final destination and may lift the camera
+   * over solids on the way. Use teleport() for ordinary floor changes
+   * where you want the walker to depenetrate and pick up the natural
+   * height at the destination; use transferTo() for cinematic flight
+   * paths between places the walker cannot otherwise reach in a frame.
    */
   transferTo(x, z, floorY = 0) {
     this.pos.x = x; this.pos.z = z;
