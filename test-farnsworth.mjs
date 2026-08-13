@@ -1,6 +1,7 @@
 // Self-check for the Farnsworth plan and the walk collision.
 // `node test-farnsworth.mjs`
 import assert from 'node:assert';
+import { readFileSync } from 'node:fs';
 import { PLAN, colliderBoxes, floorPatches, stepRises } from './farnsworth.js';
 import { PLAN as GLASS } from './glasshouse.js';
 import { PLAN as SAVOYE } from './savoye.js';
@@ -187,6 +188,16 @@ const patchesWorld = floorPatches(PLAN).map(f => ({
   step(w, 0, 120);
   assert(w.pos.z < PLAN.origin.z + 5,
     `walker on the grass was blocked from walking under (z=${(w.pos.z - PLAN.origin.z).toFixed(2)})`);
+}
+
+// No procedural trees. Cylinder+sphere "Black Locusts" were a visual
+// lie on a modernist lawn; the site is empty grass around the trays.
+{
+  const src = readFileSync(new URL('./farnsworth.js', import.meta.url), 'utf8');
+  assert(!src.includes('placeTree'), 'no placeTree helper');
+  assert(!src.includes('Black Locust'), 'no locust placeholders');
+  assert(!src.includes('SphereGeometry'), 'no sphere canopies');
+  assert(!src.includes('CylinderGeometry'), 'no cylinder trunks');
 }
 
 console.log('test-farnsworth: ok');

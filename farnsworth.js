@@ -475,36 +475,6 @@ export function buildFarnsworth(THREE, scene, opts = {}) {
     G.add(mantel);
   }
 
-  // Two Black Locust trees. The real Farnsworth has two of them on the
-  // south side, mature, ~15m tall. Procedural: dark trunk + irregular
-  // canopy. They are NOT in the collider set — scenery the walker passes
-  // around, not through.
-  {
-    const placeTree = (x, z) => {
-      const trunk = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.20, 0.32, 4.0, 8),
-        new THREE.MeshBasicMaterial({ color: dark ? 0x0c0a08 : 0x2a221c }));
-      trunk.position.set(x, 2.0, z);
-      G.add(trunk);
-      // Canopy — three overlapping spheres of dark green, slightly
-      // off-axis so the silhouette is not a perfect globe.
-      const green = new THREE.MeshBasicMaterial({
-        color: dark ? 0x0e1810 : 0x1f2c1a, transparent: true, opacity: 0.92 });
-      for (const [dx, dy, dz, r] of [
-        [0, 9.0, 0, 3.8], [-1.2, 7.0, 0.6, 3.0], [1.4, 7.5, -0.4, 3.2],
-        [0.4, 10.8, 0.2, 2.4], [-0.6, 11.4, -0.2, 2.2],
-      ]) {
-        const c = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8), green);
-        c.position.set(x + dx, dy, z + dz);
-        G.add(c);
-      }
-    };
-    // South of the lower terrace (z > lowerZ1) and clear of the porch
-    // approach on the east side.
-    placeTree(-9.5, 24);
-    placeTree(9.5, 26);
-  }
-
   const o = PLAN.origin;
   const colliders = colliderBoxes(PLAN).map(b => ({
     minX: b.minX + o.x, maxX: b.maxX + o.x,

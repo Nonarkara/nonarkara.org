@@ -57,6 +57,12 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.35 (2026-08-13) Farnsworth's two procedural Black Locusts are
+//                    gone. Cylinder trunks + five overlapping green
+//                    spheres stood on the south lawn as "the real
+//                    trees." They were scenery, not architecture, and
+//                    they read as toys next to Mies's trays. Empty
+//                    grass around the house is the honest site.
 //   4.34 (2026-08-12) travel camera Y snap. The compass flight eased
 //                    its base Y from a fixed 1.65, so standing on
 //                    Fallingwater's living tray (y=3.2) and flying to
@@ -383,7 +389,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.34';
+const NON_VERSION = '4.35';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
