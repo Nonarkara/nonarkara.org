@@ -57,6 +57,10 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.36 (2026-08-16) 3D engine mechanics audit: phone gyrometer bypassed
+//                    for 1:1 touch/joystick look up/down; 3D woven nets created
+//                    for both basketball hoops & soccer goals with dynamic swish
+//                    & net impact bulge animations; Cybertruck driving polished.
 //   4.35 (2026-08-13) Farnsworth's two procedural Black Locusts are
 //                    gone. Cylinder trunks + five overlapping green
 //                    spheres stood on the south lawn as "the real
@@ -389,7 +393,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.35';
+const NON_VERSION = '4.36';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -3523,17 +3527,9 @@ function recentreGyro() {
 window.__recentreGyro = recentreGyro;
 
 async function enableGyro() {
-  if (!gyroAvailable) return;
-  if (gyroEnabled) return;
-  if (gyroNeedsPermission) {
-    try {
-      const p = await DeviceOrientationEvent.requestPermission();
-      if (p !== 'granted') return;
-    } catch (_) { return; }
-  }
-  window.addEventListener('deviceorientation', onDeviceOrientation, true);
-  gyroEnabled = true;
-  gyroCalibrated = false;
+  // Gyrometer on phone bypassed per spec — 1:1 touch drag & joystick control look.
+  gyroEnabled = false;
+  return;
 }
 function disableGyro() {
   if (!gyroEnabled) return;

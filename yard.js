@@ -185,25 +185,37 @@ export function buildYard(THREE, scene, opts = {}) {
     const bar = box(0.1, 0.1, PITCH.goalW + 0.1, MATS.steel);
     bar.position.set(gx, PITCH.goalH, PITCH.cz);
     G.add(bar);
-    // Net: a grid of hairlines angled back from the bar.
+    // Soccer Net: 3D boxed enclosure net grid behind the posts.
     const netMat = new THREE.LineBasicMaterial({
-      color: dark ? 0x8b98a6 : 0xf2f0e8, transparent: true, opacity: 0.22,
+      color: dark ? 0xb0bec5 : 0xf2f0e8, transparent: true, opacity: 0.55,
     });
     const np = [];
-    const back = s * 0.9;
-    for (let i = 0; i <= 8; i++) {
-      const z = -PITCH.goalW / 2 + (PITCH.goalW * i) / 8;
-      np.push(new THREE.Vector3(gx, PITCH.goalH, PITCH.cz + z),
+    const back = s * 1.0;
+    const nVert = 12;
+    const nHoriz = 6;
+    for (let i = 0; i <= nVert; i++) {
+      const z = -PITCH.goalW / 2 + (PITCH.goalW * i) / nVert;
+      // Top to bottom back wall
+      np.push(new THREE.Vector3(gx + back, PITCH.goalH, PITCH.cz + z),
               new THREE.Vector3(gx + back, 0.02, PITCH.cz + z));
+      // Top roof run
+      np.push(new THREE.Vector3(gx, PITCH.goalH, PITCH.cz + z),
+              new THREE.Vector3(gx + back, PITCH.goalH, PITCH.cz + z));
     }
-    for (let j = 0; j <= 4; j++) {
-      const t = j / 4;
-      np.push(new THREE.Vector3(gx + back * t, PITCH.goalH * (1 - t), PITCH.cz - PITCH.goalW / 2),
-              new THREE.Vector3(gx + back * t, PITCH.goalH * (1 - t), PITCH.cz + PITCH.goalW / 2));
+    for (let j = 0; j <= nHoriz; j++) {
+      const y = (PITCH.goalH * j) / nHoriz;
+      // Back wall crossbar
+      np.push(new THREE.Vector3(gx + back, y, PITCH.cz - PITCH.goalW / 2),
+              new THREE.Vector3(gx + back, y, PITCH.cz + PITCH.goalW / 2));
+      // Side wall crossbars
+      np.push(new THREE.Vector3(gx, y, PITCH.cz - PITCH.goalW / 2),
+              new THREE.Vector3(gx + back, y, PITCH.cz - PITCH.goalW / 2));
+      np.push(new THREE.Vector3(gx, y, PITCH.cz + PITCH.goalW / 2),
+              new THREE.Vector3(gx + back, y, PITCH.cz + PITCH.goalW / 2));
     }
     const net = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(np), netMat);
     G.add(net);
-    nets.push(netMat);
+    nets.push({ mat: netMat, mesh: net });
     goalDefs.push({
       kind: 'goal', side: s, x: gx, z: PITCH.cz,
       hit: { w: 0.6, h: PITCH.goalH + 0.4, d: PITCH.goalW + 0.5 },
@@ -269,9 +281,38 @@ export function buildYard(THREE, scene, opts = {}) {
     }
     G.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(rp), ringMat));
     ringMats.push(ringMat);
+
+    // Basketball Net: 3D conical woven mesh hanging down 0.48m from the rim.
+    const bnetMat = new THREE.LineBasicMaterial({
+      color: dark ? 0xcfdaf0 : 0xffffff, transparent: true, opacity: 0.85,
+    });
+    const bnp = [];
+    const nLoops = 14;
+    const nRings = 4;
+    const netH = 0.48;
+    for (let i = 0; i < nLoops; i++) {
+      const a0 = (i / nLoops) * Math.PI * 2;
+      const a1 = (((i + 0.5) % nLoops) / nLoops) * Math.PI * 2;
+      for (let j = 0; j < nRings; j++) {
+        const t0 = j / nRings;
+        const t1 = (j + 1) / nRings;
+        const r0 = COURT.rimR * (1 - 0.58 * t0);
+        const r1 = COURT.rimR * (1 - 0.58 * t1);
+        const y0 = COURT.rimH - t0 * netH;
+        const y1 = COURT.rimH - t1 * netH;
+        bnp.push(new THREE.Vector3(rx + Math.cos(a0) * r0, y0, COURT.cz + Math.sin(a0) * r0),
+                 new THREE.Vector3(rx + Math.cos(a1) * r1, y1, COURT.cz + Math.sin(a1) * r1));
+        bnp.push(new THREE.Vector3(rx + Math.cos(a1) * r0, y0, COURT.cz + Math.sin(a1) * r0),
+                 new THREE.Vector3(rx + Math.cos(a0) * r1, y1, COURT.cz + Math.sin(a0) * r1));
+      }
+    }
+    const bnetObj = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(bnp), bnetMat);
+    G.add(bnetObj);
+
     hoopDefs.push({
       kind: 'hoop', side: s, x: rx, z: COURT.cz, y: COURT.rimH,
       hit: { w: 1.6, h: 1.6, d: 1.6 },
+      bnetObj, bnetMat,
     });
   }
 
@@ -380,6 +421,7 @@ export function buildYard(THREE, scene, opts = {}) {
   }
 
   const pulses = [];   // {mat, t}
+  const swishes = [];  // {mesh, t}
   function tick(dt) {
     for (let i = balls.length - 1; i >= 0; i--) {
       const b = balls[i];
@@ -394,10 +436,20 @@ export function buildYard(THREE, scene, opts = {}) {
           try { localStorage.setItem('nonarkara.yard.' + b.target.kind, String(scores[b.target.kind])); } catch (_) {}
           paintBoard(b.target.kind);
           const idx = b.target.side < 0 ? 0 : 1;
-          const mat = b.target.kind === 'goal' ? nets[idx] : ringMats[idx];
-          pulses.push({ mat, t: 0, base: b.target.kind === 'goal' ? 0.22 : 0.9 });
+          const mat = b.target.kind === 'goal' ? nets[idx].mat : ringMats[idx];
+          pulses.push({ mat, t: 0, base: b.target.kind === 'goal' ? 0.55 : 0.9 });
+          if (b.target.kind === 'hoop' && hoopDefs[idx]?.bnetObj) {
+            swishes.push({ mesh: hoopDefs[idx].bnetObj, t: 0 });
+          }
         }
       }
+    }
+    for (let i = swishes.length - 1; i >= 0; i--) {
+      const s = swishes[i];
+      s.t += dt;
+      const k = Math.sin(Math.min(1, s.t / 0.4) * Math.PI);
+      s.mesh.scale.set(1 + k * 0.3, 1 + k * 0.2, 1 + k * 0.3);
+      if (s.t >= 0.4) { s.mesh.scale.set(1, 1, 1); swishes.splice(i, 1); }
     }
     for (let i = pulses.length - 1; i >= 0; i--) {
       const p = pulses[i];
