@@ -6,6 +6,7 @@
 // able to pin the camera at the zenith — that was the reported bug:
 // "I have to put the phone parallel to the floor to navigate."
 import assert from 'node:assert';
+import { readFileSync } from 'node:fs';
 
 // ── Mirror of pitchFromBeta (the sky) ─────────────────────────
 function pitchFromBeta(beta, gamma, screenAngle = 0) {
@@ -113,6 +114,16 @@ for (const held of [55, 62, 72, 84, 95]) {
 {
   const p = deg(gyroOffsets(0, -GYRO_HOLD_DEG, 90).pitch);
   assert(Math.abs(p) < 0.001, `landscape natural hold must be level, got ${p.toFixed(1)}°`);
+}
+
+// The calibrated mapping is only useful if the production input path
+// actually subscribes after the user's permission gesture.
+{
+  const app = readFileSync(new URL('./app.js', import.meta.url), 'utf8');
+  assert(app.includes("window.addEventListener('deviceorientation', onDeviceOrientation, true)"),
+    'enableGyro must subscribe to device orientation');
+  assert(app.includes('DeviceOrientationEvent.requestPermission()'),
+    'iOS gyro permission stays inside the user gesture path');
 }
 
 console.log('gyro: all checks passed · natural hold = level · clamped to ±40° · recentre works · sky agrees');

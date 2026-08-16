@@ -76,5 +76,7 @@ assert(styles.includes('body[data-view="plan"] .room-hud,'),
   'plan handoff immediately hides delayed world HUD chrome');
 assert(app.includes("document.getElementById('room-hud')?.setAttribute('aria-hidden'"),
   'view handoff keeps the world HUD accessibility state truthful');
+assert(app.includes('Promise.resolve(cvs.requestPointerLock()).catch(() => {})'),
+  'unsupported pointer lock falls back without an unhandled rejection');
 
 console.log('mechanics: five levels pass · fingers · camera · movement · transfer · world suspension');

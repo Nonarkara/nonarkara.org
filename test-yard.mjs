@@ -1,7 +1,9 @@
 // Self-check for the yard: path network, field placement, shot
 // judgement, ball flight. `node test-yard.mjs`
 import assert from 'node:assert';
-import { NODES, EDGES, PITCH, COURT, judgeShot, ballAt, colliderBoxes, PATH_W } from './yard.js';
+import { readFileSync } from 'node:fs';
+import * as THREE from './vendor-three-0.160.0.js';
+import { buildYard, NODES, EDGES, PITCH, COURT, judgeShot, ballAt, colliderBoxes, PATH_W } from './yard.js';
 import { PLAN as PAV } from './pavilion.js';
 import { PLAN as GH } from './glasshouse.js';
 import { PLAN as SAV } from './savoye.js';
@@ -75,4 +77,53 @@ import { PLAN as FW } from './fallingwater.js';
   }
 }
 
-console.log('yard: all checks passed · paths reach every house · fields in the open · shots judged honestly');
+// ── Live scoring drives an anchored effect on the correct net ────
+{
+  const priorDocument = globalThis.document;
+  const priorStorage = globalThis.localStorage;
+  const context = {
+    fillRect() {}, strokeRect() {}, fillText() {},
+    fillStyle: '', strokeStyle: '', textBaseline: '', font: '', textAlign: '',
+  };
+  globalThis.document = {
+    createElement: () => ({ width: 0, height: 0, getContext: () => context }),
+  };
+  globalThis.localStorage = { getItem: () => null, setItem() {} };
+  try {
+    const yard = buildYard(THREE, new THREE.Scene(), { dark: true });
+    const leftHoop = yard.group.getObjectByName('basketball-net-left');
+    const rightHoop = yard.group.getObjectByName('basketball-net-right');
+    const leftGoal = yard.group.getObjectByName('soccer-net-left');
+    const rightGoal = yard.group.getObjectByName('soccer-net-right');
+    assert(leftHoop && rightHoop && leftGoal && rightGoal, 'all four nets are named and addressable');
+
+    const hoopAnchor = leftHoop.position.clone();
+    yard.celebrate('basket', -1);
+    yard.tick(0.1);
+    assert(leftHoop.scale.x > 1 && leftHoop.scale.y > 1, 'the scored hoop swishes');
+    assert.equal(rightHoop.scale.x, 1, 'the other hoop stays still');
+    assert(leftHoop.position.equals(hoopAnchor), 'the swish stays anchored to its rim');
+    yard.tick(0.4);
+    assert.equal(leftHoop.scale.x, 1, 'the hoop net returns to rest');
+
+    const goalAnchor = rightGoal.position.clone();
+    yard.celebrate('soccer', 1);
+    yard.tick(0.1);
+    assert(rightGoal.scale.x > 1, 'the scored goal net bulges backward');
+    assert.equal(leftGoal.scale.x, 1, 'the other goal stays still');
+    assert(rightGoal.position.equals(goalAnchor), 'the bulge stays anchored to its goal line');
+    yard.tick(0.4);
+    assert.equal(rightGoal.scale.x, 1, 'the goal net returns to rest');
+  } finally {
+    if (priorDocument === undefined) delete globalThis.document;
+    else globalThis.document = priorDocument;
+    if (priorStorage === undefined) delete globalThis.localStorage;
+    else globalThis.localStorage = priorStorage;
+  }
+
+  const app = readFileSync(new URL('./app.js', import.meta.url), 'utf8');
+  assert(app.includes('window.__yard.celebrate?.(b.ball.kind, target?.side)'),
+    'the physical ball scorer forwards the crossed target to the yard effect');
+}
+
+console.log('yard: all checks passed · paths · fields · shots · anchored live net effects');

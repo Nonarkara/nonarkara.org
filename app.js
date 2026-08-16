@@ -57,10 +57,11 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
-//   4.36 (2026-08-16) 3D engine mechanics audit: phone gyrometer bypassed
-//                    for 1:1 touch/joystick look up/down; 3D woven nets created
-//                    for both basketball hoops & soccer goals with dynamic swish
-//                    & net impact bulge animations; Cybertruck driving polished.
+//   4.37 (2026-08-16) v4.36 integration repair: calibrated gyro restored as
+//                    an additive input; live physical scoring now drives the
+//                    correct anchored basketball swish / soccer net bulge.
+//   4.36 (2026-08-16) added woven basketball and boxed soccer net geometry;
+//                    temporarily bypassed phone orientation input.
 //   4.35 (2026-08-13) Farnsworth's two procedural Black Locusts are
 //                    gone. Cylinder trunks + five overlapping green
 //                    spheres stood on the south lawn as "the real
@@ -393,7 +394,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.36';
+const NON_VERSION = '4.37';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -1355,6 +1356,7 @@ window.__balls = BALLS;
 // Where a shot can score. Goals are planes; hoops are rings.
 const GOALS = [-1, 1].map(s => ({
   kind: 'soccer',
+  side: s,
   x: PITCH.cx + s * PITCH.w / 2, z: PITCH.cz,
   halfW: PITCH.goalW / 2, height: PITCH.goalH,
   // The direction a ball must TRAVEL to be in — the same sign as the
@@ -1371,6 +1373,7 @@ const HOOPS = [-1, 1].map(s => {
   const rx = px - s * (0.12 + COURT.rimR + 0.05);
   return {
     kind: 'basket',
+    side: s,
     x: rx, y: COURT.rimH, z: COURT.cz, r: COURT.rimR + 0.16,
     // Aim EXACTLY at the ring. The arc is already descending when it
     // arrives (T is past the apex at every real distance), so the frame
@@ -1469,11 +1472,11 @@ function tickBalls() {
         const next = ball.pos;
         if (ball.kind === 'soccer') {
           for (const g of GOALS) {
-            if (crossedGoal(prev, next, g)) { scoreBall(b, now); break; }
+            if (crossedGoal(prev, next, g)) { scoreBall(b, now, g); break; }
           }
         } else {
           for (const h of HOOPS) {
-            if (throughHoop(prev, next, h)) { scoreBall(b, now); break; }
+            if (throughHoop(prev, next, h)) { scoreBall(b, now, h); break; }
           }
         }
       }
@@ -1502,11 +1505,11 @@ function tickBalls() {
   }
 }
 
-function scoreBall(b, now) {
+function scoreBall(b, now, target) {
   const g = b.game;
   const n = g.onScore(now);
   if (window.__yard) {
-    window.__yard.celebrate?.(b.ball.kind);
+    window.__yard.celebrate?.(b.ball.kind, target?.side);
     window.__yard.setBoard?.(b.ball.kind, g, g.secondsLeft(now));
   }
   const left = g.secondsLeft(now);
@@ -3527,9 +3530,17 @@ function recentreGyro() {
 window.__recentreGyro = recentreGyro;
 
 async function enableGyro() {
-  // Gyrometer on phone bypassed per spec — 1:1 touch drag & joystick control look.
-  gyroEnabled = false;
-  return;
+  if (!gyroAvailable) return;
+  if (gyroEnabled) return;
+  if (gyroNeedsPermission) {
+    try {
+      const p = await DeviceOrientationEvent.requestPermission();
+      if (p !== 'granted') return;
+    } catch (_) { return; }
+  }
+  window.addEventListener('deviceorientation', onDeviceOrientation, true);
+  gyroEnabled = true;
+  gyroCalibrated = false;
 }
 function disableGyro() {
   if (!gyroEnabled) return;
@@ -7468,7 +7479,11 @@ function setWalk(on) {
     WALK.teleport(camera.position.x, camera.position.z);
     const cvs = renderer.domElement;
     if (!IS_TOUCH && cvs.requestPointerLock) {
-      try { cvs.requestPointerLock(); } catch (_) {}
+      try {
+        // Embedded browsers may reject pointer lock asynchronously. Walk
+        // still works with click-drag look, so this is a graceful fallback.
+        Promise.resolve(cvs.requestPointerLock()).catch(() => {});
+      } catch (_) {}
     }
     if (IS_TOUCH && !stickEl) stickEl = attachStick(WALK);
     if (stickEl) stickEl.classList.add('in');
