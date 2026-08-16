@@ -97,6 +97,30 @@ import { PLAN as FW } from './fallingwater.js';
     const rightGoal = yard.group.getObjectByName('soccer-net-right');
     assert(leftHoop && rightHoop && leftGoal && rightGoal, 'all four nets are named and addressable');
 
+    // Each net is anchored to its rim or goal line at the real world
+    // position. v4.37's name+position fix means a regression that
+    // moved the net to the wrong place would still pass the
+    // "doesn't move during animation" check, so verify the rest
+    // position up front too.
+    const close = (a, b) => Math.abs(a - b) < 0.01;
+    {
+      // Soccer goals sit at the pitch ends, on the centre line, at y=0.
+      assert(close(leftGoal.position.x, PITCH.cx - PITCH.w / 2), 'left goal at −X end of pitch');
+      assert(close(leftGoal.position.y, 0), 'left goal at ground');
+      assert(close(leftGoal.position.z, PITCH.cz), 'left goal at pitch centre line');
+      assert(close(rightGoal.position.x, PITCH.cx + PITCH.w / 2), 'right goal at +X end of pitch');
+      assert(close(rightGoal.position.z, PITCH.cz), 'right goal at pitch centre line');
+      // Basketball nets sit at the rim — the model uses
+      // `rx = px - s * (0.12 + COURT.rimR + 0.05)` where px is the
+      // court end, so the left net is offset TOWARD the court centre.
+      const leftRimX = (COURT.cx - COURT.w / 2) + (0.12 + COURT.rimR + 0.05);
+      assert(close(leftHoop.position.x, leftRimX), 'left hoop at left rim');
+      assert(close(leftHoop.position.y, COURT.rimH), 'left hoop at rim height');
+      assert(close(leftHoop.position.z, COURT.cz), 'left hoop at court centre');
+      const rightRimX = (COURT.cx + COURT.w / 2) - (0.12 + COURT.rimR + 0.05);
+      assert(close(rightHoop.position.x, rightRimX), 'right hoop at right rim');
+    }
+
     const hoopAnchor = leftHoop.position.clone();
     yard.celebrate('basket', -1);
     yard.tick(0.1);

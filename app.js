@@ -57,6 +57,15 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.38 (2026-08-16) yard net rest position. v4.37's runtime test
+//                    verified the nets don't MOVE during animation,
+//                    but never verified they're at the CORRECT
+//                    world location in the first place. A regression
+//                    that moved the left hoop net to the wrong X or
+//                    the right goal net to the wrong Z would still
+//                    pass. Added explicit rest-position checks against
+//                    PITCH.cx/w/cz and COURT.cx/w/cz/rimH so a name
+//                    or position drift is caught.
 //   4.37 (2026-08-16) v4.36 integration repair: calibrated gyro restored as
 //                    an additive input; live physical scoring now drives the
 //                    correct anchored basketball swish / soccer net bulge.
@@ -394,7 +403,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.37';
+const NON_VERSION = '4.38';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
