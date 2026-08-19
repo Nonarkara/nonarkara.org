@@ -3380,6 +3380,16 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
       border-color: rgba(20, 24, 29, 0.28);
     }
     body[data-room-light="1"] .discover-chip { color: #14181d; }
+    /* Same id-outranks-class trap as #brand below: #discover-chip sets its
+       own near-black background, so the class-level flip above never
+       reached it. The label flipped to dark ink and the ground stayed
+       dark — 1.09:1, which is not low contrast, it is an invisible
+       control, and it is the counter the whole discovery game runs on.
+       Keeps the amber border; only the ground moves. */
+    body[data-room-light="1"] #discover-chip {
+      background: rgba(250, 248, 243, 0.92);
+      border-color: var(--amber);
+    }
     /* Amber survives both grounds — it is the one thing that never flips. */
     body[data-room-light="1"] .hud-status,
     body[data-room-light="1"] .hud-build,

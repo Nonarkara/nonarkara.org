@@ -403,7 +403,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.38';
+const NON_VERSION = '4.39';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -2932,14 +2932,30 @@ WALL_TVS.forEach((p, i) => {
     'portraits/04-roundtable.jpg',
   ];
   const portraitLoader = new THREE.TextureLoader();
-  const portraitMats = PORTRAIT_FILES.map(src => {
-    const tex = portraitLoader.load(src);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    return new THREE.MeshBasicMaterial({
-      map: tex, transparent: true, opacity: 0,
-      side: THREE.DoubleSide, depthWrite: false,
-    });
-  });
+  // One at a time, one ahead. The rotator holds each portrait ~28s, so
+  // fetching all four at boot spends three of them on a visitor who has
+  // not been here thirty seconds yet. The swap loop below already
+  // refuses to fade in a material whose map has not arrived, so a
+  // portrait still in flight simply waits its turn instead of flashing.
+  const portraitMats = PORTRAIT_FILES.map(() => new THREE.MeshBasicMaterial({
+    transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false,
+  }));
+  const portraitFetch = (i) => {
+    const m = portraitMats[i];
+    if (!m || m.userData.started) return;
+    m.userData.started = true;
+    portraitLoader.load(PORTRAIT_FILES[i], (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      m.map = tex;
+      m.needsUpdate = true;
+    }, undefined, () => { /* a blank pane, not an error */ });
+  };
+  portraitFetch(0);                       // on screen at once — earns its bytes
+  // The second one is wanted at ~28s. Fetch it when the browser is idle
+  // rather than in the boot scramble, so it is ready without competing.
+  const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 4000));
+  idle(() => portraitFetch(1));
+  window.__portraitFetch = portraitFetch;
   // Same geometry size as aphorism plane so words sit on top of the photo.
   const portraitPlane = new THREE.Mesh(new THREE.PlaneGeometry(APH_W, APH_H), portraitMats[0]);
   portraitPlane.position.set(-1.5, 2.8, FRONT_Z - 0.06);
@@ -5900,6 +5916,9 @@ function animate() {
       if (window.__portraitFade <= 0) {
         window.__portraitIdx = (window.__portraitIdx + 1) % window.__portraitMats.length;
         window.__portraitPlane.material = window.__portraitMats[window.__portraitIdx];
+        // Pull the one after this into flight — 28s of lead, which is
+        // far more than it needs, so no portrait ever arrives late.
+        window.__portraitFetch?.((window.__portraitIdx + 1) % window.__portraitMats.length);
         window.__portraitFadeDir = 1;
         window.__portraitLastSwap = now;
       }
@@ -7561,6 +7580,11 @@ if (WEBGL_OK && SITE.length > 1) {
   const travelTo = (b) => {
     if (TRAVEL || DRIVE.active) return;
     const to = doorstep(b);
+    // Start the gallery fetching the moment you ask to go there, not
+    // when you land. Travel takes 1.6s; that is the head start the
+    // photographs need to be on the wall as you walk in rather than
+    // resolving in front of you afterwards.
+    if (b.plan === SAVOYE_PLAN && EXHIBIT && !EXHIBIT.loaded) EXHIBIT.load();
     // Face the building on arrival: aim the head through the same
     // integrator every other input uses, eased to land as the feet do.
     LOOK.aimAt(Math.atan2(-(to.lookX - to.x), -(to.lookZ - to.z)), 0, 0.055);
@@ -7635,6 +7659,25 @@ if (WEBGL_OK && SITE.length > 1) {
     // The HUD used to say PAVILION whatever happened. There are five
     // buildings now and it has to say the true one, or it is lying.
     if (here && here.textContent !== near[0].b.name) here.textContent = near[0].b.name;
+
+    // The gallery hangs inside Savoye. Fetch its photographs the first
+    // time the walker is near enough for them to be worth anything.
+    // Before this they loaded at boot: 2.6MB spent on a phone, over
+    // mobile data, on pictures inside a building 84m from where you land
+    // and that most visitors never walk to.
+    //
+    // 45m is chosen against the estate, not by feel: Savoye's nearest
+    // neighbour is the Pavilion at 62m and the arrival spawn is 84m out,
+    // so standing where you land can never trigger it — and at 4.2m/s it
+    // is still ten seconds of warning, which is longer than the fetch.
+    // Measured from the walker rather than the camera: the walker is
+    // where the visitor actually is, and it is right on the frame the
+    // camera has not caught up yet (travel, or a backgrounded tab).
+    if (EXHIBIT && !EXHIBIT.loaded) {
+      const s = SITE.find(b => b.plan === SAVOYE_PLAN);
+      const at = WALK.pos || camera.position;
+      if (s && Math.hypot(s.origin.x - at.x, s.origin.z - at.z) < 45) EXHIBIT.load();
+    }
     const n = near[1];
     if (!n) return;
     label.textContent = `${n.b.name} · ${Math.round(n.d)} M`;
