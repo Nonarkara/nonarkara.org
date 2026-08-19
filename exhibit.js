@@ -71,11 +71,21 @@ export function framePlan(plan) {
 }
 
 /**
- * Build the exhibition into the Savoye group. Textures load lazily and
- * failures leave an empty frame rather than an error — a gallery with
- * one photo away for cleaning is still a gallery.
- * Returns { frames } where each frame carries { mesh, hit, photo, i }
- * so app.js can register hit volumes as clickables (kind 'exhibit').
+ * Build the exhibition into the Savoye group. A failed photograph leaves
+ * an empty frame rather than an error — a gallery with one picture away
+ * for cleaning is still a gallery.
+ *
+ * The photographs are NOT fetched here. They used to be, and it cost
+ * every visitor 2.6MB of Bangkok at boot — for a gallery hanging inside
+ * a building 120m from where they land, on a phone, over mobile data,
+ * before the Pavilion had finished drawing. The frames, their captions
+ * and their hit volumes all exist immediately; only the pixels wait.
+ *
+ * Call the returned load() when the walker is close enough to see them.
+ * It fetches once and is free to call again.
+ *
+ * Returns { frames, load, loaded } where each frame carries
+ * { holder, hit, photo, i } so app.js can register the hit volumes.
  */
 export function buildExhibit(THREE, group, plan, opts = {}) {
   const dark = opts.dark !== false;
@@ -85,6 +95,7 @@ export function buildExhibit(THREE, group, plan, opts = {}) {
   });
   const plates = framePlan(plan);
   const frames = [];
+  const pending = [];      // texture fetches, held until load()
 
   plates.forEach((p, i) => {
     const photo = PHOTOS[i % PHOTOS.length];
@@ -98,12 +109,14 @@ export function buildExhibit(THREE, group, plan, opts = {}) {
     });
     const img = new THREE.Mesh(new THREE.PlaneGeometry(p.w, p.h), mat);
     holder.add(img);
-    loader.load(`bkk-photos/${photo.file}`, (tex) => {
+    // Deferred. The card stays a near-black plate until load() is called
+    // and the photograph arrives on top of it.
+    pending.push(() => loader.load(`bkk-photos/${photo.file}`, (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace;
       mat.map = tex;
       mat.color.setHex(0xffffff);
       mat.needsUpdate = true;
-    }, undefined, () => { /* an empty frame, not an error */ });
+    }, undefined, () => { /* an empty frame, not an error */ }));
 
     // Hairline steel surround.
     const fr = new THREE.LineSegments(
@@ -131,5 +144,16 @@ export function buildExhibit(THREE, group, plan, opts = {}) {
     frames.push({ holder, hit, photo, i });
   });
 
-  return { frames };
+  let loaded = false;
+  return {
+    frames,
+    /** Fetch the photographs. Idempotent; returns true only the first time. */
+    load() {
+      if (loaded) return false;
+      loaded = true;
+      pending.forEach(fn => fn());
+      return true;
+    },
+    get loaded() { return loaded; },
+  };
 }

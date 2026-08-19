@@ -6,7 +6,7 @@
  * for same-origin, so a stale version means users keep the old shell.
  */
 
-const CACHE_VERSION = 'non-2026-08-16-v4.37';
+const CACHE_VERSION = 'non-2026-08-19-v4.39';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 // The app's own code. These are always revalidated when online so a
