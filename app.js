@@ -3581,6 +3581,7 @@ window.__mouseDragMoved = false;
 window.addEventListener('mousedown', (e) => {
   if (e.button !== 0 || document.pointerLockElement) return;
   if (document.body.dataset.view !== 'room') return;
+  if (e.target.closest?.('.pga, .frame, .pomodoro, .konami, #door, #offboard, .cmd-palette')) return;
   if (e.target.closest('button, a, input, textarea, select, .modal, .drawer, .nav-pad, .hud-chip')) return;
   mouseDrag = { x: e.clientX, y: e.clientY };
   window.__mouseDragMoved = false;
@@ -3600,8 +3601,15 @@ window.addEventListener('mouseup', () => { mouseDrag = null; window.__dragActive
 let touchAnchor = null;       // {id, x, y, lastX, lastY}
 let touchMoved = false;
 let touchStartTs = 0;
+// A tap on a touch screen fires touchend AND a synthesized click ~300ms later.
+// Both reach onClick, so every scene tap ran its action twice and undid itself.
+let lastCanvasTouchTs = 0;
 function onTouchStart(e) {
   if (touchAnchor || e.changedTouches.length !== 1) return;
+  if (document.body.dataset.view !== 'room') return;   // mirrors the mousedown guard
+  // Full-screen overlays own their finger too: swiping the portrait gallery or
+  // dragging the art frame used to spin the world behind them.
+  if (e.target.closest?.('.pga, .frame, .pomodoro, .konami, #door, #offboard, .cmd-palette')) return;
   // Controls own their finger. The old window handler also claimed the
   // thumbstick touch, so moving meant looking and looking meant moving.
   if (e.target.closest?.('button, a, input, textarea, select, .modal, .drawer, .nav-pad, .hud-chip, .walk-stick')) return;
@@ -3656,7 +3664,12 @@ function onClick(e) {
   // visitor's very first frame inside.
   if (e && e.target && e.target !== renderer.domElement) return;
   // If this came from a touchend that involved a drag, treat as rotate-only
-  if (e && e.type === 'touchend' && touchMoved) return;
+  if (e && e.type === 'touchend') {
+    lastCanvasTouchTs = Date.now();
+    if (touchMoved) return;
+  } else if (e && e.type === 'click' && Date.now() - lastCanvasTouchTs < 700) {
+    return;   // the compatibility click for a tap already handled on touchend
+  }
   if (window.__mouseDragMoved) { window.__mouseDragMoved = false; return; }
   if (document.getElementById('modal').classList.contains('in')) return;
   if (document.getElementById('drawer').classList.contains('in')) return;
@@ -4843,6 +4856,11 @@ function closePortraitGallery() {
 }
 
 document.getElementById('pga-close')?.addEventListener('click', closePortraitGallery);
+// Every other overlay closes on Escape; this one did not, and it opens full-screen
+// on any portrait tap — so the only way out was finding the ×.
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.getElementById('pga')?.classList.contains('in')) closePortraitGallery();
+});
 document.getElementById('pga-prev')?.addEventListener('click', () => pgaShow(pgaIdx - 1));
 document.getElementById('pga-next')?.addEventListener('click', () => pgaShow(pgaIdx + 1));
 document.getElementById('pga-share')?.addEventListener('click', async () => {
@@ -6077,7 +6095,11 @@ function animate() {
     WALK.update(dt, camera.rotation.y);
   } else {
     window.__lastWalkT = performance.now();
-    camera.position.y = prefersReducedMotion ? 1.7 : (1.7 + Math.sin(t * 0.4) * 0.015);
+    // Rest at the floor you are actually standing on. Hardcoding 1.7 dropped the
+    // eye through every elevated floor the moment pointer lock ended (Escape,
+    // alt-tab, tapping WALK). WALK.floorY is 0 until you walk, so ground is same.
+    const restY = (WALK.floorY || 0) + 1.7;
+    camera.position.y = prefersReducedMotion ? restY : (restY + Math.sin(t * 0.4) * 0.015);
   }
   if (window.__tickWeather) window.__tickWeather();
   if (window.__yard) window.__yard.tick(dtLook);

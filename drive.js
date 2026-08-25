@@ -18,7 +18,7 @@ const LEN = 5.2, WID = 2.0, WHEELBASE = 3.4;
 const VMAX = 16, VMIN = -6;         // m/s — brisk across a 100m plain
 const ACCEL = 9, BRAKE = 14, DRAG = 1.6;
 const STEER_MAX = 0.55, STEER_EASE = 6;
-const BOUND_R = 220;
+const BOUND_R = 190;   // inside the innermost mountain ring (world.js, r=205)
 
 /** The wedge, as a side profile extruded to width. Local −Z is forward. */
 export const PROFILE = [

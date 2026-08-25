@@ -2919,12 +2919,16 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
       z-index: 38;
       pointer-events: none;
       opacity: 0;
-      transition: opacity 0.6s ease;
+      /* visibility, not just opacity: .sky-exit re-enables pointer-events, so an
+         opacity-0 HUD still ate canvas taps and stayed keyboard-focusable inside
+         aria-hidden. Delayed on hide so the 0.6s fade-out still plays. */
+      visibility: hidden;
+      transition: opacity 0.6s ease, visibility 0s linear 0.6s;
       font-family: 'JetBrains Mono', monospace;
       padding: calc(18px + var(--sat)) calc(18px + var(--sar))
                calc(18px + var(--sab)) calc(18px + var(--sal));
     }
-    body[data-sky="on"] .sky-hud { opacity: 1; }
+    body[data-sky="on"] .sky-hud { opacity: 1; visibility: visible; transition: opacity 0.6s ease, visibility 0s; }
 
     .sky-top {
       display: flex; justify-content: space-between; align-items: baseline;
@@ -2977,7 +2981,7 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
     body[data-ground="on"] .sky-hint,
     body[data-sky="on"] .ground-hint { display: none !important; }
     .ground-hud { opacity: 0; }
-    body[data-ground="on"] .ground-hud { opacity: 1; }
+    body[data-ground="on"] .ground-hud { opacity: 1; visibility: visible; transition: opacity 0.6s ease, visibility 0s; }
     body[data-ground="on"] { background: #070a0f; }
     .ground-hud .sky-exit { bottom: auto; top: calc(84px + var(--sat)); }
     /* Attribution is a condition of using the imagery, so it renders on
@@ -3439,10 +3443,14 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
       pointer-events: none !important;
     }
 
-    /* And the two overlays are mutually exclusive — never both. */
+    /* And the two overlays are mutually exclusive — never both.
+       #ground-hud carries BOTH classes ("sky-hud ground-hud"), so an
+       unqualified .sky-hud here also hid the ground overlay — and with it
+       the OpenStreetMap credit, which is a condition of using the imagery. */
     body[data-sky="on"] .ground-hud,
-    body[data-ground="on"] .sky-hud {
+    body[data-ground="on"] .sky-hud:not(.ground-hud) {
       opacity: 0 !important;
+      visibility: hidden !important;
       pointer-events: none !important;
     }
 
