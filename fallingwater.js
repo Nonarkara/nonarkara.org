@@ -394,9 +394,11 @@ export function buildFallingwater(THREE, scene, opts = {}) {
   at(box(3.6, PLAN.study.y - PLAN.slabT - PLAN.upperY - 0.02, 2.8, voidMat),
     PLAN.study.x + 0.3, (PLAN.upperY + PLAN.study.y - PLAN.slabT) / 2, PLAN.study.z + 0.3);
   // Amber hearth — the one accent.
-  const hearth = box(1.4, 1.1, 0.12, mat(0xf59e0b, 0.35));
-  at(hearth, c.x + c.w / 2 - 0.05, PLAN.livingY + 0.7, c.z + 0.4);
-  at(edges(1.4, 1.1, 0.12, amberLine), c.x + c.w / 2 - 0.05, PLAN.livingY + 0.7, c.z + 0.4);
+  // Thin in X, not Z: it sits on the chimney's +X face, so a Z-thin box had
+  // half of itself buried in the stone and half floating free.
+  const hearth = box(0.12, 1.1, 1.4, mat(0xf59e0b, 0.35));
+  at(hearth, c.x + c.w / 2 + 0.06, PLAN.livingY + 0.7, c.z + 0.4);
+  at(edges(0.12, 1.1, 1.4, amberLine), c.x + c.w / 2 + 0.06, PLAN.livingY + 0.7, c.z + 0.4);
 
   // ── The trays — thick pale bands, crossed ─────────────────
   const trayBand = (w, d, x, topY, z) => {

@@ -145,7 +145,9 @@ export function buildPavilion(THREE, scene, opts = {}) {
   const r = PLAN.roof;
   const rw = r.x1 - r.x0, rd = r.z1 - r.z0;
   const roof = box(rw, r.thickness, rd, MATS.roof);
-  roof.position.set((r.x0 + r.x1) / 2, r.y + r.thickness / 2, (r.z0 + r.z1) / 2);
+  // Sunk 2cm: every wall and all eight columns stop at exactly r.y, so a
+  // tangent soffit left six coplanar strips strobing along the whole ceiling.
+  roof.position.set((r.x0 + r.x1) / 2, r.y + r.thickness / 2 - 0.02, (r.z0 + r.z1) / 2);
   G.add(roof);
   const roofEdge = edges(rw, r.thickness, rd);
   roofEdge.position.copy(roof.position);

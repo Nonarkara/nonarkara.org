@@ -483,7 +483,9 @@ export function buildSavoye(THREE, scene, opts = {}) {
     if (x === 0) continue;               // the axis belongs to the ramp
     for (const z of PLAN.cols) {
       const c = new THREE.Mesh(
-        new THREE.CylinderGeometry(PLAN.piloti.r, PLAN.piloti.r, ph, 12), MATS.piloti);
+        // +4cm so the cap is buried in the slab rather than coplanar with its
+        // underside — 20 columns were z-fighting under the box.
+        new THREE.CylinderGeometry(PLAN.piloti.r, PLAN.piloti.r, ph + 0.04, 12), MATS.piloti);
       at(c, x, ph / 2, z);
     }
   }

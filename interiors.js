@@ -236,7 +236,10 @@ function saarinenTulip(THREE, mats, x, z, rotY = 0) {
   const seat = new THREE.Mesh(
     new THREE.SphereGeometry(0.28, 18, 10, 0, Math.PI * 2, 0, Math.PI / 3.2),
     mats.leather);
-  seat.position.y = 0.43;
+  // The cap is taken from the north pole, so unrotated it is a dome floating
+  // above the pedestal. Flip it to get the dish the chair is named for.
+  seat.rotation.x = Math.PI;
+  seat.position.y = 0.72;
   g.add(seat);
 
   g.position.set(x, 0, z);
@@ -330,7 +333,9 @@ function twoFigures(THREE, mats, x, z) {
     body.rotation.z = lean;
     g.add(body);
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8), mats.plaster);
-    head.position.set(dx + Math.sin(lean) * h * 0.5, h + 0.09, 0);
+    // A Z-rotation moves the top by -sin(lean); the + made both heads lean
+    // against their own bodies.
+    head.position.set(dx - Math.sin(lean) * h * 0.5, h * Math.cos(lean) + 0.09, 0);
     g.add(head);
   }
   g.position.set(x, 0, z);
@@ -341,7 +346,10 @@ function twoFigures(THREE, mats, x, z) {
 function rug(THREE, mats, x, z, w, d) {
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mats.rug);
   m.rotation.x = -Math.PI / 2;
-  m.position.set(x, 0.012, z);
+  // 0.024, not 0.012: the Glass House interior floor plane is at exactly 0.012
+  // (glasshouse.js), so a coplanar rug strobed. Still clears the Pavilion's
+  // paving grid (0.004) and onyx wash (0.008).
+  m.position.set(x, 0.024, z);
   return m;
 }
 

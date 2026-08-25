@@ -250,8 +250,10 @@ export function buildGlassHouse(THREE, scene, opts = {}) {
 
   // ── Roof ────────────────────────────────────────────────
   const rt = PLAN.roofT;
-  at(box(h.w + 0.3, rt, h.d + 0.3, MATS.roof), 0, h.h + rt / 2, 0);
-  at(edges(h.w + 0.3, rt, h.d + 0.3), 0, h.h + rt / 2, 0);
+  // Sunk 2cm — the mullions, corner flanges and head channels all top out at
+  // h.h, so a tangent soffit strobed against every one of them.
+  at(box(h.w + 0.3, rt, h.d + 0.3, MATS.roof), 0, h.h + rt / 2 - 0.02, 0);
+  at(edges(h.w + 0.3, rt, h.d + 0.3), 0, h.h + rt / 2 - 0.02, 0);
 
   // ── The brick cylinder ──────────────────────────────────
   // The only solid, the only amber, the only thing that goes through
