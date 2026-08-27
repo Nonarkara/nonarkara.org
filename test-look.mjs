@@ -92,9 +92,9 @@ const deg = r => r * 180 / Math.PI;
 // ── Sky and ground come from pitch alone ──────────────────────
 {
   assert.equal(overheadBlend(0), 0, 'level: no sky');
-  // Threshold raised to ~31°: a phone held naturally while walking sits
-  // 20–28° up, and the sky must not wash in mid-stride.
-  assert.equal(overheadBlend(0.50), 0, 'a naturally-held phone: no sky');
+  // Upright is pitch 0. A 31° tilt is required before the sky washes
+  // in — a browsing hold (~18° up) stays in the room.
+  assert.equal(overheadBlend(0.50), 0, 'a browsing hold: no sky');
   assert.equal(overheadBlend(1.06), 1, 'past 60°: full sky');
   const mid = overheadBlend(0.8);
   assert(mid > 0.3 && mid < 0.7, 'the transition is a glance, not a switch');
