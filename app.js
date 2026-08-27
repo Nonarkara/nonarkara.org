@@ -8,7 +8,7 @@ import { buildSavoye, PLAN as SAVOYE_PLAN, paint as paintSavoye } from './savoye
 import { buildFarnsworth, PLAN as FARN_PLAN, paint as paintFarn } from './farnsworth.js';
 import { buildFallingwater, PLAN as FALL_PLAN, paint as paintFall } from './fallingwater.js';
 import { Walk, attachStick } from './walk.js';
-import { Look, damp, dampingFactor, overheadBlend, underfootBlend } from './look.js';
+import { Look, damp, dampingFactor, overheadBlend, underfootBlend, deviceLook, headingDelta, pitchFromBeta } from './look.js';
 import { sunAltitude, paletteFor, fetchWeather, makeRain } from './daylight.js';
 import {
   cardinal as astroCardinal, moonHorizontal, moonPhase, solarEvents, sunHorizontal,
@@ -57,6 +57,17 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.39 (2026-08-27) mobile viewing is Pokémon GO: the phone is a
+//                    window. Hold it upright (beta 90°) to see the
+//                    room at the horizon; tilt up (toward the sky) to
+//                    look at the stars; tilt down for the map; turn
+//                    the phone to turn. Pitch is absolute 1:1, never
+//                    calibrated to a first sample or a 72° "natural
+//                    hold," and never clamped to ±40° — those three
+//                    together were why tilting could not reach the
+//                    sky. Yaw is relative heading so the world does
+//                    not snap to magnetic north. LEVEL recentres
+//                    heading, not the horizon.
 //   4.38 (2026-08-16) yard net rest position. v4.37's runtime test
 //                    verified the nets don't MOVE during animation,
 //                    but never verified they're at the CORRECT
@@ -403,7 +414,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.38';
+const NON_VERSION = '4.39';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -3436,101 +3447,55 @@ const target = { x: 0, y: 0 };
 let hovered = null;
 
 // ─── Gyroscope tilt control ──────────────────────────────
-// On a phone, holding the device in front of your face and
-// tilting it should tilt the room. Saves the thumb. iOS 13+
-// requires explicit permission via a user-gesture handler;
-// Android Chrome works without permission.
-//
-// We low-pass filter the raw orientation so a hand tremor
-// doesn't shake the camera. Output goes into target.x/.y the
-// same channel as mouse parallax and touch drag, so all three
-// input modes blend naturally.
+// Pokémon GO: the phone is a window. Hold it upright to look
+// at the room; tilt it up to look at the sky; turn it to turn.
+// iOS 13+ requires permission inside a user-gesture handler;
+// Android Chrome works without. A light low-pass kills tremor
+// without making the window lag the hand.
 let gyroEnabled = false;
 let gyroAvailable = (typeof DeviceOrientationEvent !== 'undefined');
 let gyroNeedsPermission = gyroAvailable && typeof DeviceOrientationEvent.requestPermission === 'function';
 let gyroSmoothX = 0, gyroSmoothY = 0;        // radians, smoothed
-function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
-/**
- * THE HOLD — where "level" is, and why this was broken.
- *
- * Reported on a real phone: "I have to put the phone parallel to the
- * floor to navigate, otherwise I'm looking at the sky or the floor."
- * That is the signature of a neutral captured at the wrong instant. The
- * old code took the FIRST orientation sample as zero — and that sample
- * arrives the moment permission is granted, which is while the phone is
- * still on a table, or moving in your hand as you tap. Calibrate to a
- * flat phone and every natural hold (beta ≈ 60–80°) reads as a 70° tilt
- * upward: you are staring at the zenith and nothing you do fixes it,
- * because nothing ever re-zeroed.
- *
- * So: the neutral is NOT whatever happened first. It is the angle people
- * actually hold a phone at — 72° — and it only moves when the visitor
- * asks (the RECENTRE chip, or a two-finger tap), or when a first sample
- * arrives that is plausibly a hold rather than a table.
- *
- * The gyro is also demoted to what it should always have been: a window
- * shift of at most ±40°, not an authority that can pin the camera at
- * the sky. The thumb still owns the frame (look.js rule 3).
- */
-const GYRO_HOLD_DEG = 72;        // how a phone is actually held
-const GYRO_GAIN = 0.85;          // slightly under 1:1 — calmer, still a window
-const GYRO_MAX_DEG = 40;         // the gyro can never dominate the look
-const GYRO_DEADZONE_DEG = 2.5;   // a walking hand jitters; ignore that much
-let gyroBetaZero = GYRO_HOLD_DEG;
-let gyroCalibrated = false;
-
-/**
- * Device attitude → additive look offsets, in radians. Absolute and
- * shared-convention with pitchFromBeta: tip the phone down and you look
- * down, hold it naturally and you are at the horizon.
- * Exported shape kept pure so test-gyro.mjs can check the physics.
- */
-function gyroOffsets(beta, gamma, screenAngle, zeroDeg) {
-  // Which axis is "front-back" depends on how the screen is rotated.
-  let pitchAxis = beta, rollAxis = gamma;
-  if (screenAngle === 90) { pitchAxis = -gamma; rollAxis = beta; }
-  else if (screenAngle === -90 || screenAngle === 270) { pitchAxis = gamma; rollAxis = -beta; }
-  let dPitch = zeroDeg - pitchAxis;                 // + = looking up
-  dPitch = Math.abs(dPitch) < GYRO_DEADZONE_DEG ? 0
-    : dPitch - Math.sign(dPitch) * GYRO_DEADZONE_DEG;
-  const pitch = clamp(dPitch * GYRO_GAIN, -GYRO_MAX_DEG, GYRO_MAX_DEG) * Math.PI / 180;
-  // Roll nudges yaw a little — leaning the phone peeks around, it does
-  // not turn you. Turning is the joystick's job.
-  const yaw = clamp(rollAxis / 35, -1, 1) * 0.42;
-  return { pitch, yaw };
+function screenAngleDeg() {
+  if (screen.orientation && typeof screen.orientation.angle === 'number') {
+    return screen.orientation.angle;
+  }
+  return window.orientation || 0;
 }
-window.__gyroOffsets = gyroOffsets;   // verification handle
 
-let gyroLastBeta = GYRO_HOLD_DEG;
+// Pitch is absolute (upright = horizon). Yaw is accumulated from
+// heading steps so a compass kick-in cannot spin the room 180°.
+const GYRO_SMOOTH = 0.42;
+let gyroYawAccum = 0;
+let gyroPrevHeading = null;
+
 function onDeviceOrientation(e) {
   if (!gyroEnabled) return;
+  if (typeof e.beta !== 'number' || e.beta === null) return;
   const gamma = e.gamma || 0;
-  const beta  = e.beta  || 0;
-  const screenAngle = (screen.orientation && screen.orientation.angle) || 0;
-  gyroLastBeta = (screenAngle === 90) ? -gamma
-    : (screenAngle === -90 || screenAngle === 270) ? gamma : beta;
-  // A first sample only earns the right to set neutral if it looks like
-  // a hand holding a phone. 5° is a table; 150° is a pocket.
-  if (!gyroCalibrated) {
-    gyroCalibrated = true;
-    if (gyroLastBeta > 30 && gyroLastBeta < 110) gyroBetaZero = gyroLastBeta;
-  }
-  const o = gyroOffsets(beta, gamma, screenAngle, gyroBetaZero);
-  // Exponential moving average — kills hand tremor.
-  gyroSmoothX += (o.yaw - gyroSmoothX) * 0.18;
-  gyroSmoothY += (o.pitch - gyroSmoothY) * 0.18;
+  const beta = e.beta;
+  const alpha = (typeof e.alpha === 'number' && e.alpha !== null) ? e.alpha : 0;
+  const screenAngle = screenAngleDeg();
+  const o = deviceLook(alpha, beta, gamma, screenAngle, 0);
+  const heading = alpha + screenAngle;
+  gyroYawAccum += headingDelta(gyroPrevHeading, heading);
+  gyroPrevHeading = heading;
+  // Exponential moving average — kills hand tremor, stays snappy.
+  gyroSmoothX += (gyroYawAccum - gyroSmoothX) * GYRO_SMOOTH;
+  gyroSmoothY += (o.pitch - gyroSmoothY) * GYRO_SMOOTH;
 }
+window.__deviceLook = deviceLook;   // verification handle
 
-/** The escape hatch: whatever you are holding right now is level. */
+/** LEVEL: this heading is forward. Horizon is still "phone upright." */
 function recentreGyro() {
-  if (gyroLastBeta > 5 && gyroLastBeta < 150) gyroBetaZero = gyroLastBeta;
-  else gyroBetaZero = GYRO_HOLD_DEG;
-  gyroSmoothX = 0; gyroSmoothY = 0;
+  gyroYawAccum = 0;
+  gyroSmoothX = 0;
+  gyroPrevHeading = null;
   try { LOOK.pitch = 0; LOOK.cancelAim(); } catch (_) {}
   const el = document.getElementById('discover-toast');
   if (el) {
-    el.textContent = 'LEVEL SET · THIS IS YOUR HORIZON';
+    el.textContent = 'LEVEL SET · THIS WAY IS FORWARD';
     el.classList.add('in');
     clearTimeout(recentreGyro._t);
     recentreGyro._t = setTimeout(() => el.classList.remove('in'), 2000);
@@ -3549,13 +3514,21 @@ async function enableGyro() {
   }
   window.addEventListener('deviceorientation', onDeviceOrientation, true);
   gyroEnabled = true;
-  gyroCalibrated = false;
+  gyroYawAccum = 0;
+  gyroSmoothX = 0;
+  gyroSmoothY = 0;
+  gyroPrevHeading = null;
+  try { LOOK.pitch = 0; LOOK.cancelAim(); } catch (_) {}
 }
 function disableGyro() {
   if (!gyroEnabled) return;
   window.removeEventListener('deviceorientation', onDeviceOrientation, true);
   gyroEnabled = false;
+  gyroYawAccum = 0;
+  gyroPrevHeading = null;
   gyroSmoothX = 0; gyroSmoothY = 0;
+  LOOK.gyroYaw = 0;
+  LOOK.gyroPitch = 0;
 }
 
 // ── Mouse: position-based parallax (subtle, hover camera) ──
@@ -6008,20 +5981,14 @@ function animate() {
     m.opacity = damp(m.opacity, tgt, 8, dtLook);
   });
 
-  // Camera control: finger drag is the primary input, gyro adds a
-  // gentle offset on top. While actively dragging, gyro fades to 0
-  // so it doesn't fight the finger; on release, gyro eases back in.
-  const gyroTarget = touchAnchor ? 0 : 1;
-  window.__gyroBlend = damp(window.__gyroBlend ?? 0, gyroTarget, 4, dtLook);
-  // Doom rule: the camera is SET from the look state, same frame, no
-  // easing. The old 5%/frame lerp meant the view trailed a third of a
-  // second behind every input — the "swimming". Gyro rides on top as an
-  // additive offset that fades while the finger is down.
-  // Both already carry their own scale and sign from gyroOffsets(); the
-  // old call site re-scaled and re-negated them, which is how a sign
-  // convention gets lost twice in one line.
-  LOOK.gyroYaw   = gyroEnabled ? -gyroSmoothX * window.__gyroBlend : 0;
-  LOOK.gyroPitch = gyroEnabled ?  gyroSmoothY * window.__gyroBlend : 0;
+  // Camera control: the phone is the window (Pokémon GO). Finger drag
+  // still adds on top. While dragging, gyro yaw fades so a swipe-turn
+  // does not fight a body-turn; pitch never fades — tilting up must
+  // keep the sky, even if a finger is on the glass.
+  const gyroYawTarget = touchAnchor ? 0 : 1;
+  window.__gyroBlend = damp(window.__gyroBlend ?? 0, gyroYawTarget, 4, dtLook);
+  LOOK.gyroYaw   = gyroEnabled ?  gyroSmoothX * window.__gyroBlend : 0;
+  LOOK.gyroPitch = gyroEnabled ?  gyroSmoothY : 0;
 
   // In the sky with a compass: ease yaw toward the real heading so the
   // stars sit where the sky sits. Gentle, so a jittery compass reads
@@ -6033,8 +6000,11 @@ function animate() {
   // on the glass. Correcting during a drag made the view rubber-band
   // toward north against the hand — the single most "glitchy" feeling
   // input can produce, because the user is right and loses anyway.
+  // When the AR window is driving yaw, drop the gyro yaw offset so the
+  // compass and the phone do not both turn the view.
   if (window.__skyHasMotion && window.__skyHeading != null &&
       (window.__skyBlend || 0) > 0.25 && !window.__dragActive) {
+    LOOK.gyroYaw = 0;
     const wantYaw = -window.__skyHeading * Math.PI / 180;
     LOOK.yaw += Math.atan2(Math.sin(wantYaw - LOOK.yaw), Math.cos(wantYaw - LOOK.yaw))
       * dampingFactor(5, dtLook);
@@ -6894,12 +6864,15 @@ function askForLocation() {
 // The sky appears because you are looking at it — same as walking.
 function enterSky() {
   if (!skyAvailable()) return;
-  LOOK.aimAt(LOOK.yaw, 1.15, 0.10);
+  // On a phone the window is the sky — tilt up. Aiming here would
+  // stack on the AR pitch and leave you in the stars after you
+  // lowered the phone.
+  if (!gyroEnabled) LOOK.aimAt(LOOK.yaw, 1.15, 0.10);
   askForLocation();
   try { enableGyro(); } catch (_) {}
 }
 
-function exitSky() { LOOK.aimAt(LOOK.yaw, 0, 0.10); }
+function exitSky() { if (!gyroEnabled) LOOK.aimAt(LOOK.yaw, 0, 0.10); }
 
 function toggleSky() { CAMERA_MODE === 'sky' ? exitSky() : enterSky(); }
 
@@ -6979,12 +6952,12 @@ async function initGround() {
 
 function enterGround() {
   if (!GROUND) return;
-  LOOK.aimAt(LOOK.yaw, -1.15, 0.10);
+  if (!gyroEnabled) LOOK.aimAt(LOOK.yaw, -1.15, 0.10);
   askForLocation();
   try { enableGyro(); } catch (_) {}
 }
 
-function exitGround() { LOOK.aimAt(LOOK.yaw, 0, 0.10); }
+function exitGround() { if (!gyroEnabled) LOOK.aimAt(LOOK.yaw, 0, 0.10); }
 
 function toggleGround() { CAMERA_MODE === 'ground' ? exitGround() : enterGround(); }
 document.getElementById('ground-hint')?.addEventListener('click', enterGround);
@@ -6999,44 +6972,17 @@ document.getElementById('sky-exit')?.addEventListener('click', exitSky);
 let SKY_HAS_MOTION = false;
 let DEVICE_PITCH = null;            // radians: +up, 0 = horizon, -down
 
-/**
- * The phone's actual pitch, absolute — not relative to however you were
- * holding it when you started.
- *
- * DeviceOrientation beta is 0 when the phone lies flat face-up and 90
- * when you hold it upright in front of you. So looking-up angle is
- * (90 - beta): flat means you are pointing at the zenith, upright means
- * you are pointing at the horizon.
- *
- * This is the difference between a planetarium and a picture of one. The
- * sky used to sit at a FIXED 76° whatever you did, so holding the phone
- * normally showed you the zenith — which reads exactly as lying on your
- * back on the floor. Now the sky is where the sky is: lift the phone and
- * the stars are behind the screen, lower it and the horizon comes down,
- * keep going and you are looking at the map under your feet.
- */
-function pitchFromBeta(beta, gamma) {
-  const screenAngle = (screen.orientation && screen.orientation.angle) || 0;
-  let b = beta;
-  // Landscape: the phone's front-back axis is gamma, not beta.
-  if (screenAngle === 90) b = -gamma;
-  else if (screenAngle === -90 || screenAngle === 270) b = gamma;
-  const deg = 90 - b;                       // 0 = horizon, +90 = zenith
-  return Math.max(-85, Math.min(89, deg)) * Math.PI / 180;
-}
-
 function onCompass(e) {
   if (e && typeof e.beta === 'number' && e.beta !== null) {
     SKY_HAS_MOTION = true;
-    DEVICE_PITCH = pitchFromBeta(e.beta, e.gamma || 0);
+    DEVICE_PITCH = pitchFromBeta(e.beta, e.gamma || 0, screenAngleDeg());
   }
   window.__skyHasMotion = SKY_HAS_MOTION;
   let h = null;
   if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading;
   else if (e.absolute && typeof e.alpha === 'number') h = 360 - e.alpha;
   if (h == null || Number.isNaN(h)) return;
-  const screenAngle = (screen.orientation && screen.orientation.angle) || 0;
-  SKY_HEADING = ((h + screenAngle) % 360 + 360) % 360;
+  SKY_HEADING = ((h + screenAngleDeg()) % 360 + 360) % 360;
   window.__skyHeading = SKY_HEADING;
 }
 window.addEventListener('deviceorientation', onCompass, true);
