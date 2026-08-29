@@ -372,21 +372,40 @@ export function interiorMats(THREE, dark) {
 /**
  * The Glass House interior. Johnson's plan is famously a single room
  * with zones and no walls, so the furniture IS the floor plan: the
- * seating group faces the brick cylinder, the bed sits in the far
- * corner with its back to the view, and the sculpture stands where it
- * blocks the diagonal.
+ * seating group faces the brick cylinder, the bed sleeps against the
+ * cylinder's flank on the east side, and the Nadelman pair stands by
+ * the seating group where it interrupts the view on purpose.
+ *
+ * Placement is constrained by the PLAN's own solids: glass at
+ * x ±house.w/2 (±4.875), the brick cylinder at (1.85, 3.2) r=1.55,
+ * and the walnut cabinet spanning x −2.91…−2.29, z −4.10…1.30 — the
+ * cabinet is a collider, so nothing may stand inside it.
  */
 export function furnishGlassHouse(THREE, group, dark) {
   const M = interiorMats(THREE, dark);
   const g = new THREE.Group();
   g.add(rug(THREE, M, -1.6, 0.4, 3.6, 3.0));
-  g.add(barcelonaChair(THREE, M, -2.6, -0.5, Math.PI * 0.62));
-  g.add(barcelonaChair(THREE, M, -2.4, 1.5, Math.PI * 0.42));
-  g.add(ottoman(THREE, M, -1.2, -0.9, Math.PI * 0.6));
+  // The chairs sit east of the cabinet face (x > −2.29 plus their own
+  // half-diagonal): any further west and their frames stand inside
+  // the walnut.
+  g.add(barcelonaChair(THREE, M, -1.7, -0.5, Math.PI * 0.62));
+  g.add(barcelonaChair(THREE, M, -1.7, 1.5, Math.PI * 0.42));
+  // The ottoman moved out ahead of the chairs when they came east —
+  // at its old spot the near chair now overlapped it.
+  g.add(ottoman(THREE, M, -0.7, -1.2, Math.PI * 0.6));
   g.add(table(THREE, M, -1.5, 0.5, 1.1, 0.7, 0.34, M.wood));
-  g.add(bed(THREE, M, 5.2, -2.2, Math.PI / 2));
-  g.add(table(THREE, M, 3.4, 2.6, 1.6, 0.9, 0.72, M.wood));   // desk
-  g.add(twoFigures(THREE, M, 1.4, 2.4));
+  // The bed lies along x (rotY π/2 → footprint 2.0×1.4), so its far
+  // edge is at x+1.0. Any centre past 3.7 and it pierces the east
+  // glass at 4.875 − frame; 3.6 keeps it inside with the cylinder at
+  // its head, which is roughly where Johnson actually slept.
+  g.add(bed(THREE, M, 3.6, -2.2, Math.PI / 2));
+  // The desk stands north of the cylinder — its old spot at (3.4, 2.6)
+  // cut into the r=1.55 brick.
+  g.add(table(THREE, M, 3.6, 5.6, 1.6, 0.9, 0.72, M.wood));   // desk
+  // The Nadelman pair by the sitting area, as in the real house —
+  // at (1.4, 2.4) it stood 0.92m from the cylinder centre, i.e.
+  // entirely buried inside the brick.
+  g.add(twoFigures(THREE, M, -0.4, 4.6));
   // Saarinen Tulip chair — Johnson had several of these in the dining
   // area. The pedestal and the dish seat are the recognition shape.
   g.add(saarinenTulip(THREE, M, 3.0, 0.8, Math.PI * 0.6));

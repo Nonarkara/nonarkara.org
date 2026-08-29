@@ -27,7 +27,12 @@ function gyroOffsets(beta, gamma, screenAngle = 0, zeroDeg = GYRO_HOLD_DEG) {
   let dPitch = zeroDeg - pitchAxis;
   dPitch = Math.abs(dPitch) < GYRO_DEADZONE_DEG ? 0
     : dPitch - Math.sign(dPitch) * GYRO_DEADZONE_DEG;
-  const pitch = clamp(dPitch * GYRO_GAIN, -GYRO_MAX_DEG, GYRO_MAX_DEG) * Math.PI / 180;
+  const raw = dPitch * GYRO_GAIN;
+  let pitchDeg = raw;
+  if (Math.abs(raw) > GYRO_MAX_DEG) {
+    pitchDeg = Math.sign(raw) * Math.min(GYRO_MAX_DEG + (Math.abs(raw) - GYRO_MAX_DEG) * 0.8, 85);
+  }
+  const pitch = pitchDeg * Math.PI / 180;
   const yaw = clamp(rollAxis / 35, -1, 1) * 0.42;
   return { pitch, yaw };
 }
@@ -77,13 +82,15 @@ for (const [b, g] of [[-180, 0], [180, 0], [0, 0], [360, 0]]) {
 assert(deg(gyroOffsets(20, 0).pitch) > 20, 'tilting the phone flat looks up');
 assert(deg(gyroOffsets(110, 0).pitch) < -20, 'tipping the phone down looks down');
 
-// The gyro can NEVER dominate. Whatever the phone does, the offset stays
-// inside ±40° — so the finger always has somewhere to go.
+// The gyro still cannot RUN AWAY — the bound moved from ±40° to ±85° so a
+// deliberate full tilt can reach the sky and the ground (the Pokémon-Go
+// rule, below), but it can never flip past vertical, and inside a natural
+// hold (±40°) nothing changed: the finger always has somewhere to go.
 for (let b = -180; b <= 180; b += 5) {
   for (const g of [-90, -45, 0, 45, 90]) {
     const p = deg(gyroOffsets(b, g).pitch);
-    assert(p <= GYRO_MAX_DEG + 0.001 && p >= -GYRO_MAX_DEG - 0.001,
-      `gyro pitch ${p.toFixed(0)}° escaped the clamp at beta ${b}`);
+    assert(p <= 85.001 && p >= -85.001,
+      `gyro pitch ${p.toFixed(0)}° escaped the hard bound at beta ${b}`);
     assert(Math.abs(gyroOffsets(b, g).yaw) <= 0.421, 'gyro yaw escaped its clamp');
   }
 }
@@ -126,4 +133,30 @@ for (const held of [55, 62, 72, 84, 95]) {
     'iOS gyro permission stays inside the user gesture path');
 }
 
-console.log('gyro: all checks passed · natural hold = level · clamped to ±40° · recentre works · sky agrees');
+console.log('gyro: all checks passed · natural hold = level · windowed at ±40°, full tilt reaches ±85° · recentre works · sky agrees');
+
+// ── The Pokémon-Go rule: a decisive tilt actually reaches the sky ─────
+// The room window still owns natural holds, but past the window the tilt
+// keeps going, so the planetarium (which engages past ~45° of pitch) is
+// reachable by raising the phone — and the ground by pointing at it.
+{
+  // small tilts: unchanged window behaviour, gain 0.85
+  const small = deg(gyroOffsets(60, 0).pitch);           // 12° up minus deadzone
+  assert(Math.abs(small - (12 - 2.5) * 0.85) < 0.01,
+    `inside the window the gain must be untouched, got ${small.toFixed(2)}°`);
+  // full tilt up (phone flat overhead, beta 0): must clear the 45° sky gate
+  const up = deg(gyroOffsets(0, 0).pitch);
+  assert(up > 45, `full tilt up must reach the sky (>45°), got ${up.toFixed(1)}°`);
+  assert(up <= 85, `tilt authority must stay bounded (<=85°), got ${up.toFixed(1)}°`);
+  // full tilt down (beta 150): must clear the ground gate the same way
+  const down = deg(gyroOffsets(150, 0).pitch);
+  assert(down < -45, `full tilt down must reach the ground (<-45°), got ${down.toFixed(1)}°`);
+  // monotonic through the window boundary — no kink a hand can feel
+  let prev = -Infinity;
+  for (let b = 150; b >= 0; b -= 5) {
+    const v = deg(gyroOffsets(b, 0).pitch);
+    assert(v >= prev - 0.001, `pitch must rise smoothly as the phone tilts up (beta ${b})`);
+    prev = v;
+  }
+}
+console.log('gyro reach: tilt-to-sky and tilt-to-ground assertions pass');

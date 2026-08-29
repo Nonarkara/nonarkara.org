@@ -57,6 +57,13 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.39 (2026-08-29) accuracy + reach — walked==drawn across all four
+//                    houses (Savoye roof well/landings/stairwell, drawn
+//                    Fallingwater hill, Farnsworth decks at walked height);
+//                    tilt past the window reaches the sky and the ground
+//                    (Pokemon-Go rule, ±85° bound); music no longer
+//                    precached (52MB off first load); dt-correct friction,
+//                    rain, twilight; stale-tile guard + texture disposal
 //   4.38 (2026-08-16) yard net rest position. v4.37's runtime test
 //                    verified the nets don't MOVE during animation,
 //                    but never verified they're at the CORRECT
@@ -403,7 +410,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.38';
+const NON_VERSION = '4.39';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -3494,7 +3501,19 @@ function gyroOffsets(beta, gamma, screenAngle, zeroDeg) {
   let dPitch = zeroDeg - pitchAxis;                 // + = looking up
   dPitch = Math.abs(dPitch) < GYRO_DEADZONE_DEG ? 0
     : dPitch - Math.sign(dPitch) * GYRO_DEADZONE_DEG;
-  const pitch = clamp(dPitch * GYRO_GAIN, -GYRO_MAX_DEG, GYRO_MAX_DEG) * Math.PI / 180;
+  // Inside the window the gyro stays a gentle offset that can never own
+  // the frame. BEYOND it, a decisive tilt keeps going at reduced gain —
+  // raise the phone to the sky and the sky actually arrives (the
+  // planetarium engages past ~45° and its absolute tracking takes over);
+  // point it at the floor and the ground opens. The 72° neutral and the
+  // recentre chip still guard against a miscalibrated hold pinning the
+  // view, because a natural hold never leaves the window at all.
+  const raw = dPitch * GYRO_GAIN;
+  let pitchDeg = raw;
+  if (Math.abs(raw) > GYRO_MAX_DEG) {
+    pitchDeg = Math.sign(raw) * Math.min(GYRO_MAX_DEG + (Math.abs(raw) - GYRO_MAX_DEG) * 0.8, 85);
+  }
+  const pitch = pitchDeg * Math.PI / 180;
   // Roll nudges yaw a little — leaning the phone peeks around, it does
   // not turn you. Turning is the joystick's job.
   const yaw = clamp(rollAxis / 35, -1, 1) * 0.42;
@@ -4567,6 +4586,10 @@ function chooseDefaultView() {
   catch (_) { return 'room'; }
 }
 function setView(v) {
+  // Walk keys belong to the room. In the plan view they were still being
+  // captured and preventDefault'ed, so arrows scrolled nothing and a held
+  // arrow silently rotated the room you'd return to.
+  WALK.uiSuspended = (v !== 'room');
   try {
     if (v !== 'room') window.__suspendWorldMechanics?.();
     document.body.dataset.view = v;
@@ -7689,6 +7712,7 @@ if (WEBGL_OK && SITE.length > 1) {
 // Leaving the 3D surface suspends every locomotion owner. The plan is an
 // operating surface, not a world that keeps walking or driving behind it.
 window.__suspendWorldMechanics = () => {
+  WALK.uiSuspended = true;
   window.__cancelTravel?.();
   endDolly();
   if (DRIVE.active) exitTruck();

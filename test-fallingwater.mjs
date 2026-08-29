@@ -15,7 +15,31 @@ const THREE = {
   Mesh: class { constructor(g, m) { this.geometry = g; this.material = m; this.position = { set(x,y,z){ this.x=x;this.y=y;this.z=z; }, x:0,y:0,z:0 }; this.rotation = { x:0,y:0,z:0 }; } },
   LineSegments: class { constructor(g, m) { this.geometry = g; this.material = m; this.position = { set(x,y,z){ this.x=x;this.y=y;this.z=z; }, x:0,y:0,z:0 }; } },
   BoxGeometry: class { constructor(w,h,d) { this.w=w;this.h=h;this.d=d; } },
-  PlaneGeometry: class { constructor(w,h) { this.w=w;this.h=h; } },
+  // Real-shaped PlaneGeometry: the drawn hill displaces its vertices
+  // (sampled from hillHeight), so the stub carries a position attribute
+  // with three.js's XY layout (x: −w/2→+w/2, y: +h/2→−h/2, z: 0).
+  PlaneGeometry: class {
+    constructor(w, h, ws = 1, hs = 1) {
+      this.w = w; this.h = h;
+      const n = (ws + 1) * (hs + 1);
+      const a = new Float32Array(n * 3);
+      let k = 0;
+      for (let iy = 0; iy <= hs; iy++) {
+        for (let ix = 0; ix <= ws; ix++) {
+          a[k++] = -w / 2 + (w * ix) / ws;
+          a[k++] = h / 2 - (h * iy) / hs;
+          a[k++] = 0;
+        }
+      }
+      this.attributes = { position: {
+        count: n, array: a,
+        getX: (i) => a[i * 3], getY: (i) => a[i * 3 + 1], getZ: (i) => a[i * 3 + 2],
+        setX(i, v) { a[i * 3] = v; }, setY(i, v) { a[i * 3 + 1] = v; },
+        setZ(i, v) { a[i * 3 + 2] = v; },
+      } };
+    }
+    computeVertexNormals() {}
+  },
   EdgesGeometry: class { constructor(g) { this.g = g; } },
   MeshBasicMaterial: class { constructor(o) { Object.assign(this, o); this.color = { setHex(h) { this.__lastHex = h; } }; } },
   LineBasicMaterial: class { constructor(o) { Object.assign(this, o); } },
@@ -46,6 +70,13 @@ assert(PLAN.stream.yTop > PLAN.stream.yBot, 'water drops in height');
   const front = hillHeight(0, PLAN.stream.zTop + 1);
   assert(front != null && front < 0.3, 'stream notch keeps the cascade open');
   assert.equal(hillHeight(40, 0), null, 'hill is finite');
+  // The hill must MEET the plain, not cliff into it: height at every
+  // footprint edge is (near) zero, or the boundary is a 2.7m wall.
+  const H = PLAN.hill;
+  assert(hillHeight(0, H.z0) < 0.05, 'hill reaches zero at the −Z edge');
+  assert(hillHeight(0, H.z1) < 0.05, 'hill reaches zero at the +Z edge');
+  assert(hillHeight(H.x0, -6) < 0.05, 'hill reaches zero at the −X edge');
+  assert(hillHeight(H.x1, -6) < 0.05, 'hill reaches zero at the +X edge');
 }
 
 // ── Animated water hook ───────────────────────────────────

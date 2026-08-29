@@ -6,7 +6,7 @@
  * for same-origin, so a stale version means users keep the old shell.
  */
 
-const CACHE_VERSION = 'non-2026-08-25-v4.38';
+const CACHE_VERSION = 'non-2026-08-29-v4.39';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 // The app's own code. These are always revalidated when online so a
@@ -80,15 +80,16 @@ const SHELL = [
   '/city-photos/sydney.jpg',
 ];
 
-const MUSIC = Array.from({ length: 10 }, (_, i) =>
-  `/music/track-${String(i + 1).padStart(2, '0')}.mp3`
-);
+// Music is NOT precached: ten tracks are 52MB, and installing the app
+// used to pull all of them down on first visit — on mobile data, for a
+// visitor who may never open the mixtape. Tracks are cache-first at
+// runtime instead, so each one is kept after its first play.
 
 const CDN = [
   'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js',
 ];
 
-const PRECACHE = [...SHELL, ...MUSIC, ...CDN];
+const PRECACHE = [...SHELL, ...CDN];
 
 const CDN_HOSTS = new Set([
   'unpkg.com',

@@ -87,6 +87,17 @@ export const PLAN = {
 
   // Approach from the SE, looking into the shadow under the trays.
   spawn: { x: 9.5, y: 1.65, z: 16, lookAt: { x: 0, y: 3.4, z: 3 } },
+
+  // Half-width of the walked approach corridor (spawn → +X door). The
+  // ramp patch and the drawn ramp slab both read this, so the stone you
+  // see is exactly as wide as the path you can walk.
+  approachHalfW: 1.6,
+
+  // Shadow void under the master tray — the near-black volume that makes
+  // the tray read as floating. One object, two consumers: the draw site
+  // and colliderBoxes. It is 92%-opaque; letting the camera stand inside
+  // it blacks out the screen, so it must collide.
+  voidBox: { x: -1.2, z: -0.4, w: 5.4, d: 3.4 },
 };
 
 /** Hill height at local (x,z). Null outside the hill footprint. */
@@ -94,14 +105,24 @@ export function hillHeight(x, z, plan = PLAN) {
   const H = plan.hill;
   if (x < H.x0 || x > H.x1 || z < H.z0 || z > H.z1) return null;
   // Peak at crestZ (behind the house); fall toward the stream (+Z).
-  let t;
-  if (z <= H.crestZ) {
-    t = 0.7 + 0.3 * Math.max(0, (z - H.z0) / (H.crestZ - H.z0));
-  } else {
-    t = Math.max(0, 1 - (z - H.crestZ) / (H.z1 - H.crestZ));
-  }
-  const edge = 1 - Math.min(1, Math.abs(x) / ((H.x1 - H.x0) / 2));
-  const y = H.crestY * t * t * (0.5 + 0.5 * edge);
+  // The profile is TRIANGULAR in z — zero at both z edges of the
+  // footprint. The old ramp bottomed out at 0.7 on the −Z side, which
+  // left a 2.7m vertical cliff where the hill met the plain; ground
+  // that meets the plain must reach the plain.
+  const t = z <= H.crestZ
+    ? (z - H.z0) / (H.crestZ - H.z0)
+    : 1 - (z - H.crestZ) / (H.z1 - H.crestZ);
+  // Flank falloff 1 − u³: stays near full height across most of the
+  // width (0.70 at two-thirds out, so the flanks still read off-axis)
+  // yet reaches exactly zero at the ±x edge — no side cliffs. The old
+  // form floored at half height on the flanks for the same cliff bug.
+  // Cubic rather than a fractional power on purpose: a fractional
+  // exponent has infinite slope at the rim, which the ~1m drawn mesh
+  // cannot follow — walked and drawn would split exactly at the edge.
+  const hw = (H.x1 - H.x0) / 2;
+  const u = Math.min(1, Math.abs(x - (H.x0 + H.x1) / 2) / hw);
+  const edge = 1 - u * u * u;
+  const y = H.crestY * t * t * edge;
   // Carve the stream channel: under the house, over both falls, and
   // through the plunge pool, the ground is streambed, not hillside.
   const S = plan.stream;
@@ -180,6 +201,16 @@ export function colliderBoxes(plan = PLAN) {
     minY: plan.livingY - 0.2, maxY: plan.roofY,
   });
 
+  // The shadow void under the master tray is drawn at 92% opacity on
+  // the walkable living terrace; a camera inside it sees near-black.
+  // Collide the exact drawn volume so the darkness stays scenery.
+  const V = plan.voidBox;
+  out.push({
+    minX: V.x - V.w / 2, maxX: V.x + V.w / 2,
+    minZ: V.z - V.d / 2, maxZ: V.z + V.d / 2,
+    minY: plan.livingY - 0.1, maxY: plan.upperY,
+  });
+
   // The rock lip the water pours over — solid up to the upper ledge,
   // so nobody walks through the waterfall into stone.
   const S = plan.stream;
@@ -248,7 +279,7 @@ export function floorPatches(plan = PLAN) {
       if (alongZ < -0.05 || alongZ > 1.05) return null;
       const along = Math.max(0, Math.min(1, alongZ));
       const xCenter = spawnX + (doorX - spawnX) * along;
-      if (Math.abs(x - xCenter) > 1.6) return null;
+      if (Math.abs(x - xCenter) > plan.approachHalfW) return null;
       return along * plan.livingY;
     },
   });
@@ -312,9 +343,38 @@ export function buildFallingwater(THREE, scene, opts = {}) {
     new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, d)), m);
   const at = (o, x, y, z) => { o.position.set(x, y, z); G.add(o); return o; };
 
+  // ── The hill itself — the SAME ground the walker climbs ──
+  // hillHeight() is the walked terrain; drawing anything else means the
+  // feet and the eyes disagree (they did: visitors rose metres on
+  // invisible ground). One displaced plane sampled straight from the
+  // function, in the rock material, makes walked == drawn by
+  // construction.
+  {
+    const H = PLAN.hill;
+    const hillW = H.x1 - H.x0, hillD = H.z1 - H.z0;
+    const cx = (H.x0 + H.x1) / 2, cz = (H.z0 + H.z1) / 2;
+    // ~1m grid — enough to follow the crest curve and the stream notch.
+    const geo = new THREE.PlaneGeometry(
+      hillW, hillD, Math.round(hillW), Math.round(hillD));
+    const pos = geo.attributes.position;
+    // The plane is authored in XY and the mesh rotated flat (−90° about
+    // X), which maps local (x, y, z) → world (x, z, −y): so displace
+    // local z with the sampled height. The +0.02 keeps the zero-height
+    // rim from z-fighting the estate's grass plane.
+    for (let i = 0; i < pos.count; i++) {
+      const wx = cx + pos.getX(i);
+      const wz = cz - pos.getY(i);
+      pos.setZ(i, (hillHeight(wx, wz, PLAN) ?? 0) + 0.02);
+    }
+    geo.computeVertexNormals();
+    const hillMesh = new THREE.Mesh(geo, MATS.hill);
+    hillMesh.rotation.x = -Math.PI / 2;
+    at(hillMesh, cx, 0, cz);
+  }
+
   // ── Rock — behind and BELOW, never in front ──────────────
   // Dark strata gripping the house. Half v1's footprint, a third of
-  // its visual weight; the hill you WALK is hillHeight(), unchanged.
+  // its visual weight; ledges poke through the drawn hill as strata.
   const ledges = [
     // Crest behind the house.
     { w: 20, d: 9,  h: 2.2, x: 0,    y: 1.1, z: -13 },
@@ -340,16 +400,24 @@ export function buildFallingwater(THREE, scene, opts = {}) {
     at(edges(s.w, s.h, s.d), s.x, s.y, s.z);
   }
 
-  // Approach shelves — the climb reads as climbing.
-  const shelves = [
-    { w: 4.2, d: 3.2, h: 0.45, x: 8.5, y: 0.35, z: 12 },
-    { w: 4.0, d: 3.0, h: 0.55, x: 7.8, y: 0.85, z: 9.2 },
-    { w: 3.8, d: 2.8, h: 0.65, x: 7.0, y: 1.45, z: 6.6 },
-    { w: 3.6, d: 2.6, h: 0.7,  x: 6.4, y: 2.1,  z: 4.4 },
-  ];
-  for (const S of shelves) {
-    at(box(S.w, S.h, S.d, MATS.hill), S.x, S.y, S.z);
-    at(edges(S.w, S.h, S.d), S.x, S.y, S.z);
+  // Approach ramp — ONE inclined slab whose top surface is the same
+  // plane the 'approach' floor patch walks (spawn → +X door, rising
+  // 0 → livingY). The old four shelves topped out half a metre to a
+  // metre BELOW the walked corridor, so the climb happened on air.
+  {
+    const doorX = PLAN.living.x + PLAN.living.w / 2;
+    const doorZ = PLAN.living.z + PLAN.door.x;
+    const sx = PLAN.spawn.x, sz = PLAN.spawn.z;
+    const dx = doorX - sx, dz = doorZ - sz, run = Math.hypot(dx, dz);
+    const ramp = box(PLAN.approachHalfW * 2, 0.5,
+      Math.hypot(run, PLAN.livingY), MATS.hill);
+    // Centre the 0.5m slab so its TOP face carries the walked plane:
+    // mid-climb the walk height is livingY/2, hence centre 0.25 lower.
+    ramp.position.set((sx + doorX) / 2, PLAN.livingY / 2 - 0.25, (sz + doorZ) / 2);
+    ramp.rotation.order = 'YXZ';
+    ramp.rotation.y = Math.atan2(dx, dz);
+    ramp.rotation.x = -Math.atan2(PLAN.livingY, run);
+    G.add(ramp);
   }
 
   // ── Chimney cluster — the one vertical ───────────────────
@@ -389,8 +457,11 @@ export function buildFallingwater(THREE, scene, opts = {}) {
   // The trays read as floating precisely because what carries them
   // reads as nothing. One dark box under each upper tray.
   const voidMat = mat(dark ? 0x05080b : 0x14181c, 0.92);
-  at(box(5.4, PLAN.upperY - PLAN.slabT - PLAN.livingY - 0.02, 3.4, voidMat),
-    PLAN.upper.x + 0.4, (PLAN.livingY + PLAN.upperY - PLAN.slabT) / 2, -0.4);
+  // Master-tray void reads its footprint from PLAN.voidBox — the same
+  // rectangle colliderBoxes solidifies, so drawn dark == blocked dark.
+  const V = PLAN.voidBox;
+  at(box(V.w, PLAN.upperY - PLAN.slabT - PLAN.livingY - 0.02, V.d, voidMat),
+    V.x, (PLAN.livingY + PLAN.upperY - PLAN.slabT) / 2, V.z);
   at(box(3.6, PLAN.study.y - PLAN.slabT - PLAN.upperY - 0.02, 2.8, voidMat),
     PLAN.study.x + 0.3, (PLAN.upperY + PLAN.study.y - PLAN.slabT) / 2, PLAN.study.z + 0.3);
   // Amber hearth — the one accent.
@@ -427,8 +498,16 @@ export function buildFallingwater(THREE, scene, opts = {}) {
     parapet(x1 - gapB, 0.16, (gapB + x1) / 2, PLAN.livingY, L.z + hd - 0.08);
   }
   parapet(0.16, L.d, L.x - hw + 0.08, PLAN.livingY, L.z);
-  parapet(0.16, L.d - PLAN.door.half * 2, L.x + hw - 0.08, PLAN.livingY,
-    L.z - PLAN.door.half);
+  // +X parapet: two segments framing the SAME opening the collider and
+  // glass leave at door.x ± door.half. The old single run put visible
+  // parapet across walkable doorway and left walkable-looking gap over
+  // invisible wall — drawn opening and real opening must be one thing.
+  {
+    const pz0 = L.z - hd, pz1 = L.z + PLAN.door.x - PLAN.door.half;
+    const pz2 = L.z + PLAN.door.x + PLAN.door.half, pz3 = L.z + hd;
+    parapet(0.16, pz1 - pz0, L.x + hw - 0.08, PLAN.livingY, (pz0 + pz1) / 2);
+    parapet(0.16, pz3 - pz2, L.x + hw - 0.08, PLAN.livingY, (pz2 + pz3) / 2);
+  }
 
   // Master tray: CROSSED — deep in Z, its nose past the living edge,
   // hanging over the first fall.

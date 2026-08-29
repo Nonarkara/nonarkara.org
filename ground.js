@@ -90,7 +90,7 @@ export function buildGround(lineColor = 0xe6edf3, amber = 0xf59e0b, maxAnisotrop
   const ctxTiles = makeLayer(CGRID, SPAN * Math.pow(2, CTX_DZ), 0.55, -0.004);
   const tiles = makeLayer(GRID, SPAN, 0.92, 0);
 
-  function placeAndLoad(meshes, grid, span, site, z) {
+  function placeAndLoad(meshes, grid, span, site, z, gen) {
     const f = tileXY(site.lat, site.lon, z);
     const cx = Math.floor(f.x), cy = Math.floor(f.y);
     const fracX = f.x - cx, fracY = f.y - cy;
@@ -105,12 +105,16 @@ export function buildGround(lineColor = 0xe6edf3, amber = 0xf59e0b, maxAnisotrop
       // position is a map of somewhere you are not. The colour also goes
       // dark while the map is absent — without this, the cleared tile
       // reads as a bright white square for the duration of the fetch.
+      mesh.material.map?.dispose();   // the dropped texture is GPU memory
       mesh.material.map = null;
       mesh.material.color.setHex(0x0a0d10);
       mesh.material.needsUpdate = true;
       loader.load(
         TILE_URL(z, tx, ty),
         (tex) => {
+          // A tile from a superseded zoom resolving late would paint a map
+          // of somewhere you are not; drop it instead.
+          if (gen !== loadGen) { tex.dispose(); return; }
           tex.colorSpace = THREE.SRGBColorSpace;
           tex.anisotropy = maxAnisotropy;   // steep viewing angle; without this it smears
           mesh.material.map = tex;
@@ -161,6 +165,7 @@ export function buildGround(lineColor = 0xe6edf3, amber = 0xf59e0b, maxAnisotrop
   group.add(northTick);
 
   let loadedFor = null;
+  let loadGen = 0;   // bumped per load(); a late tile from an old gen is dropped
   let zoom = ZOOM;
   let lastSite = null;
 
@@ -169,8 +174,9 @@ export function buildGround(lineColor = 0xe6edf3, amber = 0xf59e0b, maxAnisotrop
     if (key === loadedFor) return;
     loadedFor = key;
     lastSite = site;
-    placeAndLoad(tiles, GRID, SPAN, site, zoom);
-    placeAndLoad(ctxTiles, CGRID, SPAN * Math.pow(2, CTX_DZ), site, zoom - CTX_DZ);
+    const gen = ++loadGen;
+    placeAndLoad(tiles, GRID, SPAN, site, zoom, gen);
+    placeAndLoad(ctxTiles, CGRID, SPAN * Math.pow(2, CTX_DZ), site, zoom - CTX_DZ, gen);
   }
 
   /**

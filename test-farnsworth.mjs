@@ -88,12 +88,17 @@ assert(PLAN.lower.y > 0.4 && PLAN.lower.y < PLAN.lift,
 // ── Floor patches cover the two-terrace climb ─────────────
 {
   const patches = floorPatches(PLAN);
-  // grass + 2 lo steps + lower + 2 hi steps + tray
-  assert.equal(patches.length, 7, 'grass, lo×2, lower, hi×2, tray');
+  // grass + lo flight + lower + hi flight + tray. Was hard-coded 7
+  // (lo×2, hi×2); the 0.35/0.425m rises read as a ladder, so the
+  // flights doubled to four shallow slabs each (~0.175/0.21m) — the
+  // count now derives from PLAN so the contract is the structure, not
+  // a particular stair.
+  assert.equal(patches.length, 3 + PLAN.stepsLo + PLAN.stepsHi,
+    'grass, lo flight, lower, hi flight, tray');
   const lo = patches.filter(p => p.kind === 'step' && p.flight === 'lo');
   const hi = patches.filter(p => p.kind === 'step' && p.flight === 'hi');
-  assert.equal(lo.length, 2);
-  assert.equal(hi.length, 2);
+  assert.equal(lo.length, PLAN.stepsLo);
+  assert.equal(hi.length, PLAN.stepsHi);
   const lower = patches.find(p => p.kind === 'lower');
   const hd = PLAN.floor.d / 2;
   const lowerZc = hd + PLAN.lower.gap + PLAN.lower.d / 2;

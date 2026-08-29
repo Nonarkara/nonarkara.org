@@ -191,9 +191,19 @@ export function buildPavilion(THREE, scene, opts = {}) {
       normal: along ? { x: 0, z: -1 } : { x: -1, z: 0 },
     };
 
+    // Pad only ACROSS the wall's thickness. The drawn slab is WALL_T
+    // deep centred on the segment, so half of that on each side puts
+    // the collider face exactly on the drawn face; along the length
+    // the slab ends at the endpoints and so must the collider —
+    // walk.js already adds the visitor's 0.34m radius, and padding
+    // the ends too stopped people 0.62m short of every free-standing
+    // wall end, in the one building whose whole argument is space
+    // flowing past those ends.
+    const padX = along ? 0 : WALL_T / 2;
+    const padZ = along ? WALL_T / 2 : 0;
     colliders.push({
-      minX: Math.min(w.x0, w.x1) - WALL_T, maxX: Math.max(w.x0, w.x1) + WALL_T,
-      minZ: Math.min(w.z0, w.z1) - WALL_T, maxZ: Math.max(w.z0, w.z1) + WALL_T,
+      minX: Math.min(w.x0, w.x1) - padX, maxX: Math.max(w.x0, w.x1) + padX,
+      minZ: Math.min(w.z0, w.z1) - padZ, maxZ: Math.max(w.z0, w.z1) + padZ,
     });
 
     // Glass mullions: the real building's glass is held in a chrome

@@ -90,6 +90,7 @@ export class Walk {
 
   _onKeyDown(e) {
     if (this._typing(e)) return;
+    if (this.uiSuspended) return;   // plan view etc. own the keyboard
     const k = e.key.toLowerCase();
     if (['w', 'a', 's', 'd', 'q', 'e',
          'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
@@ -232,7 +233,9 @@ export class Walk {
       if (sp > top) { this.vel.x = (this.vel.x / sp) * top; this.vel.z = (this.vel.z / sp) * top; }
       this.moved = true;
     } else {
-      const drop = Math.max(0, 1 - FRICTION * dt);
+      // Exponential, not linear: 1 - F*dt decays differently per frame
+      // rate (measured 2.2x more glide at 144Hz than 30Hz).
+      const drop = Math.exp(-FRICTION * dt);
       this.vel.x *= drop;
       this.vel.z *= drop;
       if (Math.abs(this.vel.x) < 0.001) this.vel.x = 0;
