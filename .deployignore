@@ -37,3 +37,7 @@ index.html.v1-backup
 portraits/Gemini_Generated_Image_*.png
 portraits/non formal portrait*.png
 portraits/IMG_4734.jpg
+
+# Operator workspaces. Not part of the public site.
+yt-channel/
+.firecrawl/
