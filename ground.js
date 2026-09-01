@@ -188,12 +188,65 @@ export function buildGround(lineColor = 0xe6edf3, amber = 0xf59e0b, maxAnisotrop
   function setZoom(next) {
     const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.round(next)));
     if (z === zoom) return zoom;
+    const prev = zoom;
     zoom = z;
     loadedFor = null;
     if (lastSite) load(lastSite);
+    // Integer changed — anyone who wants to update derived labels (scale,
+    // caption) gets a heads-up. The handler is set by setZoomListener.
+    if (zoomHandler && Math.round(prev) !== Math.round(zoom)) zoomHandler(zoom);
     return zoom;
   }
   const getZoom = () => zoom;
+
+  // ── Pokemon Go: tilt-to-zoom ──────────────────────────────────
+  // As the user tilts the view down, the map zooms in from the city
+  // default to lane level — "streets on which we stand." Tilting back
+  // up returns the zoom to the city default. The auto-zoom is a soft
+  // target: user wheel/pinch is a temporary override that gets pulled
+  // back over a few frames. Pokemon Go's tilt = camera AND zoom.
+  const AUTO_ZOOM_REST = ZOOM;             // 13 — city, the horizontal default
+  const AUTO_ZOOM_STREET = ZOOM_MAX;       // 17 — lane / streets
+  const AUTO_ZOOM_PITCH_A = -0.5;          // start ramping (~28° down)
+  const AUTO_ZOOM_PITCH_B = -1.4;          // end at max (~80° down)
+  const AUTO_ZOOM_SPEED = 2.2;             // damp rate — fast enough to feel live
+  const pitchToZoom = (pitch) => {
+    if (pitch >= AUTO_ZOOM_PITCH_A) return AUTO_ZOOM_REST;
+    if (pitch <= AUTO_ZOOM_PITCH_B) return AUTO_ZOOM_STREET;
+    // smoothstep — the most natural "the camera knows what I want" curve.
+    // PITCH_B is more negative than PITCH_A, so the denominator is
+    // negative; invert both to keep t in [0, 1] for pitch in
+    // [PITCH_B, PITCH_A].
+    const t = (pitch - AUTO_ZOOM_PITCH_A) / (AUTO_ZOOM_PITCH_B - AUTO_ZOOM_PITCH_A);
+    const s = t * t * (3 - 2 * t);
+    return Math.round(AUTO_ZOOM_REST + s * (AUTO_ZOOM_STREET - AUTO_ZOOM_REST));
+  };
+  let autoZoom = null;
+  function setAutoZoomForPitch(pitch) { autoZoom = pitchToZoom(pitch); }
+  // Manual wheel/pinch calls this so the auto-zoom yields for a moment
+  // — otherwise the next frame the system would pull the zoom right
+  // back, and the user's input would be invisible. 2.2s is long enough
+  // for a multi-step pinch to settle, short enough that looking up and
+  // back down returns the zoom to the right level within a beat.
+  let lastManualZoomTime = 0;
+  const MANUAL_ZOOM_RESPECT_MS = 2200;
+  function markManualZoom() { lastManualZoomTime = performance.now(); }
+  function tickAutoZoom(dt) {
+    if (autoZoom == null) return;
+    if (performance.now() - lastManualZoomTime < MANUAL_ZOOM_RESPECT_MS) return;
+    if (Math.abs(zoom - autoZoom) < 0.05) {
+      if (Math.round(zoom) !== autoZoom) setZoom(autoZoom);
+      return;
+    }
+    // Inlined exponential ease — ground.js stays dependency-free.
+    const k = 1 - Math.exp(-AUTO_ZOOM_SPEED * Math.max(0, dt));
+    setZoom(zoom + (autoZoom - zoom) * k);
+  }
+
+  // Caller can register a callback for integer-zoom changes (used by the
+  // app to keep the HUD scale label honest while the auto-zoom runs).
+  let zoomHandler = null;
+  const setZoomListener = (fn) => { zoomHandler = fn; };
 
   /**
    * How far below the walker the map sits, in scene units. At the
@@ -215,5 +268,9 @@ export function buildGround(lineColor = 0xe6edf3, amber = 0xf59e0b, maxAnisotrop
 
   const fadeTargets = () => [...tiles, ...ctxTiles, grid, cross, northTick];
 
-  return { group, load, setZoom, getZoom, getDepth, fadeTargets, scaleLabel, tiles, GRID, SPAN };
+  return {
+    group, load, setZoom, getZoom, setZoomListener,
+    setAutoZoomForPitch, tickAutoZoom, markManualZoom, pitchToZoom,
+    getDepth, fadeTargets, scaleLabel, tiles, GRID, SPAN,
+  };
 }

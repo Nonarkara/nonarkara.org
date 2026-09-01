@@ -57,6 +57,14 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.40 (2026-09-01) Pokemon Go's other half — tilt now drives the map
+//                    zoom, not just the camera direction. Ground zooms
+//                    from city (z13) to streets (z17) on a smoothstep
+//                    between -29° and -80° pitch. Manual wheel/pinch
+//                    yields for 2.2s so the user's pinch settles before
+//                    the auto-zoom resumes; HUD caption auto-refreshes
+//                    on every integer-zoom change. Sky side already had
+//                    the mechanic; ground side now matches.
 //   4.39 (2026-08-29) accuracy + reach — walked==drawn across all four
 //                    houses (Savoye roof well/landings/stairwell, drawn
 //                    Fallingwater hill, Farnsworth decks at walked height);
@@ -6102,6 +6110,16 @@ function animate() {
   window.__skyBlend = driving ? 0 : overheadBlend(eff.pitch);
   window.__groundBlend = driving ? 0 : underfootBlend(eff.pitch);
 
+  // Pokemon Go: as the view tilts down, the map zooms in from the city
+  // default to lane level — "streets on which we stand." Engages only
+  // when the ground is becoming visible, so manual wheel/pinch in the
+  // room view is left alone. tickAutoZoom respects markManualZoom for
+  // 2.2s so a pinch settles before the auto-zoom resumes.
+  if (GROUND && !driving && (window.__groundBlend || 0) > 0.2) {
+    GROUND.setAutoZoomForPitch(eff.pitch);
+    GROUND.tickAutoZoom(dtLook);
+  }
+
   // Walking owns the camera's position when it is on; otherwise the room
   // keeps its slow idle float. Movement is relative to where you are
   // looking, so it reads the yaw the line above just settled.
@@ -7016,6 +7034,10 @@ async function initGround() {
     GROUND.mod = mod;
     GROUND.group.visible = false;
     scene.add(GROUND.group);
+    // Keep the HUD caption honest while the auto-zoom ramps: every time
+    // the integer zoom changes (whether from tilt, wheel, or pinch),
+    // refresh the "X M ACROSS · KIND" label and the lat/lon.
+    GROUND.setZoomListener(() => updateGroundCaption());
     if (gHint) gHint.disabled = false;
   } catch (_) {
     gHint?.remove();
@@ -7908,8 +7930,8 @@ window.addEventListener('keydown', (e) => {
       // Pinch works the map. Each 30% of spread is one zoom level, and
       // the baseline resets so a single long pinch keeps stepping.
       const ratio = d / pinch0;
-      if (ratio > 1.3)  { GROUND.setZoom(GROUND.getZoom() + 1); updateGroundCaption(); pinch0 = d; }
-      if (ratio < 0.77) { GROUND.setZoom(GROUND.getZoom() - 1); updateGroundCaption(); pinch0 = d; }
+      if (ratio > 1.3)  { GROUND.setZoom(GROUND.getZoom() + 1); GROUND.markManualZoom(); updateGroundCaption(); pinch0 = d; }
+      if (ratio < 0.77) { GROUND.setZoom(GROUND.getZoom() - 1); GROUND.markManualZoom(); updateGroundCaption(); pinch0 = d; }
       return;
     }
     setFov(fov0 * (pinch0 / d));
@@ -7937,6 +7959,7 @@ window.addEventListener('keydown', (e) => {
     // plotter ever made. Scroll away = wider = the city, the region.
     if ((window.__groundBlend || 0) > 0.5 && GROUND) {
       GROUND.setZoom(GROUND.getZoom() - Math.sign(e.deltaY));
+      GROUND.markManualZoom();
       updateGroundCaption();
       return;
     }
