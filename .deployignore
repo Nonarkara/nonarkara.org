@@ -25,6 +25,9 @@ health/
 # clone your voice. It lives here for convenience; it ships nowhere.
 public/
 
+# README hero and other docs — the site does not fetch these.
+docs/
+
 # Not part of the site
 non biographical:academic research/
 index.html.v1-backup
