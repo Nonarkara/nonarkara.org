@@ -14,6 +14,7 @@ Open a pull request against `main`. Keep the diff small. English is the primary 
 - Secrets, `.env` files, tokens, private dashboards, or anything from a machine that is not this public tree.
 - Changes to deploy credentials, Worker bindings, or host-only paths.
 - PRs that treat this repo as SLIC, FloodDash, BKKx, or Axiom. Those have their own public homes — link them; do not merge them here.
+- Invented metrics, awards, official-agency status, or copy that treats the README hero HUD as a live product. See **Ethical use** in [README.md](README.md).
 
 If you are unsure whether a change is a fact or a redesign, open an issue first and say what is wrong on the live page.
 
