@@ -2682,7 +2682,19 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
     }
     .os-hidden { display: none; }
 
-    .os-signals-label { margin-top: 4px; }
+    .os-signals-label {
+      margin-top: 4px;
+      /* A button, styled as the label it replaced: the markets board folds
+         away and stays folded on this device. The dashboard opens quiet
+         if you asked it to. */
+      display: flex; justify-content: space-between; align-items: baseline;
+      width: 100%; background: none; border: 0; padding: 0;
+      font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit;
+      cursor: pointer; text-align: left;
+    }
+    .os-signals-label:hover { color: var(--fg); }
+    .os-fold { color: var(--dim); font-size: 14px; }
+    #plan-brief.folded { display: none; }   /* id-level: the grid rule below would otherwise win */
 
     /* THE FOLLY — the clock is the one element that ignores the content
        inset and runs to the true page edge. The grid holds everywhere
@@ -3547,7 +3559,11 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
     }
     @keyframes healthPulse { 0%,100% { opacity: 1 } 50% { opacity: 0.35 } }
     @media (prefers-reduced-motion: reduce) {
-      .os-health[data-state="bad"] .os-health-dot { animation: none; }
+      .os-health[data-state="bad"] .os-health-dot,
+      .os-conn[data-state="offline"] .os-conn-dot,
+      .fleet-stn[data-state="down"] .fleet-dot,
+      .fleet-sum.flash { animation: none; }
+      .whisper { display: none; }
     }
     .os-health-lbl {
       flex: 1 1 auto;

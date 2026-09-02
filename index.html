@@ -540,7 +540,11 @@
       </footer>
     </section>
 
-    <div class="plan-section-label os-signals-label" data-i18n="os_signals">SIGNALS · MARKETS + WEATHER</div>
+    <button class="plan-section-label os-signals-label" id="os-signals-toggle" type="button"
+            aria-expanded="true" aria-controls="plan-brief">
+      <span data-i18n="os_signals">SIGNALS · MARKETS + WEATHER</span>
+      <span class="os-fold" aria-hidden="true">−</span>
+    </button>
     <section class="plan-brief" id="plan-brief">
       <div class="brief-cell" id="brief-fx"><span class="lbl">USD / THB</span><span class="val" id="brief-fx-val">—</span><span class="sub" id="brief-fx-sub">sgd —</span></div>
       <div class="brief-cell" id="brief-sgd"><span class="lbl">SGD / THB</span><span class="val" id="brief-sgd-val">—</span><span class="sub" id="brief-sgd-sub">eur — · gbp —</span></div>

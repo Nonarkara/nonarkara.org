@@ -2532,8 +2532,14 @@ async function fetchCommits() {
 
 async function fetchStats() {
   try {
-    const r = await fetch('https://api.nonarkara.org/status', { cache: 'no-cache' });
-    const d = await r.json();
+    // refreshStatus polls the same endpoint every minute and keeps the
+    // snapshot; this ticker only needs to read it. Two pollers on one URL
+    // was a third of the status traffic for no fresher number.
+    let d = window.__lastStatusData;
+    if (!d) {
+      const r = await fetch('https://api.nonarkara.org/status', { cache: 'no-cache' });
+      d = await r.json();
+    }
     const total = Object.keys(d.sites || {}).length;
     const ok = Object.values(d.sites || {}).filter(v => OK_CODE(v.code)).length;
     const ts = new Date(d.ts).toLocaleTimeString('en-GB', { timeZone: 'Asia/Bangkok', hour12: false });
@@ -2557,15 +2563,26 @@ _themeRedrawHooks.push(() => {
 // Non-Worker calls (open APIs, free, no quota):
 //   open.er-api, open-meteo, ipapi, hacker-news, github
 // (crypto moved into /daily-brief — coingecko 429s browser IPs now)
-fetchFX(); fetchWx(); fetchAQI(); fetchDailyBrief(); fetchNews(); fetchCommits(); fetchStats(); fetchCouncil();
-setInterval(fetchFX,         10 * 60_000);  // FX: every 10 min (was 5)
-setInterval(fetchWx,         10 * 60_000);  // weather: every 10 min
-setInterval(fetchAQI,        15 * 60_000);  // AQI: every 15 min
-setInterval(fetchDailyBrief,  5 * 60_000);  // all quotes: 1 Worker call every 5 min (was 10 calls/5 min)
-setInterval(fetchNews,       15 * 60_000);  // HN: every 15 min (not Worker)
-setInterval(fetchCommits,    10 * 60_000);  // GitHub: every 10 min (not Worker)
-setInterval(fetchStats,       3 * 60_000);  // status: every 3 min (was 1 min, saves 66% of status calls)
-setInterval(fetchCouncil,     5 * 60_000);  // council: every 5 min (matches cron)
+// "Keep it open all day" means all day in a background tab, on a phone.
+// Nothing below polls while the document is hidden; when it comes back
+// after more than a minute away, the feeds refresh once so the tiles are
+// honest again. Zero network, zero paint, zero battery while unseen.
+const whenVisible = (fn) => () => { if (!document.hidden) fn(); };
+const FEEDS = [fetchFX, fetchWx, fetchAQI, fetchDailyBrief, fetchNews, fetchCommits, fetchStats, fetchCouncil];
+let hiddenAt = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { hiddenAt = Date.now(); return; }
+  if (hiddenAt && Date.now() - hiddenAt > 60_000) FEEDS.forEach(f => { try { f(); } catch (_) {} });
+});
+FEEDS.forEach(f => f());
+setInterval(whenVisible(fetchFX),         10 * 60_000);  // FX: every 10 min (was 5)
+setInterval(whenVisible(fetchWx),         10 * 60_000);  // weather: every 10 min
+setInterval(whenVisible(fetchAQI),        15 * 60_000);  // AQI: every 15 min
+setInterval(whenVisible(fetchDailyBrief),  5 * 60_000);  // all quotes: 1 Worker call every 5 min (was 10 calls/5 min)
+setInterval(whenVisible(fetchNews),       15 * 60_000);  // HN: every 15 min (not Worker)
+setInterval(whenVisible(fetchCommits),    10 * 60_000);  // GitHub: every 10 min (not Worker)
+setInterval(whenVisible(fetchStats),       3 * 60_000);  // status: every 3 min (was 1 min, saves 66% of status calls)
+setInterval(whenVisible(fetchCouncil),     5 * 60_000);  // council: every 5 min (matches cron)
 
 // ════════════════════════════════════════════════════════
 // TVs at far wall (5 × 4 grid = 20)
@@ -3440,7 +3457,7 @@ async function refreshStatus() {
   }
 }
 refreshStatus();
-setInterval(refreshStatus, 60_000);
+setInterval(() => { if (!document.hidden) refreshStatus(); }, 60_000);
 
 // ════════════════════════════════════════════════════════
 // Mouse / touch
@@ -4368,6 +4385,9 @@ const WHISPERS = [
 ];
 
 function spawnWhisper() {
+  // The whisper is room weather. It has no business drifting across the
+  // dashboard someone is trying to work under, or animating in a hidden tab.
+  if (document.hidden || document.body.dataset.view !== 'room') return;
   // Don't spawn while a modal/Pomodoro is open
   if (document.getElementById('modal').classList.contains('in')) return;
   if (document.getElementById('pomodoro').classList.contains('in')) return;
@@ -4672,17 +4692,30 @@ function _renderPlanBody() {
 
 // Live clock — always running, painted on both views
 function tickPlanClock() { try { _tickPlanClockBody(); } catch (_) {} }
+// Intl.DateTimeFormat is expensive to construct; the clock built three
+// of them every second, forever. Build each shape once.
+const PLAN_TIME_FMT = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Bangkok', hour12: false,
+  hour: '2-digit', minute: '2-digit', second: '2-digit',
+});
+const PLAN_DATE_FMT = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Bangkok',
+  weekday: 'short', day: '2-digit', month: 'short', year: 'numeric',
+});
+const CITY_FMT = new Map();
+function cityFmt(tz) {
+  let f = CITY_FMT.get(tz);
+  if (!f) {
+    f = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour12: false, hour: '2-digit', minute: '2-digit' });
+    CITY_FMT.set(tz, f);
+  }
+  return f;
+}
 function _tickPlanClockBody() {
   if (!planTimeEl) return;
   const now = new Date();
-  const fmt = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Bangkok', hour12: false,
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-  }).format(now);
-  const dfmt = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Bangkok',
-    weekday: 'short', day: '2-digit', month: 'short', year: 'numeric',
-  }).format(now).toUpperCase();
+  const fmt = PLAN_TIME_FMT.format(now);
+  const dfmt = PLAN_DATE_FMT.format(now).toUpperCase();
   if (planTimeEl) planTimeEl.textContent = fmt;
   if (planDateEl) planDateEl.textContent = `${dfmt} · BANGKOK · GMT+7`;
   // World map labeled cities — refresh local time text below each
@@ -4694,14 +4727,32 @@ function _tickPlanClockBody() {
       const tz = t.dataset.tz;
       if (!tz) return;
       try {
-        t.textContent = new Intl.DateTimeFormat('en-GB', {
-          timeZone: tz, hour12: false, hour: '2-digit', minute: '2-digit',
-        }).format(now);
+        t.textContent = cityFmt(tz).format(now);
       } catch { /* bad tz */ }
     });
   }
 }
-setInterval(tickPlanClock, 1000);
+setInterval(() => { if (!document.hidden) tickPlanClock(); }, 1000);
+
+// SIGNALS fold — remembered per device. Nothing is deleted; the markets
+// board is one tap away instead of always in the eye line.
+{
+  const btn = document.getElementById('os-signals-toggle');
+  const brief = document.getElementById('plan-brief');
+  const fold = btn?.querySelector('.os-fold');
+  const apply = (folded) => {
+    if (!btn || !brief) return;
+    brief.classList.toggle('folded', folded);
+    btn.setAttribute('aria-expanded', folded ? 'false' : 'true');
+    if (fold) fold.textContent = folded ? '+' : '−';
+  };
+  apply(lsGet('nonarkara.signals') === 'folded');
+  btn?.addEventListener('click', () => {
+    const folded = !brief.classList.contains('folded');
+    lsSet('nonarkara.signals', folded ? 'folded' : 'open');
+    apply(folded);
+  });
+}
 
 // Daily brief — pulls from window.__brief, set by the room's
 // existing fetchers. Painted here whenever new data lands or the
@@ -5350,7 +5401,7 @@ function tickHudClock() {
   });
 }
 tickHudClock();
-setInterval(tickHudClock, 1000);
+setInterval(() => { if (!document.hidden) tickHudClock(); }, 1000);
 
 const roomHudFocusBtn = document.getElementById('room-hud-focus');
 if (roomHudFocusBtn) roomHudFocusBtn.addEventListener('click', () => { try { openPomodoro(); } catch (_) {} });
@@ -6115,9 +6166,14 @@ function animate() {
   // when the ground is becoming visible, so manual wheel/pinch in the
   // room view is left alone. tickAutoZoom respects markManualZoom for
   // 2.2s so a pinch settles before the auto-zoom resumes.
-  if (GROUND && !driving && (window.__groundBlend || 0) > 0.2) {
-    GROUND.setAutoZoomForPitch(eff.pitch);
-    GROUND.tickAutoZoom(dtLook);
+  // window.__ground, not the module `let GROUND` (declared ~800 lines
+  // below): animate's first frame runs during module evaluation, and the
+  // bare name was a TDZ ReferenceError that killed the whole module on
+  // every load — the door never got its handlers.
+  const groundNow = window.__ground;
+  if (groundNow && !driving && (window.__groundBlend || 0) > 0.2) {
+    groundNow.setAutoZoomForPitch(eff.pitch);
+    groundNow.tickAutoZoom(dtLook);
   }
 
   // Walking owns the camera's position when it is on; otherwise the room
@@ -6464,6 +6520,7 @@ function closeFrameWithRitual() {
   if (params.has('guest')) { lsWrite('guest'); applyMode('guest'); }
 
   const stored = lsRead();
+  if (stored === 'host') setTimeout(warmMusic, 15_000);   // after the shell settles
   if (stored === 'host' || stored === 'guest') {
     applyMode(stored);
     if (stored === 'guest') paintGuestCardQR();
@@ -6474,9 +6531,30 @@ function closeFrameWithRitual() {
   // No stored mode — door is visible underneath boot (z 9999).
   // Boot disappears at ~2.1s; door appears. No fade needed.
 
+  // NON OS says the ten tracks are on this device. Guests must not pay
+  // 52MB for that promise (v4.39 stopped precaching), so the host's
+  // device warms them itself: each fetch goes through the service worker's
+  // cache-first path, which keeps the track after the first pass. Cached
+  // tracks answer instantly, so re-warming on every host visit is free.
+  // Skipped under Data Saver.
+  function warmMusic() {
+    if (navigator.connection?.saveData) return;
+    const sw = navigator.serviceWorker;
+    if (!sw) return;
+    const run = async () => {
+      for (let i = 1; i <= 10; i++) {
+        try { await fetch(`/music/track-${String(i).padStart(2, '0')}.mp3`, { cache: 'force-cache' }); }
+        catch (_) { return; }   // offline — the rest can wait for next time
+      }
+    };
+    if (sw.controller) run();
+    else sw.addEventListener('controllerchange', run, { once: true });
+  }
+  window.__warmMusic = warmMusic;
   function pick(mode) {
     lsWrite(mode);
     applyMode(mode);
+    if (mode === 'host') warmMusic();
     if (mode === 'guest') paintGuestCardQR();
     doorEl.classList.add('skip');
     // Host → OS all day. Guest → Pavilion. Clear saved view so the
@@ -6620,7 +6698,7 @@ applyTheme       = _afterPaint(applyTheme);
 audio.addEventListener('play', paintTiles);
 audio.addEventListener('pause', paintTiles);
 paintTiles();
-setInterval(paintTiles, 30_000);
+setInterval(() => { if (!document.hidden) paintTiles(); }, 30_000);
 
 // ════════════════════════════════════════════════════════
 // FLEET CONSOLE — every system Non runs, as a transit board
@@ -6842,7 +6920,7 @@ async function fetchFleetExtra() {
   } catch (_) { /* offline — the board keeps its last painted state */ }
 }
 fetchFleetExtra();
-setInterval(fetchFleetExtra, 5 * 60_000);
+setInterval(() => { if (!document.hidden) fetchFleetExtra(); }, 5 * 60_000);
 
 // The 60s status poll already paints the plan; hang the board off it.
 paintPlanStatus = ((orig) => function (data) {
