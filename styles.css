@@ -1689,7 +1689,7 @@
       .view-toggle {
         right: calc(14px + var(--sar));
         bottom: calc(80px + var(--sab));
-        min-width: 64px; height: 40px;
+        min-width: 64px; height: 44px;
         padding: 0 10px;
         font-size: 9px;
       }

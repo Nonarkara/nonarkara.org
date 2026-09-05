@@ -57,6 +57,11 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.41 (2026-09-06) phone PLAN boot repair — the render loop is first
+//                    scheduled for the next frame, after the module has
+//                    initialized every world binding. A ground-map TDZ
+//                    can no longer strand a first-time visitor behind
+//                    the boot screen; the phone PLAN control is 44px.
 //   4.40 (2026-09-01) Pokemon Go's other half — tilt now drives the map
 //                    zoom, not just the camera direction. Ground zooms
 //                    from city (z13) to streets (z17) on a smoothstep
@@ -418,7 +423,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.40';
+const NON_VERSION = '4.41';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -6284,7 +6289,12 @@ function animate() {
 
   renderer.render(scene, camera);
 }
-animate();
+// Do not execute the render loop while this module is still initializing.
+// The world is intentionally assembled below this point; starting immediately
+// lets any future reference to one of those `let` bindings hit its temporal
+// dead zone and abort the rest of boot. The next animation frame runs only
+// after module evaluation has completed, so door + PLAN wiring always lands.
+requestAnimationFrame(animate);
 
 // ════════════════════════════════════════════════════════
 // OFFBOARD RITUAL
@@ -8165,3 +8175,8 @@ if (WEBGL_OK && PAVILION) {
 // breath. Deterministic by date, so it is the same poem all day.
 // ════════════════════════════════════════════════════════
 window.__poemToday = () => poemForDate(new Date());
+
+// Browser smoke-test marker: reaching this line proves every synchronous
+// initializer (including the door and PLAN controls) completed successfully.
+// Put it on the DOM so an isolated browser-test world can read it too.
+document.body.dataset.appReady = '1';

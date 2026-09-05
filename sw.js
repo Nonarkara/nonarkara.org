@@ -6,7 +6,7 @@
  * for same-origin, so a stale version means users keep the old shell.
  */
 
-const CACHE_VERSION = 'non-2026-09-02-v4.40';   // sw.js rule: bump with every app.js change — v4.40 forgot
+const CACHE_VERSION = 'non-2026-09-06-v4.41';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 // The app's own code. These are always revalidated when online so a
