@@ -1,21 +1,22 @@
 # Cloudflare Pages routing.
 #
-# /music is the shareable name for the record — the link that gets sent
-# to someone so they can hear it. The file is music.html, and Pages
-# serves it at /music on its own: it strips .html and 308s the extension
-# form to the clean path. So the canonical URL needs no rule here at all.
+# /mixedtape is the shareable name for the record — the link that gets
+# sent to someone so they can hear it. The file is mixedtape.html, and
+# Pages serves it at /mixedtape on its own: it strips .html and 308s the
+# extension form to the clean path. So the canonical URL needs no rule
+# here at all.
 #
-# That 308 is also why the first attempt failed. /music was a 200
-# rewrite onto /mixtape.html, and Pages' extension-stripping runs BEFORE
-# _redirects — so the rewrite resolved to the file, then Pages bounced
-# the browser to /mixtape and the address bar showed the old name. The
-# fix was to let the platform own the clean URL instead of fighting it.
+# That 308 is worth knowing, because an earlier attempt fought it and
+# lost. /music was a 200 rewrite onto /mixtape.html, and Pages'
+# extension-stripping runs BEFORE _redirects — so the rewrite resolved
+# to the file, then Pages bounced the browser to /mixtape and the
+# address bar showed a name nobody had chosen. Let the platform own the
+# clean URL; only name the aliases here.
 #
-# What is left are the other names. Every /mixtape link already shared
-# has to keep working, and every name should land on the canonical URL
-# rather than quietly serving a second copy of the same page — one
-# record, one address, however you arrived at it.
-/mixtape        /music    301
-/mixtape.html   /music    301
-/mixedtape      /music    301
-/mixedtape.html /music    301
+# Everything below is a name the record has answered to at some point.
+# Each one 301s to the canonical rather than quietly serving a second
+# copy of the same page: one record, one address, however you arrived.
+/music          /mixedtape   301
+/music.html     /mixedtape   301
+/mixtape        /mixedtape   301
+/mixtape.html   /mixedtape   301

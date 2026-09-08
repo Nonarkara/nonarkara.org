@@ -2,17 +2,17 @@
  * NON OS · Service Worker
  *
  * Bump CACHE_VERSION in the same commit as any change to index.html,
- * styles.css, app.js or music.html. The fetch handler is cache-first
+ * styles.css, app.js or mixedtape.html. The fetch handler is cache-first
  * for same-origin, so a stale version means users keep the old shell.
  */
 
-const CACHE_VERSION = 'non-2026-09-08-v4.42';
+const CACHE_VERSION = 'non-2026-09-08-v4.43';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 // The app's own code. These are always revalidated when online so a
 // deploy is visible on the next load, not the load after the load after.
 const CODE = new Set([
-  '/', '/index.html', '/music',
+  '/', '/index.html', '/mixedtape',
   '/styles.css', '/app.js', '/discover.js', '/sky.js', '/ground.js',
   '/pavilion.js', '/glasshouse.js', '/savoye.js', '/farnsworth.js', '/fallingwater.js',
   '/walk.js', '/daylight.js', '/astronomy.js', '/world.js', '/poems.js', '/starlore.js', '/look.js', '/pool.js', '/interiors.js',
@@ -26,10 +26,10 @@ const CODE = new Set([
 const SHELL = [
   '/',
   '/index.html',
-  // The record. Pages serves music.html at /music and 308s the .html
-  // form to it, so /music is the only path worth holding a cache entry
-  // for — the old /mixtape links 301 here (see _redirects).
-  '/music',
+  // The record. Pages serves mixedtape.html at /mixedtape and 308s the
+  // .html form to it, so /mixedtape is the only path worth a cache
+  // entry — /music and /mixtape 301 here (see _redirects).
+  '/mixedtape',
   '/styles.css',                    // v2: extracted from inline
   '/app.js',                        // v2: extracted from inline
   '/discover.js',                   // pavilion discovery counter
