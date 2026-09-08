@@ -11,8 +11,11 @@
 # the browser to /mixtape and the address bar showed the old name. The
 # fix was to let the platform own the clean URL instead of fighting it.
 #
-# What is left is the old name. Every /mixtape link already shared has
-# to keep working, and should land on the canonical URL rather than
-# quietly serving a second copy of the same page.
+# What is left are the other names. Every /mixtape link already shared
+# has to keep working, and every name should land on the canonical URL
+# rather than quietly serving a second copy of the same page — one
+# record, one address, however you arrived at it.
 /mixtape        /music    301
 /mixtape.html   /music    301
+/mixedtape      /music    301
+/mixedtape.html /music    301
