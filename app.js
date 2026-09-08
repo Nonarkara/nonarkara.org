@@ -403,7 +403,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.39';
+const NON_VERSION = '4.40';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -4560,6 +4560,23 @@ function chooseDefaultView() {
     if (mode === 'host') lsSet('nonarkara.view', 'plan');
     if (mode === 'guest') lsSet('nonarkara.view', 'room');
   }
+
+  // ?view=plan|room wins over everything, and is remembered.
+  //
+  // This is how /music gets you home. The music page is a standalone
+  // link people are sent — they have no history to go back to, so its
+  // close control points at /?view=plan rather than at the browser's
+  // back button. Persisting it is the part that matters: a first-time
+  // visitor still meets the door, and without the write their answer
+  // would pick the view instead (guest → the room), which is the one
+  // place the link explicitly did not want to land. Read after the
+  // migration above, never before, or the migration clobbers it on the
+  // next load.
+  try {
+    const want = new URLSearchParams(location.search).get('view');
+    if (want === 'plan' || want === 'room') { lsSet('nonarkara.view', want); return want; }
+  } catch (_) {}
+
   const saved = lsGet('nonarkara.view');
   if (saved === 'plan' || saved === 'room') return saved;
   // Host keeps the OS open all day. Guest walks the Pavilion.
@@ -6439,7 +6456,16 @@ function closeFrameWithRitual() {
     // mode's default wins on this first choice (later toggles stick).
     try {
       localStorage.removeItem('nonarkara.view');
-      const go = mode === 'host' ? 'plan' : 'room';
+      // …unless a destination was actually named. ?view= is how the
+      // music page's close control asks for the plan, and a first-time
+      // visitor arriving that way used to pick "enter the pavilion" and
+      // land in the 3D room — the mode default quietly overwriting the
+      // one thing the link had asked for. A stated destination is not a
+      // default, so it survives the door.
+      let want = null;
+      try { want = new URLSearchParams(location.search).get('view'); } catch (_) {}
+      const go = (want === 'plan' || want === 'room') ? want
+        : (mode === 'host' ? 'plan' : 'room');
       (window.setView || setView)(go);
     } catch (_) {}
   }

@@ -6,13 +6,13 @@
  * for same-origin, so a stale version means users keep the old shell.
  */
 
-const CACHE_VERSION = 'non-2026-08-19-v4.39';
+const CACHE_VERSION = 'non-2026-09-08-v4.40';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 // The app's own code. These are always revalidated when online so a
 // deploy is visible on the next load, not the load after the load after.
 const CODE = new Set([
-  '/', '/index.html', '/mixtape.html',
+  '/', '/index.html', '/mixtape.html', '/music',
   '/styles.css', '/app.js', '/discover.js', '/sky.js', '/ground.js',
   '/pavilion.js', '/glasshouse.js', '/savoye.js', '/farnsworth.js', '/fallingwater.js',
   '/walk.js', '/daylight.js', '/astronomy.js', '/world.js', '/poems.js', '/starlore.js', '/look.js', '/pool.js', '/interiors.js',
@@ -27,6 +27,10 @@ const SHELL = [
   '/',
   '/index.html',
   '/mixtape.html',
+  // The shareable name for the same file (_redirects rewrites it). Cached
+  // under its own key or an offline visitor who was sent /music gets the
+  // main app shell instead of the record.
+  '/music',
   '/styles.css',                    // v2: extracted from inline
   '/app.js',                        // v2: extracted from inline
   '/discover.js',                   // pavilion discovery counter

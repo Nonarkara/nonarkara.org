@@ -1,0 +1,13 @@
+# Cloudflare Pages routing.
+#
+# /music is the shareable name for the mixtape — the link that gets sent
+# to someone so they can hear the record. A 200 here is a rewrite, not a
+# redirect: the browser stays on /music and Pages serves the file. That
+# keeps one canonical URL in the address bar, in the share sheet, and in
+# whatever chat thread it was pasted into.
+#
+# /mixtape.html is left working rather than redirected. It is the path
+# every previously-shared link already carries, and a rewrite target that
+# also redirects is how you build an edge loop.
+/music      /mixtape.html   200
+/music/     /mixtape.html   200
