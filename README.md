@@ -21,6 +21,8 @@ A personal civic site. Two surfaces, one origin. They are not the same page with
 
 **NON OS** is the host surface: the personal operating system he keeps open during the day. Clock (Bangkok), fleet health, signals, notes. Visitors land in the Pavilion, not in a private dashboard.
 
+**2026-09 face.** The guest pavilion opens on city systems that run: FloodDash, SLIC, Axiom. The project wall labels each one live, watch, blueprint, or writing. The host fleet names the system first and colours a status rail only when a probe state exists. FloodDash is a citizen watch, not an official warning. This face sits on the v4.39–v4.40 line: upright phone is the room, tilt up is the sky, tilt down zooms the ground to street level, and phone boot waits until the module has initialized.
+
 Plan view is there if WebGL is not.
 
 The work lives next door, in its own public repositories. Do not treat this tree as the source of those systems.

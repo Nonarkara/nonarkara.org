@@ -7,7 +7,7 @@ const app = readFileSync(new URL('./app.js', import.meta.url), 'utf8');
 // 2026-08-09. This catches the quiet failure where the portfolio site
 // grows but the personal site's all-projects screen does not.
 const AXIOM_LINKS = [
-  'https://flood-ami.pages.dev/',
+  'https://flood.nonarkara.org',
   'https://sikhio.nonarkara.org/',
   'https://lcbcity.pages.dev/dashboard',
   'https://phuket.nonarkara.org/war-room',
@@ -24,7 +24,8 @@ const AXIOM_LINKS = [
   'https://slic.nonarkara.org',
   'https://global.nonarkara.org/',
   'https://conflict.nonarkara.org/',
-  'https://siam-markets.pages.dev/',
+  'https://day.nonarkara.org',
+  'https://bkk.nonarkara.org',
   'https://sciti.nonarkara.org',
   'https://bus.nonarkara.org',
   'https://cdp.nonarkara.org',
@@ -48,6 +49,8 @@ const AXIOM_LINKS = [
 ];
 
 for (const url of AXIOM_LINKS) assert(app.includes(url), `missing Axiom project: ${url}`);
+assert(app.includes('flood-ami.pages.dev'), 'FloodDash probe host remains on the board');
+assert(app.includes('siam-markets.pages.dev'), 'DayTraders probe host remains on the board');
 assert(app.includes('<span class="title">${p.title}</span>'), 'plan must show project titles');
 assert.equal((app.match(/makeSabaiCup\(/g) || []).length, 4,
   'Sabai Sabai should be discoverable in Pavilion, Glass House and Farnsworth House');

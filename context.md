@@ -44,6 +44,8 @@ v3.0–v3.1 shipped real backend organs (fleet history, braind, Worker capture q
 
 **v4.19 Farnsworth + Fallingwater + dense estate (2026-08-11):** Farnsworth rebuilt to match the BIM massing (two floating white trays, H-section columns, mullioned full-height glass, primavera core) — the prior single-tray / square-post plan was wrong. Fallingwater added on a hill SE with cantilevered terraces, stone core, and a front cascade (five translucent tiers — phone-cheap, no glTF). Origins pulled in from ~120m cross to ~40–60m centres. Brand framing: 农博士爱的现代建筑世界之窗.
 
+**v4.42 civic face (2026-09-24):** Guest first paint reads “builds city systems that run” — FloodDash, SLIC, Axiom — with live / watch / blueprint / writing on the wall. Host fleet is a luggage tag: system name, status rail only when a probe state exists, mono id second. Built on `feat/ground-tilt-to-zoom` (v4.39 Pokémon GO look, v4.40 ground tilt-to-zoom, deferred phone boot) merged with the studio README on `main`. Those tilt and boot fixes stay. FloodDash is a citizen watch, not an official warning. No invented metrics.
+
 **Architizer / SketchUp icons (2026-08-07):** No local `.skp` files found on this machine. Estate icons are procedural plans from the same numbers the walk collides against — never Warehouse megabyte meshes. Candidates if asked next: Church of the Light, Ronchamp.
 
 ## Conservation law
