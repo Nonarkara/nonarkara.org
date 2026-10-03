@@ -19,14 +19,16 @@
  *      programmatic aim in flight.
  *   2. Aims (LOOK UP, dolly-to-object, travel) ease through the same
  *      state, so there is never a second camera authority.
- *   3. The gyro is an additive OFFSET on top, never a writer — the
- *      phone shifts the window; the finger still owns the frame.
+ *   3. The gyro is an additive OFFSET on top, never a writer. On a
+ *      phone that offset is a 1:1 AR window (Pokémon GO): hold it
+ *      upright to see the room, tilt up to see the sky, turn to turn.
+ *      The finger still owns the base frame.
  */
 
 const PITCH_MAX = 1.55;                 // ±89° — never past vertical
 
-const clampPitch = (p) => Math.max(-PITCH_MAX, Math.min(PITCH_MAX, p));
-const normAngle = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+export const clampPitch = (p) => Math.max(-PITCH_MAX, Math.min(PITCH_MAX, p));
+export const normAngle = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
 /** Framerate-independent easing shared by visual camera transitions. */
 export const dampingFactor = (rate, dt) =>
@@ -104,18 +106,58 @@ export class Look {
 }
 
 /**
+ * Pokémon GO AR window. DeviceOrientation → look pitch/yaw.
+ *
+ * Hold the phone upright (beta = 90°) → pitch 0, the horizon, the room.
+ * Tilt it up (beta → 0, screen toward the sky) → pitch +90°, the stars.
+ * Tilt it down (beta → 180) → pitch negative, the ground.
+ * Turn left/right (alpha) → yaw, relative to `headingZero` so the
+ * direction you were facing when the window opened stays forward.
+ *
+ * Landscape remaps the pitch axis onto gamma the same way the sky
+ * already did. Pitch is absolute — never calibrated to a first sample
+ * or a "natural hold." That was the old bug: zero at the table, and
+ * every upright pose read as the zenith.
+ */
+export function deviceLook(alpha, beta, gamma, screenAngle = 0, headingZero = 0) {
+  let pitchAxis = beta ?? 0;
+  if (screenAngle === 90) pitchAxis = -(gamma ?? 0);
+  else if (screenAngle === -90 || screenAngle === 270) pitchAxis = (gamma ?? 0);
+  const pitch = clampPitch((90 - pitchAxis) * Math.PI / 180);
+
+  // W3C alpha increases as the device turns counterclockwise about Z.
+  // Turning the phone right therefore decreases alpha, and looking
+  // right is negative yaw (same sign as a mouse-right drag).
+  const heading = (alpha ?? 0) + (screenAngle ?? 0);
+  const yaw = normAngle((heading - headingZero) * Math.PI / 180);
+  return { pitch, yaw };
+}
+
+/** Absolute device pitch. Upright = 0, flat face-up = zenith. */
+export function pitchFromBeta(beta, gamma, screenAngle = 0) {
+  return deviceLook(0, beta, gamma, screenAngle, 0).pitch;
+}
+
+/**
+ * Wrapped heading step in radians. Drops the ~180° jumps iOS fires
+ * when the compass kicks in after a stream of alpha=0 samples.
+ */
+export function headingDelta(prevHeading, heading) {
+  if (prevHeading == null || heading == null) return 0;
+  let d = heading - prevHeading;
+  d = ((d + 180) % 360 + 360) % 360 - 180;
+  if (Math.abs(d) >= 40) return 0;
+  return d * Math.PI / 180;
+}
+
+/**
  * How much of the sky (or ground) you are looking at, from pitch alone.
- * This is what makes them places instead of modes: the stars are always
- * up there and the map is always underfoot — look, and they are there;
- * look away, and the room comes back. Smoothstep between 31° and 60°,
- * so the transition is a glance, not a doorway.
+ * Smoothstep between 31° and 60° — a glance, not a doorway.
  */
 export function overheadBlend(pitch) {
-  // Starts at ~31° rather than ~26°: with the 1:1 gyro window, a phone
-  // held naturally while walking sits 20–28° up, and the old threshold
-  // had the sky washing in over the room mid-stride — read as a glitch,
-  // and rightly. 31° requires meaning it; the transition still spans a
-  // single glance.
+  // Starts at ~31°. Upright (Pokémon GO) is pitch 0; a browsing hold
+  // around beta 72° is only ~18° up — still the room. 31° is a real
+  // tilt toward the sky, and the transition still spans a glance.
   const t = (pitch - 0.55) / 0.5;
   const c = Math.max(0, Math.min(1, t));
   return c * c * (3 - 2 * c);
