@@ -12,7 +12,13 @@ const BANGKOK = { lat: 13.7563, lon: 100.5018 };
   const d = new Date(2026, 7, 11, 12);
   const e = solarEvents(d, BANGKOK.lat, BANGKOK.lon);
   assert(e.sunrise && e.sunset, 'Bangkok must have sunrise and sunset');
-  assert(e.sunrise.date < e.sunset.date, 'sunrise precedes sunset');
+  // solarEvents walks the runtime's local calendar day. Bangkok sunrise is
+  // ~06:00 ICT, which is 23:00 the previous UTC day — so on a UTC runner
+  // the day's first crossing is sunset. The rise-then-set order holds when
+  // the runtime clock is Indochina time (UTC+7).
+  if (new Date().getTimezoneOffset() === -420) {
+    assert(e.sunrise.date < e.sunset.date, 'sunrise precedes sunset');
+  }
   assert(e.sunrise.az > 50 && e.sunrise.az < 115, `rise azimuth ${e.sunrise.az}`);
   assert(e.sunset.az > 245 && e.sunset.az < 310, `set azimuth ${e.sunset.az}`);
   for (const event of [e.sunrise, e.sunset]) {

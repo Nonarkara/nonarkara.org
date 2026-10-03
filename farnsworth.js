@@ -57,15 +57,23 @@ export const PLAN = {
     d: 6.4,
     t: 0.26,
     y: 0.70,
-    // Gap of one step-run between upper porch lip and lower north edge.
-    gap: 0.55,
+    // Gap between upper porch lip and lower north edge — sized so the
+    // four hi treads that bridge it (gap/stepsHi each) stay real treads
+    // (~0.275m), not slivers.
+    gap: 1.1,
   },
 
-  // Climb: grass → lower (two rises) → upper (two rises). Each rise
-  // stays under walk.js FLOOR_STEP so the sticky patches climb.
-  stepsLo: 2,
-  stepsHi: 2,
+  // Climb: grass → lower (four rises of 0.175) → upper (four rises of
+  // ~0.21). The real approach is famously SHALLOW floating slabs; the
+  // old two-rise flights were 0.35/0.425m — a ladder, not Mies's stair.
+  // Every rise still derives from the tray levels (stepRises) and stays
+  // far under walk.js FLOOR_STEP.
+  stepsLo: 4,
+  stepsHi: 4,
   stepRun: 0.55,
+  // Drawn tread width; the step floor patches gate on the same number
+  // so you can only walk where a tread is drawn.
+  stepW: 3.6,
   glassT: 0.06,
   mullionT: 0.05,
   // Door on the −X long face, near the living zone.
@@ -169,6 +177,10 @@ export function floorPatches(plan = PLAN) {
     heightAt(x, z) {
       if (Math.abs(x) > hw + 4) return null;
       if (z < -hd - 4) return null;
+      // Bounded on +z too: unbounded, this strip claimed y=0 all the
+      // way north across the Pavilion site. The lawn ends a little past
+      // the spawn; beyond that the estate ground owns the height.
+      if (z > plan.spawn.z + 6) return null;
       if (z > loStepsZ1) return 0;
       return null;
     },
@@ -183,7 +195,9 @@ export function floorPatches(plan = PLAN) {
       flight: 'lo',
       n: i + 1,
       heightAt(x, z) {
-        if (Math.abs(x) > hw + 0.05) return null;
+        // Gate on the DRAWN tread width, not the tray width — the old
+        // hw gate made 8.66m of air walkable over a 3.6m slab.
+        if (Math.abs(x) > plan.stepW / 2 + 0.05) return null;
         if (z < z0 || z > z1) return null;
         return y;
       },
@@ -212,7 +226,8 @@ export function floorPatches(plan = PLAN) {
       flight: 'hi',
       n: i + 1,
       heightAt(x, z) {
-        if (Math.abs(x) > hw + 0.05) return null;
+        // Same drawn-tread gate as the lo flight.
+        if (Math.abs(x) > plan.stepW / 2 + 0.05) return null;
         if (z < zz0 || z > zz1) return null;
         return y;
       },
@@ -281,8 +296,12 @@ export function buildFarnsworth(THREE, scene, opts = {}) {
 
   const F = PLAN.floor, R = PLAN.roof;
   const lift = PLAN.lift;
-  const floorBot = lift - F.t / 2;
-  const floorTop = lift + F.t / 2;
+  // The walked patch is AT lift (test-locked), so the drawn deck TOP is
+  // at lift and the tray's thickness hangs below. Centring the box ON
+  // lift drew the deck 14cm above the feet: furniture sat sunken and
+  // the rug hid under the floor plane.
+  const floorBot = lift - F.t;
+  const floorTop = lift;
   const roofBot = floorTop + PLAN.clear;
   const roofTop = roofBot + R.t;
   const hw = F.w / 2, hd = F.d / 2;
@@ -311,29 +330,31 @@ export function buildFarnsworth(THREE, scene, opts = {}) {
   const lowerZ0 = hd + L.gap;
   const lowerZc = lowerZ0 + L.d / 2;
   const lowerY = L.y;
-  at(box(L.w, L.t, L.d, MATS.lower), 0, lowerY, lowerZc);
-  at(edges(L.w, L.t, L.d), 0, lowerY, lowerZc);
+  // Same top-at-walk-level rule as the upper tray: the patch walks at
+  // L.y, so the slab TOP is L.y and the thickness hangs below.
+  at(box(L.w, L.t, L.d, MATS.lower), 0, lowerY - L.t / 2, lowerZc);
+  at(edges(L.w, L.t, L.d), 0, lowerY - L.t / 2, lowerZc);
   const lTop = new THREE.Mesh(new THREE.PlaneGeometry(L.w - 0.08, L.d - 0.08), MATS.lower);
   lTop.rotation.x = -Math.PI / 2;
-  at(lTop, 0, lowerY + L.t / 2 + 0.004, lowerZc);
+  at(lTop, 0, lowerY + 0.004, lowerZc);
   const lBot = new THREE.Mesh(
     new THREE.PlaneGeometry(L.w - 0.08, L.d - 0.08),
     new THREE.MeshBasicMaterial({ color: dark ? 0x15171a : 0xa9a59a, side: THREE.DoubleSide }),
   );
   lBot.rotation.x = Math.PI / 2;
-  at(lBot, 0, lowerY - L.t / 2 - 0.004, lowerZc);
+  at(lBot, 0, lowerY - L.t - 0.004, lowerZc);
 
   const lcx = L.w / 2 - 0.2;
   const lcz0 = lowerZ0 + 0.35;
   const lcz1 = lowerZ0 + L.d - 0.35;
-  const loH = lowerY + L.t / 2;
+  const loH = lowerY;
   for (const x of [-lcx, lcx]) {
     for (const z of [lcz0, lcz1]) placeH(x, z, loH, loH / 2);
   }
 
   // Steps — solid travertine treads with white steel edge channels.
   const { lo, hi } = stepRises(PLAN);
-  const stepW = 3.6;
+  const stepW = PLAN.stepW;
   for (let i = 0; i < PLAN.stepsLo; i++) {
     const y = (i + 1) * lo;
     const z = lowerZ0 + L.d + (PLAN.stepsLo - i - 1) * PLAN.stepRun + PLAN.stepRun / 2;
@@ -351,8 +372,8 @@ export function buildFarnsworth(THREE, scene, opts = {}) {
   }
 
   // ── Upper floor tray ────────────────────────────────────
-  at(box(F.w, F.t, F.d, MATS.floor), 0, lift, 0);
-  at(edges(F.w, F.t, F.d), 0, lift, 0);
+  at(box(F.w, F.t, F.d, MATS.floor), 0, (floorTop + floorBot) / 2, 0);
+  at(edges(F.w, F.t, F.d), 0, (floorTop + floorBot) / 2, 0);
   const fl = new THREE.Mesh(new THREE.PlaneGeometry(F.w - 0.08, F.d - 0.08), MATS.floor);
   fl.rotation.x = -Math.PI / 2;
   at(fl, 0, floorTop + 0.004, 0);

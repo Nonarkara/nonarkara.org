@@ -4,9 +4,9 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>NON — Dr Non Arkaraprasertkul</title>
-  <meta name="description" content="Architect (MIT), anthropologist (Harvard), smart-city specialist at Thailand's depa. Live dashboards, real work, a single page that doubles as a business card."/>
+  <meta name="description" content="Dr Non Arkaraprasertkul, Bangkok. Builds city systems that run: FloodDash, SLIC, Axiom. Walk the pavilion."/>
   <meta property="og:title" content="NON — Dr Non Arkaraprasertkul"/>
-  <meta property="og:description" content="Architect (MIT), anthropologist (Harvard), smart-city specialist at Thailand's depa. 53 projects and systems, presented as a tappable plan view and walkable estate."/>
+  <meta property="og:description" content="City systems that run — FloodDash, SLIC, Axiom — and a walkable pavilion. Bangkok."/>
   <meta property="og:type" content="website"/>
   <meta property="og:url" content="https://nonarkara.org"/>
   <meta property="og:image" content="https://nonarkara.org/og.png"/>
@@ -14,7 +14,7 @@
   <meta property="og:image:height" content="630"/>
   <meta name="twitter:card" content="summary_large_image"/>
   <meta name="twitter:title" content="NON — Dr Non Arkaraprasertkul"/>
-  <meta name="twitter:description" content="Architect, anthropologist, smart-city specialist · depa Thailand."/>
+  <meta name="twitter:description" content="City systems that run — FloodDash, SLIC, Axiom. Bangkok."/>
   <meta name="twitter:image" content="https://nonarkara.org/og.png"/>
 
   <meta name="theme-color" id="theme-color-meta" content="#000000"/>
@@ -136,7 +136,7 @@
     <div class="boot-logo">
       <span class="boot-n">N</span><span class="boot-o">O</span><span class="boot-n2">N</span>
     </div>
-    <div class="boot-sub">a window to the mind</div>
+    <div class="boot-sub" data-i18n="palace">builds city systems that run</div>
   </div>
 
   <!-- 3D room canvas -->
@@ -145,7 +145,14 @@
   <!-- Overlay UI (room view) -->
   <div class="overlay">
     <div class="brand" id="brand">NON</div>
-    <div class="caption" id="caption" data-i18n="palace">the pavilion</div>
+    <div class="caption" id="caption" data-i18n="palace">builds city systems that run</div>
+    <nav class="route-stamp" id="route-stamp" aria-label="Live systems">
+      <span class="route-origin">BKK</span>
+      <span class="route-arrow" aria-hidden="true">→</span>
+      <a href="https://flood.nonarkara.org" target="_blank" rel="noopener">FloodDash</a>
+      <a href="https://slic.nonarkara.org" target="_blank" rel="noopener">SLIC</a>
+      <a href="https://axiom.nonarkara.org" target="_blank" rel="noopener">Axiom</a>
+    </nav>
     <div class="hint" id="hint" data-i18n="hint">tap to discover · drag to look around · ◎ counts what you find</div>
     <div class="lang" id="lang" role="group" aria-label="Language">
       <button data-l="en" class="on" aria-label="English" aria-pressed="true">EN</button>
@@ -378,8 +385,8 @@
     <header class="plan-head os-bar">
       <button class="brand-blk" id="plan-brand-blk" aria-label="About Dr Non Arkaraprasertkul">
         <div class="brand-mark">NON<span class="os-word">OS</span><span class="v-stamp" id="plan-version-stamp"></span></div>
-        <div class="brand-cap" data-i18n="role">architect · anthropologist · smart cities</div>
-        <div class="brand-sub" data-i18n="palace_sub">tap for contact · a window to the mind</div>
+        <div class="brand-cap" data-i18n="role">builds city systems that run</div>
+        <div class="brand-sub" data-i18n="palace_sub">BKK · FloodDash · SLIC · Axiom</div>
       </button>
       <div class="os-bar-right">
         <button class="os-conn" id="os-conn" aria-live="polite"
@@ -542,7 +549,11 @@
       </footer>
     </section>
 
-    <div class="plan-section-label os-signals-label" data-i18n="os_signals">SIGNALS · MARKETS + WEATHER</div>
+    <button class="plan-section-label os-signals-label" id="os-signals-toggle" type="button"
+            aria-expanded="true" aria-controls="plan-brief">
+      <span data-i18n="os_signals">SIGNALS · MARKETS + WEATHER</span>
+      <span class="os-fold" aria-hidden="true">−</span>
+    </button>
     <section class="plan-brief" id="plan-brief">
       <div class="brief-cell" id="brief-fx"><span class="lbl">USD / THB</span><span class="val" id="brief-fx-val">—</span><span class="sub" id="brief-fx-sub">sgd —</span></div>
       <div class="brief-cell" id="brief-sgd"><span class="lbl">SGD / THB</span><span class="val" id="brief-sgd-val">—</span><span class="sub" id="brief-sgd-sub">eur — · gbp —</span></div>
@@ -572,9 +583,9 @@
 
     <section class="plan-philo">
       <div class="label" data-i18n="philo_label">about this space</div>
-      <p data-i18n="philo_p1">This is a research preview of nonarkara.org — Dr. Non Arkaraprasertkul's personal operating system, built for deep work and quiet reflection. Architect (MIT), anthropologist (Harvard), Senior Expert in Smart City Promotion at Thailand's depa.</p>
-      <p data-i18n="philo_p2">Built in public, run in private. Code is <span class="accent">open for personal use</span>; derivative dashboards for commercial deployment require permission. © 2026 Non Arkaraprasertkul.</p>
-      <p data-i18n="philo_p3">Find him on LinkedIn or tap the contact card in the personal section above.</p>
+      <p data-i18n="philo_p1">City systems that run, from one desk in Bangkok. FloodDash is a citizen flood watch. It is not an official warning.</p>
+      <p data-i18n="philo_p2">SLIC declares what it measures. Axiom is the method. The blueprint is public so another team can build their own.</p>
+      <p data-i18n="philo_p3">Walk the pavilion, or open a system from the wall above.</p>
     </section>
 
     <footer class="plan-foot">
@@ -656,7 +667,7 @@
       <button class="door-btn" id="door-guest" type="button">
         <span class="eyebrow">you arrived by link</span>
         <span class="title">enter the pavilion</span>
-        <span class="sub">walk the room · find who Non is · Easter eggs</span>
+        <span class="sub">city systems that run · walk in and look</span>
       </button>
     </div>
     <a class="door-reading" href="reading.html">Read biography &amp; selected work →</a>

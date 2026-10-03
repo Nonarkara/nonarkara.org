@@ -57,6 +57,31 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.42 (2026-09-24) civic face — guest first paint says city systems
+//                    that run (FloodDash, SLIC, Axiom); the wall labels
+//                    live / watch / blueprint / writing; the host fleet
+//                    is a luggage tag (name, then rail, then mono id).
+//                    Tilt-to-zoom and the deferred phone boot stay.
+//   4.41 (2026-09-06) phone PLAN boot repair — the render loop is first
+//                    scheduled for the next frame, after the module has
+//                    initialized every world binding. A ground-map TDZ
+//                    can no longer strand a first-time visitor behind
+//                    the boot screen; the phone PLAN control is 44px.
+//   4.40 (2026-09-01) Pokemon Go's other half — tilt now drives the map
+//                    zoom, not just the camera direction. Ground zooms
+//                    from city (z13) to streets (z17) on a smoothstep
+//                    between -29° and -80° pitch. Manual wheel/pinch
+//                    yields for 2.2s so the user's pinch settles before
+//                    the auto-zoom resumes; HUD caption auto-refreshes
+//                    on every integer-zoom change. Sky side already had
+//                    the mechanic; ground side now matches.
+//   4.39 (2026-08-29) accuracy + reach — walked==drawn across all four
+//                    houses (Savoye roof well/landings/stairwell, drawn
+//                    Fallingwater hill, Farnsworth decks at walked height);
+//                    tilt past the window reaches the sky and the ground
+//                    (Pokemon-Go rule, ±85° bound); music no longer
+//                    precached (52MB off first load); dt-correct friction,
+//                    rain, twilight; stale-tile guard + texture disposal
 //   4.38 (2026-08-16) yard net rest position. v4.37's runtime test
 //                    verified the nets don't MOVE during animation,
 //                    but never verified they're at the CORRECT
@@ -403,7 +428,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.38';
+const NON_VERSION = '4.42';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -459,7 +484,7 @@ if (!WEBGL_OK) {
 // ════════════════════════════════════════════════════════
 const I18N = {
   en: {
-    palace:  'the pavilion',
+    palace:  'builds city systems that run',
     hint:    'tap to discover · drag to look around · ◎ counts what you find',
     contact: 'contact',
     cv_eyebrow:      'CV',
@@ -541,15 +566,19 @@ const I18N = {
     music_short:     'suno music · 10 tracks',
     pomo_short:      'pomodoro · 25 / 5',
     sabai_short:     'sabai sabai · easter egg',
-    role:            'architect · anthropologist · smart cities',
-    palace_sub:      'tap for contact · a window to the mind',
+    role:            'builds city systems that run',
+    palace_sub:      'BKK · FloodDash · SLIC · Axiom',
+    mark_live:       'live',
+    mark_watch:      'watch',
+    mark_blueprint:  'blueprint',
+    mark_writing:    'writing',
     philo_label:     'how this works',
-    philo_p1:        'Most of the dashboards above refresh on a five-minute cron. To a person looking at one, that is indistinguishable from real-time, and it costs roughly nothing to run.',
-    philo_p2_html:   'The ones that <span class="accent">charge for true real-time</span> charge for what real-time costs — cloud CPU, instrumented pipelines, on-call engineering. The space between the two tiers is where most engineering wastes itself.',
-    philo_p3:        'If you want to talk about a city, a region, or a question, the contact card is in the personal section above. Tap it.',
+    philo_p1:        'City systems that run, from one desk in Bangkok. FloodDash is a citizen flood watch. It is not an official warning.',
+    philo_p2:        'SLIC declares what it measures. Axiom is the method. The blueprint is public so another team can build their own.',
+    philo_p3:        'Walk the pavilion, or open a system from the wall above.',
   },
   th: {
-    palace:  'ศาลา',
+    palace:  'สร้างระบบเมืองที่ใช้งานจริง',
     hint:    'แตะเพื่อค้นพบ · ลากเพื่อมองรอบ · ◎ นับสิ่งที่เจอ',
     contact: 'ติดต่อ',
     cv_eyebrow:      'ประวัติ',
@@ -631,15 +660,19 @@ const I18N = {
     music_short:     'เพลง suno · 10 เพลง',
     pomo_short:      'โพโมโดโร · 25 / 5',
     sabai_short:     'สบายๆ · อีสเตอร์เอ้ก',
-    role:            'สถาปนิก · นักมานุษยวิทยา · เมืองอัจฉริยะ',
-    palace_sub:      'แตะเพื่อติดต่อ · หน้าต่างสู่ความคิด',
+    role:            'สร้างระบบเมืองที่ใช้งานจริง',
+    palace_sub:      'BKK · FloodDash · SLIC · Axiom',
+    mark_live:       'ใช้งานจริง',
+    mark_watch:      'เฝ้าระวัง',
+    mark_blueprint:  'แบบแปลน',
+    mark_writing:    'งานเขียน',
     philo_label:     'แนวคิดเบื้องหลัง',
-    philo_p1:        'แดชบอร์ดส่วนใหญ่ข้างต้นอัปเดตทุกห้านาทีผ่าน cron ในมุมมองของผู้ใช้ มันแยกไม่ออกจากระบบเรียลไทม์ และต้นทุนแทบเป็นศูนย์',
-    philo_p2_html:   'ผมเรียกค่าใช้จ่ายเฉพาะกับ <span class="accent">งานเรียลไทม์จริง</span> เพราะต้องจ่ายค่า cloud CPU, ระบบ pipeline, และทีมวิศวกร ช่องว่างระหว่างสองระดับนี้คือจุดที่งานวิศวกรรมส่วนใหญ่สูญเปล่า',
-    philo_p3:        'หากต้องการคุยเรื่องเมือง พื้นที่ หรือคำถามใด ๆ นามบัตรของผมอยู่ในส่วน "ส่วนตัว" ด้านบน แตะได้เลย',
+    philo_p1:        'ระบบเมืองที่ใช้งานจริง จากโต๊ะทำงานเดียวในกรุงเทพ FloodDash คือเครื่องมือเฝ้าน้ำท่วมของพลเมือง ไม่ใช่คำเตือนอย่างเป็นทางการ',
+    philo_p2:        'SLIC บอกชัดว่าวัดอะไร Axiom คือวิธีการ แบบแปลนเปิดไว้ให้ทีมอื่นสร้างของตัวเอง',
+    philo_p3:        'เดินในศาลา หรือเปิดระบบจากผนังด้านบน',
   },
   zh: {
-    palace:  '亭',
+    palace:  '建造正在运行的城市系统',
     hint:    '点按去发现 · 拖动环视 · ◎ 计数',
     contact: '联系',
     cv_eyebrow:      '简历',
@@ -721,12 +754,16 @@ const I18N = {
     music_short:     'suno 音乐 · 10 首',
     pomo_short:      '番茄钟 · 25 / 5',
     sabai_short:     'sabai · 彩蛋',
-    role:            '建筑师 · 人类学者 · 智慧城市',
-    palace_sub:      '点按联系 · 思维之窗',
+    role:            '建造正在运行的城市系统',
+    palace_sub:      'BKK · FloodDash · SLIC · Axiom',
+    mark_live:       '在运行',
+    mark_watch:      '监测',
+    mark_blueprint:  '蓝图',
+    mark_writing:    '写作',
     philo_label:     '运作原理',
-    philo_p1:        '上方的仪表盘大多每五分钟通过 cron 刷新一次。对人眼而言，这与实时无异，运行成本几乎为零。',
-    philo_p2_html:   '只有<span class="accent">真正实时</span>的项目才按实时成本计费——云 CPU、可观测管道、值班工程。两档之间的空间，正是大多数工程浪费自身的地方。',
-    philo_p3:        '若希望就城市、区域或某个问题展开对话，名片就在上方"个人"栏里。点开即可。',
+    philo_p1:        '正在运行的城市系统，来自曼谷一张书桌。FloodDash 是市民洪水监测，不是官方预警。',
+    philo_p2:        'SLIC 声明它测量什么。Axiom 是方法。蓝图公开，别的团队可以按方法自己做。',
+    philo_p3:        '走进亭子，或从上方的墙打开一个系统。',
   },
 };
 
@@ -782,8 +819,8 @@ applyLang();
 // ════════════════════════════════════════════════════════
 const PROJECTS = [
   { code: 'NINJA',    title: 'Ninja Innovation',                  url: 'https://ninja.nonarkara.org',                       img: 'screenshots/ninja.jpg',     dom: 'ninja.nonarkara.org' },
-  { code: 'AXIOM',    title: 'Axiom Consultancy',                 url: 'https://axiom.nonarkara.org',                       img: 'screenshots/axiom.jpg',     dom: 'axiom.nonarkara.org' },
-  { code: 'SLIC',     title: 'SLIC Index v3',                     url: 'https://slic.nonarkara.org',                        img: 'screenshots/slic.jpg',      dom: 'slic.nonarkara.org' },
+  { code: 'AXIOM',    dest: 'Axiom', mark: 'live', title: 'Axiom · the method', url: 'https://axiom.nonarkara.org', img: 'screenshots/axiom.jpg', dom: 'axiom.nonarkara.org' },
+  { code: 'SLIC',     dest: 'SLIC', mark: 'live', title: 'SLIC · declares what it measures', url: 'https://slic.nonarkara.org', img: 'screenshots/slic.jpg', dom: 'slic.nonarkara.org' },
   { code: 'SCITI',    title: 'Smart City Thailand Index',         url: 'https://sciti.nonarkara.org',                       img: 'screenshots/sciti.jpg',     dom: 'sciti.nonarkara.org' },
   { code: 'TOMASITY', title: 'Muang Thong Thani · MTT view',      url: 'https://mtt-super-dashboard-v2.pages.dev/',          img: 'screenshots/monitor.jpg',   dom: 'mtt-super-dashboard-v2.pages.dev' },
   { code: 'BANGKOK',  title: 'Bangkok IOC · BKK view',             url: 'https://bangkok-ioc.pages.dev/',                    img: 'screenshots/monitor.jpg',   dom: 'bangkok-ioc.pages.dev' },
@@ -795,7 +832,8 @@ const PROJECTS = [
   { code: 'BUS',      title: 'Phuket Smart Bus',                  url: 'https://bus.nonarkara.org',                         img: 'screenshots/bus.jpg',       dom: 'bus.nonarkara.org' },
   { code: 'VIABUS',   title: 'Tech Hunt · Mobility · Viabus',     url: 'https://nonarkara.github.io/techhuntthailand/?id=mobility-cohort-001-viabus', img: 'screenshots/bus.jpg' },
   { code: 'MEAN',     title: 'MEAN · Smart Money',                url: 'https://mean.nonarkara.org',                        img: 'screenshots/cdp.jpg',       dom: 'mean.nonarkara.org' },
-  { code: 'ATLAS',    title: 'BKKx 3D Atlas',                     url: 'https://atlas.nonarkara.org/',                      img: 'screenshots/cdp.jpg',       dom: 'atlas.nonarkara.org' },
+  { code: 'ATLAS',    dest: 'Atlas', mark: 'live', title: 'BKKx 3D atlas', url: 'https://atlas.nonarkara.org/', img: 'screenshots/cdp.jpg', dom: 'atlas.nonarkara.org' },
+  { code: 'BKKX',     dest: 'BKKx', mark: 'live', title: 'BKKx · Bangkok walking register', url: 'https://bkk.nonarkara.org', img: 'screenshots/cdp.jpg' },
   { code: 'AGENTIC',  title: 'Agentic AI Research · @peterthien', url: 'https://github.com/agentic-ai-research',            img: 'screenshots/academic.jpg' },
   { code: 'COUNCIL',  title: 'Dr Non’s AI Council',               url: 'https://github.com/agentic-ai-research/dr-non-diy-ai-council', img: 'screenshots/academic.jpg' },
   { code: 'COUNCIL+', title: 'AI Council · v2 · 9-bot taskforce', url: 'https://github.com/Nonarkara/dr-non-agentic-ai-council', img: 'screenshots/academic.jpg' },
@@ -804,7 +842,7 @@ const PROJECTS = [
   // Canonical fallback when ascn.depa.or.th / depa.or.th is down.
   { code: 'ASCN',     title: 'ASCN Performance Review',           url: 'https://ascn-smart-cities-network.pages.dev/',      img: 'screenshots/ascn.jpg',      dom: 'ascn-smart-cities-network.pages.dev' },
   { code: 'SLOWDOWN', title: 'The Things You Can See',            url: 'https://slowdown.nonarkara.org',                    img: 'screenshots/slowdown.jpg', dom: 'slowdown.nonarkara.org' },
-  { code: 'NOVELS',   title: 'Substack · Novels',                 url: 'https://substack.com/@nonarkara',                   img: 'screenshots/substack.jpg' },
+  { code: 'NOVELS',   dest: 'Novels', mark: 'writing', title: 'Novels', url: 'https://substack.com/@nonarkara', img: 'screenshots/substack.jpg' },
   { code: 'ESSAYS',   title: 'Medium · Essays',                   url: 'https://nonsmartcity.medium.com/',                  img: 'screenshots/medium.jpg' },
   { code: 'SOLITUDE', title: '100 Days of Solitude',              url: 'https://solitude.nonarkara.org',                    img: 'screenshots/solitude.jpg',  dom: 'solitude.nonarkara.org' },
   { code: 'YOUTUBE',  title: 'YouTube · @nonarkara',              url: 'https://www.youtube.com/@nonarkara',                img: 'screenshots/youtube.jpg' },
@@ -814,7 +852,7 @@ const PROJECTS = [
   { code: 'NSP',      title: 'NSP · National Streaming Platform', url: 'https://nsp.nonarkara.org/',                         img: 'screenshots/academic.jpg',  dom: 'nsp.nonarkara.org' },
   // Public systems currently presented by Axiom. They live in this
   // single index so PLAN, MENU and command search cannot drift apart.
-  { code: 'FLOOD',      title: 'FloodDash · Thailand Flood Watch', url: 'https://flood-ami.pages.dev/',                      img: 'screenshots/cdp.jpg',       dom: 'flood-ami.pages.dev' },
+  { code: 'FLOOD',      dest: 'FloodDash', mark: 'watch', note: 'citizen watch · not an official warning', title: 'FloodDash · citizen flood watch', url: 'https://flood.nonarkara.org', img: 'screenshots/cdp.jpg', dom: 'flood-ami.pages.dev' },
   { code: 'SIKHIO',     title: 'Sikhio Town Operations',           url: 'https://sikhio.nonarkara.org/',                     img: 'screenshots/sciti.jpg',     dom: 'sikhio.nonarkara.org' },
   { code: 'LCB',        title: 'Laem Chabang Operations',          url: 'https://lcbcity.pages.dev/dashboard',               img: 'screenshots/sciti.jpg',     dom: 'lcbcity.pages.dev' },
   { code: 'HCMC',       title: 'HCMCx Super Dashboard',            url: 'https://hcmc.nonarkara.org',                        img: 'screenshots/monitor.jpg',   dom: 'hcmc.nonarkara.org' },
@@ -824,11 +862,11 @@ const PROJECTS = [
   { code: 'YALA',       title: 'Yala Control Tower',               url: 'https://yala-control-tower.pages.dev/',             img: 'screenshots/sciti.jpg',     dom: 'yala-control-tower.pages.dev' },
   { code: 'CITY HUB',   title: 'City Hub',                         url: 'https://city-hub.pages.dev/',                       img: 'screenshots/cdp.jpg',       dom: 'city-hub.pages.dev' },
   { code: 'AIRDASH',    title: 'AirDash · Thailand Air Quality',   url: 'https://air.nonarkara.org/',                       img: 'screenshots/sciti.jpg',     dom: 'air.nonarkara.org' },
-  { code: 'DAYTRADERS', title: 'DayTraders · Siam Markets',        url: 'https://siam-markets.pages.dev/',                   img: 'screenshots/cdp.jpg',       dom: 'siam-markets.pages.dev' },
+  { code: 'DAYTRADERS', dest: 'DayTraders', mark: 'live', title: 'DayTraders · Siam markets', url: 'https://day.nonarkara.org', img: 'screenshots/cdp.jpg', dom: 'siam-markets.pages.dev' },
   { code: 'SECOND BRAIN', title: 'Second Brain OS',                url: 'https://github.com/agentic-ai-research/second-brain-os', img: 'screenshots/academic.jpg' },
   { code: 'HORIZON 45', title: 'Horizon 45 · Capability Lab',      url: 'https://horizon-field-lab.pages.dev/',              img: 'screenshots/academic.jpg',  dom: 'horizon-field-lab.pages.dev' },
   { code: 'IKIGAI',     title: 'Ikigai Finance Engine',            url: 'https://github.com/nonarkara/ikigai-finance-engine', img: 'screenshots/academic.jpg' },
-  { code: 'FLOOD BP',   title: 'FloodDash Blueprint',              url: 'https://github.com/Nonarkara/FloodDash-Blueprint',  img: 'screenshots/academic.jpg' },
+  { code: 'FLOOD BP',   dest: 'Flood blueprint', mark: 'blueprint', title: 'FloodDash blueprint · the method, not the running watch', url: 'https://github.com/Nonarkara/FloodDash-Blueprint', img: 'screenshots/academic.jpg' },
   { code: 'EKKASARN',   title: 'Ekkasarn AI',                      url: 'https://ekkasarn-ai.pages.dev/',                    img: 'screenshots/academic.jpg',  dom: 'ekkasarn-ai.pages.dev' },
   { code: 'NONWRITER',  title: 'The Non-Writer',                   url: 'https://nonwriter.nonarkara.org/',                  img: 'screenshots/academic.jpg',  dom: 'nonwriter.nonarkara.org' },
   { code: 'DIGESTS',    title: 'Dr Non’s Digests',                 url: 'https://news.nonarkara.org/',                       img: 'screenshots/academic.jpg',  dom: 'news.nonarkara.org' },
@@ -837,10 +875,20 @@ const PROJECTS = [
   { code: 'LUMA/HOUSE', title: 'Luma/house',                       url: 'https://luma-house.pages.dev/',                     img: 'screenshots/academic.jpg',  dom: 'luma-house.pages.dev' },
   { code: 'SCL',        title: 'Smart City Lighthouse',            url: 'https://scl.nonarkara.org/',                        img: 'screenshots/sciti.jpg',     dom: 'scl.nonarkara.org' },
   { code: 'DEPA-USDOT', title: 'depa × U.S. DOT',                  url: 'https://depa-usdot.nonarkara.org/',                 img: 'screenshots/sciti.jpg',     dom: 'depa-usdot.nonarkara.org' },
+  { code: 'CHAMPION',   dest: 'Champion', title: 'Champion',         url: 'https://champion.nonarkara.org',                 img: 'screenshots/academic.jpg' },
+  { code: 'LEAGUE',     dest: 'SuperLeague', title: 'SuperLeague',   url: 'https://superleague-xxd.pages.dev',              img: 'screenshots/academic.jpg' },
   // (LINKEDIN dropped from PROJECTS — it's identity, not project
   //  work; the row in PERSONAL already covers it. Norman mapping:
   //  one label, one action.)
 ];
+
+// Scan order for the guest wall and the plan grid: the systems that
+// run, then the atlas, the writing, and the published method.
+const WALL_ORDER = ['FLOOD', 'SLIC', 'AXIOM', 'BKKX', 'ATLAS', 'DAYTRADERS', 'NOVELS', 'FLOOD BP'];
+for (let i = WALL_ORDER.length - 1; i >= 0; i--) {
+  const idx = PROJECTS.findIndex(p => p.code === WALL_ORDER[i]);
+  if (idx > 0) PROJECTS.unshift(PROJECTS.splice(idx, 1)[0]);
+}
 
 // Cities for the world map table — places that mean something to him
 const CITIES = [
@@ -2517,8 +2565,14 @@ async function fetchCommits() {
 
 async function fetchStats() {
   try {
-    const r = await fetch('https://api.nonarkara.org/status', { cache: 'no-cache' });
-    const d = await r.json();
+    // refreshStatus polls the same endpoint every minute and keeps the
+    // snapshot; this ticker only needs to read it. Two pollers on one URL
+    // was a third of the status traffic for no fresher number.
+    let d = window.__lastStatusData;
+    if (!d) {
+      const r = await fetch('https://api.nonarkara.org/status', { cache: 'no-cache' });
+      d = await r.json();
+    }
     const total = Object.keys(d.sites || {}).length;
     const ok = Object.values(d.sites || {}).filter(v => OK_CODE(v.code)).length;
     const ts = new Date(d.ts).toLocaleTimeString('en-GB', { timeZone: 'Asia/Bangkok', hour12: false });
@@ -2542,15 +2596,26 @@ _themeRedrawHooks.push(() => {
 // Non-Worker calls (open APIs, free, no quota):
 //   open.er-api, open-meteo, ipapi, hacker-news, github
 // (crypto moved into /daily-brief — coingecko 429s browser IPs now)
-fetchFX(); fetchWx(); fetchAQI(); fetchDailyBrief(); fetchNews(); fetchCommits(); fetchStats(); fetchCouncil();
-setInterval(fetchFX,         10 * 60_000);  // FX: every 10 min (was 5)
-setInterval(fetchWx,         10 * 60_000);  // weather: every 10 min
-setInterval(fetchAQI,        15 * 60_000);  // AQI: every 15 min
-setInterval(fetchDailyBrief,  5 * 60_000);  // all quotes: 1 Worker call every 5 min (was 10 calls/5 min)
-setInterval(fetchNews,       15 * 60_000);  // HN: every 15 min (not Worker)
-setInterval(fetchCommits,    10 * 60_000);  // GitHub: every 10 min (not Worker)
-setInterval(fetchStats,       3 * 60_000);  // status: every 3 min (was 1 min, saves 66% of status calls)
-setInterval(fetchCouncil,     5 * 60_000);  // council: every 5 min (matches cron)
+// "Keep it open all day" means all day in a background tab, on a phone.
+// Nothing below polls while the document is hidden; when it comes back
+// after more than a minute away, the feeds refresh once so the tiles are
+// honest again. Zero network, zero paint, zero battery while unseen.
+const whenVisible = (fn) => () => { if (!document.hidden) fn(); };
+const FEEDS = [fetchFX, fetchWx, fetchAQI, fetchDailyBrief, fetchNews, fetchCommits, fetchStats, fetchCouncil];
+let hiddenAt = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { hiddenAt = Date.now(); return; }
+  if (hiddenAt && Date.now() - hiddenAt > 60_000) FEEDS.forEach(f => { try { f(); } catch (_) {} });
+});
+FEEDS.forEach(f => f());
+setInterval(whenVisible(fetchFX),         10 * 60_000);  // FX: every 10 min (was 5)
+setInterval(whenVisible(fetchWx),         10 * 60_000);  // weather: every 10 min
+setInterval(whenVisible(fetchAQI),        15 * 60_000);  // AQI: every 15 min
+setInterval(whenVisible(fetchDailyBrief),  5 * 60_000);  // all quotes: 1 Worker call every 5 min (was 10 calls/5 min)
+setInterval(whenVisible(fetchNews),       15 * 60_000);  // HN: every 15 min (not Worker)
+setInterval(whenVisible(fetchCommits),    10 * 60_000);  // GitHub: every 10 min (not Worker)
+setInterval(whenVisible(fetchStats),       3 * 60_000);  // status: every 3 min (was 1 min, saves 66% of status calls)
+setInterval(whenVisible(fetchCouncil),     5 * 60_000);  // council: every 5 min (matches cron)
 
 // ════════════════════════════════════════════════════════
 // TVs at far wall (5 × 4 grid = 20)
@@ -2563,10 +2628,35 @@ const COLS = 4;
 // hall instead of a pavilion. The other thirteen are one tap away in
 // the drawer, which already lists every project — nothing is lost, the
 // wall just stops being a spreadsheet.
-const WALL_TVS = PROJECTS.slice(0, 8);
+const WALL_TVS = WALL_ORDER.map(code => PROJECTS.find(p => p.code === code)).filter(Boolean);
 const ROWS = Math.ceil(WALL_TVS.length / COLS);
 const tvLoader = new THREE.TextureLoader();
 const TVs = [];
+
+// Luggage-tag strip on each wall screen: destination, then the honest
+// mark (live / watch / blueprint / writing), then the public host.
+// A rail is painted only when the mark is a real state.
+const TAG_RAIL = { live: '#f5f5f0', watch: '#f59e0b', blueprint: '#8a8478' };
+function paintScreenTag(ctx, p) {
+  ctx.clearRect(0, 0, 512, 80);
+  ctx.fillStyle = 'rgba(10, 14, 20, 0.9)';
+  ctx.fillRect(0, 0, 512, 80);
+  const rail = TAG_RAIL[p.mark];
+  if (rail) {
+    ctx.fillStyle = rail;
+    ctx.fillRect(0, 0, 8, 80);
+  }
+  ctx.fillStyle = '#f5f5f0';
+  ctx.font = '600 28px sans-serif';
+  ctx.textBaseline = 'top';
+  ctx.fillText((p.dest || p.code).toUpperCase(), 20, 8);
+  ctx.fillStyle = 'rgba(245, 245, 240, 0.66)';
+  ctx.font = '400 15px monospace';
+  let host = '';
+  try { host = new URL(p.url).host; } catch (_) {}
+  const line = [p.mark ? p.mark.toUpperCase() : '', p.note || '', host].filter(Boolean).join(' · ');
+  ctx.fillText(line.slice(0, 52), 20, 46);
+}
 
 // Center any partial last row instead of left-aligning it.
 // (e.g. 21 projects → 4 full rows of 5 + 1 row of 1, centered.)
@@ -2620,6 +2710,21 @@ WALL_TVS.forEach((p, i) => {
   );
   grp.add(hit);
 
+  const tagCanvas = document.createElement('canvas');
+  tagCanvas.width = 512;
+  tagCanvas.height = 80;
+  const tagCtx = tagCanvas.getContext('2d');
+  paintScreenTag(tagCtx, p);
+  const tagTex = new THREE.CanvasTexture(tagCanvas);
+  tagTex.colorSpace = THREE.SRGBColorSpace;
+  const tagH = 0.16;
+  const tag = new THREE.Mesh(
+    new THREE.PlaneGeometry(TV_W * 0.94, tagH),
+    new THREE.MeshBasicMaterial({ map: tagTex, transparent: true, depthWrite: false })
+  );
+  tag.position.set(0, -TV_H * 0.44 + tagH / 2, 0.06);
+  grp.add(tag);
+
   grp.userData = {
     kind: 'tv',
     project: p,
@@ -2628,10 +2733,19 @@ WALL_TVS.forEach((p, i) => {
     screenTargetOpacity: 0.82,
     baseMaterial: matBright,
   };
+  grp.userData.tagCtx = tagCtx;
+  grp.userData.tagTex = tagTex;
   scene.add(grp);
   INTERACTABLES.push(grp);
   TVs.push(grp);
 });
+document.fonts?.ready?.then(() => {
+  for (const grp of TVs) {
+    if (!grp.userData.tagCtx) continue;
+    paintScreenTag(grp.userData.tagCtx, grp.userData.project);
+    grp.userData.tagTex.needsUpdate = true;
+  }
+}).catch(() => {});
 
 // ════════════════════════════════════════════════════════
 // BRIEF projection — big headline numbers above the TV grid.
@@ -3425,7 +3539,7 @@ async function refreshStatus() {
   }
 }
 refreshStatus();
-setInterval(refreshStatus, 60_000);
+setInterval(() => { if (!document.hidden) refreshStatus(); }, 60_000);
 
 // ════════════════════════════════════════════════════════
 // Mouse / touch
@@ -3494,7 +3608,19 @@ function gyroOffsets(beta, gamma, screenAngle, zeroDeg) {
   let dPitch = zeroDeg - pitchAxis;                 // + = looking up
   dPitch = Math.abs(dPitch) < GYRO_DEADZONE_DEG ? 0
     : dPitch - Math.sign(dPitch) * GYRO_DEADZONE_DEG;
-  const pitch = clamp(dPitch * GYRO_GAIN, -GYRO_MAX_DEG, GYRO_MAX_DEG) * Math.PI / 180;
+  // Inside the window the gyro stays a gentle offset that can never own
+  // the frame. BEYOND it, a decisive tilt keeps going at reduced gain —
+  // raise the phone to the sky and the sky actually arrives (the
+  // planetarium engages past ~45° and its absolute tracking takes over);
+  // point it at the floor and the ground opens. The 72° neutral and the
+  // recentre chip still guard against a miscalibrated hold pinning the
+  // view, because a natural hold never leaves the window at all.
+  const raw = dPitch * GYRO_GAIN;
+  let pitchDeg = raw;
+  if (Math.abs(raw) > GYRO_MAX_DEG) {
+    pitchDeg = Math.sign(raw) * Math.min(GYRO_MAX_DEG + (Math.abs(raw) - GYRO_MAX_DEG) * 0.8, 85);
+  }
+  const pitch = pitchDeg * Math.PI / 180;
   // Roll nudges yaw a little — leaning the phone peeks around, it does
   // not turn you. Turning is the joystick's job.
   const yaw = clamp(rollAxis / 35, -1, 1) * 0.42;
@@ -3581,6 +3707,7 @@ window.__mouseDragMoved = false;
 window.addEventListener('mousedown', (e) => {
   if (e.button !== 0 || document.pointerLockElement) return;
   if (document.body.dataset.view !== 'room') return;
+  if (e.target.closest?.('.pga, .frame, .pomodoro, .konami, #door, #offboard, .cmd-palette')) return;
   if (e.target.closest('button, a, input, textarea, select, .modal, .drawer, .nav-pad, .hud-chip')) return;
   mouseDrag = { x: e.clientX, y: e.clientY };
   window.__mouseDragMoved = false;
@@ -3600,8 +3727,15 @@ window.addEventListener('mouseup', () => { mouseDrag = null; window.__dragActive
 let touchAnchor = null;       // {id, x, y, lastX, lastY}
 let touchMoved = false;
 let touchStartTs = 0;
+// A tap on a touch screen fires touchend AND a synthesized click ~300ms later.
+// Both reach onClick, so every scene tap ran its action twice and undid itself.
+let lastCanvasTouchTs = 0;
 function onTouchStart(e) {
   if (touchAnchor || e.changedTouches.length !== 1) return;
+  if (document.body.dataset.view !== 'room') return;   // mirrors the mousedown guard
+  // Full-screen overlays own their finger too: swiping the portrait gallery or
+  // dragging the art frame used to spin the world behind them.
+  if (e.target.closest?.('.pga, .frame, .pomodoro, .konami, #door, #offboard, .cmd-palette')) return;
   // Controls own their finger. The old window handler also claimed the
   // thumbstick touch, so moving meant looking and looking meant moving.
   if (e.target.closest?.('button, a, input, textarea, select, .modal, .drawer, .nav-pad, .hud-chip, .walk-stick')) return;
@@ -3656,7 +3790,12 @@ function onClick(e) {
   // visitor's very first frame inside.
   if (e && e.target && e.target !== renderer.domElement) return;
   // If this came from a touchend that involved a drag, treat as rotate-only
-  if (e && e.type === 'touchend' && touchMoved) return;
+  if (e && e.type === 'touchend') {
+    lastCanvasTouchTs = Date.now();
+    if (touchMoved) return;
+  } else if (e && e.type === 'click' && Date.now() - lastCanvasTouchTs < 700) {
+    return;   // the compatibility click for a tap already handled on touchend
+  }
   if (window.__mouseDragMoved) { window.__mouseDragMoved = false; return; }
   if (document.getElementById('modal').classList.contains('in')) return;
   if (document.getElementById('drawer').classList.contains('in')) return;
@@ -4328,6 +4467,9 @@ const WHISPERS = [
 ];
 
 function spawnWhisper() {
+  // The whisper is room weather. It has no business drifting across the
+  // dashboard someone is trying to work under, or animating in a hidden tab.
+  if (document.hidden || document.body.dataset.view !== 'room') return;
   // Don't spawn while a modal/Pomodoro is open
   if (document.getElementById('modal').classList.contains('in')) return;
   if (document.getElementById('pomodoro').classList.contains('in')) return;
@@ -4433,9 +4575,10 @@ function buildDrawer() {
 
   // Projects
   const projItems = PROJECTS.map(p => {
+    const mark = p.mark ? ` · ${t('mark_' + p.mark)}` : '';
     return `<button class="drawer-item" data-kind="tv" data-code="${p.code}">
-      <span class="code">${p.code}</span>
-      <span class="title">${p.title}</span>
+      <span class="code">${p.dest || p.code}</span>
+      <span class="title">${p.title}${mark}</span>
     </button>`;
   }).join('');
   sections.push(`<div class="drawer-label">PROJECTS · ${PROJECTS.length}</div>${projItems}`);
@@ -4535,6 +4678,11 @@ function lsGet(key) { try { return localStorage.getItem(key); } catch (_) { retu
 function lsSet(key, v) { try { localStorage.setItem(key, v); } catch (_) {} }
 
 function chooseDefaultView() {
+  // ?guest / ?host force the surface, including on a phone, where the
+  // width heuristic would otherwise open the plan before the query is read.
+  const params = new URLSearchParams(location.search);
+  if (params.has('guest')) return 'room';
+  if (params.has('host')) return 'plan';
   // One-time v3.2 migration: host → OS, guest → Pavilion.
   // Without this, old localStorage keeps everyone on the pre-redraw view
   // and the dual-surface law never becomes visible.
@@ -4554,6 +4702,10 @@ function chooseDefaultView() {
   catch (_) { return 'room'; }
 }
 function setView(v) {
+  // Walk keys belong to the room. In the plan view they were still being
+  // captured and preventDefault'ed, so arrows scrolled nothing and a held
+  // arrow silently rotated the room you'd return to.
+  WALK.uiSuspended = (v !== 'room');
   try {
     if (v !== 'room') window.__suspendWorldMechanics?.();
     document.body.dataset.view = v;
@@ -4587,10 +4739,11 @@ function _renderPlanBody() {
 
   // Projects → tap target grid
   planProjEl.innerHTML = PROJECTS.map(p => `
-    <button class="plan-cell" data-code="${p.code}" aria-label="Open ${p.code} · ${p.title}">
-      <span class="dot"></span>
-      <span class="code">${p.code}</span>
+    <button class="plan-cell" data-code="${p.code}" data-mark="${p.mark || ''}" aria-label="Open ${p.dest || p.code} · ${p.title}">
+      <span class="code">${p.dest || p.code}</span>
       <span class="title">${p.title}</span>
+      ${p.note ? `<span class="note">${p.note}</span>` : ''}
+      <span class="cell-foot">${p.mark ? `<span class="mark">${t('mark_' + p.mark)}</span>` : ''}<span class="dot"></span></span>
     </button>
   `).join('');
   planProjEl.querySelectorAll('.plan-cell').forEach(btn => {
@@ -4628,17 +4781,30 @@ function _renderPlanBody() {
 
 // Live clock — always running, painted on both views
 function tickPlanClock() { try { _tickPlanClockBody(); } catch (_) {} }
+// Intl.DateTimeFormat is expensive to construct; the clock built three
+// of them every second, forever. Build each shape once.
+const PLAN_TIME_FMT = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Bangkok', hour12: false,
+  hour: '2-digit', minute: '2-digit', second: '2-digit',
+});
+const PLAN_DATE_FMT = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Bangkok',
+  weekday: 'short', day: '2-digit', month: 'short', year: 'numeric',
+});
+const CITY_FMT = new Map();
+function cityFmt(tz) {
+  let f = CITY_FMT.get(tz);
+  if (!f) {
+    f = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour12: false, hour: '2-digit', minute: '2-digit' });
+    CITY_FMT.set(tz, f);
+  }
+  return f;
+}
 function _tickPlanClockBody() {
   if (!planTimeEl) return;
   const now = new Date();
-  const fmt = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Bangkok', hour12: false,
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-  }).format(now);
-  const dfmt = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Bangkok',
-    weekday: 'short', day: '2-digit', month: 'short', year: 'numeric',
-  }).format(now).toUpperCase();
+  const fmt = PLAN_TIME_FMT.format(now);
+  const dfmt = PLAN_DATE_FMT.format(now).toUpperCase();
   if (planTimeEl) planTimeEl.textContent = fmt;
   if (planDateEl) planDateEl.textContent = `${dfmt} · BANGKOK · GMT+7`;
   // World map labeled cities — refresh local time text below each
@@ -4650,14 +4816,32 @@ function _tickPlanClockBody() {
       const tz = t.dataset.tz;
       if (!tz) return;
       try {
-        t.textContent = new Intl.DateTimeFormat('en-GB', {
-          timeZone: tz, hour12: false, hour: '2-digit', minute: '2-digit',
-        }).format(now);
+        t.textContent = cityFmt(tz).format(now);
       } catch { /* bad tz */ }
     });
   }
 }
-setInterval(tickPlanClock, 1000);
+setInterval(() => { if (!document.hidden) tickPlanClock(); }, 1000);
+
+// SIGNALS fold — remembered per device. Nothing is deleted; the markets
+// board is one tap away instead of always in the eye line.
+{
+  const btn = document.getElementById('os-signals-toggle');
+  const brief = document.getElementById('plan-brief');
+  const fold = btn?.querySelector('.os-fold');
+  const apply = (folded) => {
+    if (!btn || !brief) return;
+    brief.classList.toggle('folded', folded);
+    btn.setAttribute('aria-expanded', folded ? 'false' : 'true');
+    if (fold) fold.textContent = folded ? '+' : '−';
+  };
+  apply(lsGet('nonarkara.signals') === 'folded');
+  btn?.addEventListener('click', () => {
+    const folded = !brief.classList.contains('folded');
+    lsSet('nonarkara.signals', folded ? 'folded' : 'open');
+    apply(folded);
+  });
+}
 
 // Daily brief — pulls from window.__brief, set by the room's
 // existing fetchers. Painted here whenever new data lands or the
@@ -4843,6 +5027,11 @@ function closePortraitGallery() {
 }
 
 document.getElementById('pga-close')?.addEventListener('click', closePortraitGallery);
+// Every other overlay closes on Escape; this one did not, and it opens full-screen
+// on any portrait tap — so the only way out was finding the ×.
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.getElementById('pga')?.classList.contains('in')) closePortraitGallery();
+});
 document.getElementById('pga-prev')?.addEventListener('click', () => pgaShow(pgaIdx - 1));
 document.getElementById('pga-next')?.addEventListener('click', () => pgaShow(pgaIdx + 1));
 document.getElementById('pga-share')?.addEventListener('click', async () => {
@@ -5301,7 +5490,7 @@ function tickHudClock() {
   });
 }
 tickHudClock();
-setInterval(tickHudClock, 1000);
+setInterval(() => { if (!document.hidden) tickHudClock(); }, 1000);
 
 const roomHudFocusBtn = document.getElementById('room-hud-focus');
 if (roomHudFocusBtn) roomHudFocusBtn.addEventListener('click', () => { try { openPomodoro(); } catch (_) {} });
@@ -5608,6 +5797,7 @@ document.querySelector('.veil').classList.add('gone');
 setTimeout(() => {
   document.querySelector('.brand').classList.add('in');
   document.querySelector('.caption').classList.add('in');
+  document.querySelector('.route-stamp')?.classList.add('in');
   document.querySelector('.hint').classList.add('in');
   document.querySelector('.meta').classList.add('in');
   document.querySelector('.lang').classList.add('in');
@@ -6061,6 +6251,21 @@ function animate() {
   window.__skyBlend = driving ? 0 : overheadBlend(eff.pitch);
   window.__groundBlend = driving ? 0 : underfootBlend(eff.pitch);
 
+  // Pokemon Go: as the view tilts down, the map zooms in from the city
+  // default to lane level — "streets on which we stand." Engages only
+  // when the ground is becoming visible, so manual wheel/pinch in the
+  // room view is left alone. tickAutoZoom respects markManualZoom for
+  // 2.2s so a pinch settles before the auto-zoom resumes.
+  // window.__ground, not the module `let GROUND` (declared ~800 lines
+  // below): animate's first frame runs during module evaluation, and the
+  // bare name was a TDZ ReferenceError that killed the whole module on
+  // every load — the door never got its handlers.
+  const groundNow = window.__ground;
+  if (groundNow && !driving && (window.__groundBlend || 0) > 0.2) {
+    groundNow.setAutoZoomForPitch(eff.pitch);
+    groundNow.tickAutoZoom(dtLook);
+  }
+
   // Walking owns the camera's position when it is on; otherwise the room
   // keeps its slow idle float. Movement is relative to where you are
   // looking, so it reads the yaw the line above just settled.
@@ -6077,7 +6282,11 @@ function animate() {
     WALK.update(dt, camera.rotation.y);
   } else {
     window.__lastWalkT = performance.now();
-    camera.position.y = prefersReducedMotion ? 1.7 : (1.7 + Math.sin(t * 0.4) * 0.015);
+    // Rest at the floor you are actually standing on. Hardcoding 1.7 dropped the
+    // eye through every elevated floor the moment pointer lock ended (Escape,
+    // alt-tab, tapping WALK). WALK.floorY is 0 until you walk, so ground is same.
+    const restY = (WALK.floorY || 0) + 1.7;
+    camera.position.y = prefersReducedMotion ? restY : (restY + Math.sin(t * 0.4) * 0.015);
   }
   if (window.__tickWeather) window.__tickWeather();
   if (window.__yard) window.__yard.tick(dtLook);
@@ -6165,7 +6374,12 @@ function animate() {
 
   renderer.render(scene, camera);
 }
-animate();
+// Do not execute the render loop while this module is still initializing.
+// The world is intentionally assembled below this point; starting immediately
+// lets any future reference to one of those `let` bindings hit its temporal
+// dead zone and abort the rest of boot. The next animation frame runs only
+// after module evaluation has completed, so door + PLAN wiring always lands.
+requestAnimationFrame(animate);
 
 // ════════════════════════════════════════════════════════
 // OFFBOARD RITUAL
@@ -6401,6 +6615,7 @@ function closeFrameWithRitual() {
   if (params.has('guest')) { lsWrite('guest'); applyMode('guest'); }
 
   const stored = lsRead();
+  if (stored === 'host') setTimeout(warmMusic, 15_000);   // after the shell settles
   if (stored === 'host' || stored === 'guest') {
     applyMode(stored);
     if (stored === 'guest') paintGuestCardQR();
@@ -6411,9 +6626,30 @@ function closeFrameWithRitual() {
   // No stored mode — door is visible underneath boot (z 9999).
   // Boot disappears at ~2.1s; door appears. No fade needed.
 
+  // NON OS says the ten tracks are on this device. Guests must not pay
+  // 52MB for that promise (v4.39 stopped precaching), so the host's
+  // device warms them itself: each fetch goes through the service worker's
+  // cache-first path, which keeps the track after the first pass. Cached
+  // tracks answer instantly, so re-warming on every host visit is free.
+  // Skipped under Data Saver.
+  function warmMusic() {
+    if (navigator.connection?.saveData) return;
+    const sw = navigator.serviceWorker;
+    if (!sw) return;
+    const run = async () => {
+      for (let i = 1; i <= 10; i++) {
+        try { await fetch(`/music/track-${String(i).padStart(2, '0')}.mp3`, { cache: 'force-cache' }); }
+        catch (_) { return; }   // offline — the rest can wait for next time
+      }
+    };
+    if (sw.controller) run();
+    else sw.addEventListener('controllerchange', run, { once: true });
+  }
+  window.__warmMusic = warmMusic;
   function pick(mode) {
     lsWrite(mode);
     applyMode(mode);
+    if (mode === 'host') warmMusic();
     if (mode === 'guest') paintGuestCardQR();
     doorEl.classList.add('skip');
     // Host → OS all day. Guest → Pavilion. Clear saved view so the
@@ -6557,15 +6793,15 @@ applyTheme       = _afterPaint(applyTheme);
 audio.addEventListener('play', paintTiles);
 audio.addEventListener('pause', paintTiles);
 paintTiles();
-setInterval(paintTiles, 30_000);
+setInterval(() => { if (!document.hidden) paintTiles(); }, 30_000);
 
 // ════════════════════════════════════════════════════════
-// FLEET CONSOLE — every system Non runs, as a transit board
+// FLEET CONSOLE — luggage tag, not a code dump.
 //
-// Vignelli's rule: maximum density and maximum legibility are the same
-// problem solved correctly. Stations sit on a line; a station is either
-// running, down, or a closed platform on the siding. Amber means one
-// thing here — something needs attention.
+// Destination (the system a person can name) is the first line. The
+// mono id sits under it. A coloured rail appears only when a probe
+// state exists: quiet for up, amber when something needs attention.
+// Pipeline work has no probe, so it gets no rail colour.
 // ════════════════════════════════════════════════════════
 
 const FLEET_API = 'https://api.nonarkara.org';
@@ -6581,6 +6817,39 @@ function stationCode(d) {
   if (path) return path.toUpperCase();
   if (d === 'nonarkara.org') return 'ORG';
   return d.replace(/\.nonarkara\.org$/, '').replace(/\.(pages|fly)\.dev$/, '').toUpperCase();
+}
+
+// Human destination for a probed host. Aliases cover board domains that
+// do not match a project `dom` one-for-one. Unknown hosts fall back to
+// the mono code — a name is never invented.
+const STATION_ALIAS = {
+  'nonarkara.org': 'Pavilion',
+  'flood-ami.pages.dev': 'FloodDash',
+  'flood.nonarkara.org': 'FloodDash',
+  'siam-markets.pages.dev': 'DayTraders',
+  'day.nonarkara.org': 'DayTraders',
+  'phuket-dashboard.nonarkara.org': 'Phuket',
+  'bangkok-ioc.pages.dev': 'Bangkok IOC',
+  'mtt-super-dashboard-v2.pages.dev': 'Muang Thong',
+  'globalmonitor.nonarkara.org': 'Global Monitor',
+  'mem.nonarkara.org': 'MEM',
+  'tkc.nonarkara.org': 'TKC',
+  'tkcx.nonarkara.org': 'TKCX',
+  'monitor.nonarkara.org': 'Monitor',
+  'asean.nonarkara.org': 'ASEAN',
+  'ascn.nonarkara.org': 'ASCN',
+};
+function stationDest(d) {
+  const host = d.split('/')[0];
+  if (STATION_ALIAS[host]) return STATION_ALIAS[host];
+  const p = PROJECTS.find(x => x.dom && (x.dom === host || x.dom === d || d.startsWith(x.dom)));
+  if (p) return (p.dest || p.title.split('·')[0]).trim();
+  return stationCode(host);
+}
+function escFleet(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
 }
 
 // Lines are derived, not listed: a second hardcoded list of domains is a
@@ -6618,18 +6887,23 @@ function _paintFleetBody(data) {
       <div class="fleet-stns">${line.stations.map(d => {
         if (line.key === 'pipeline') {
           const p = (line.pipeline || []).find(x => x.id === d) || { label: d, note: '' };
-          return `<span class="fleet-stn" data-state="pipeline" title="${p.note}"
-                        aria-label="${p.label} — in the pipeline, not deployed">
-                    <span class="fleet-dot" aria-hidden="true"></span>
-                    <span class="fleet-code">${p.label}</span>
+          return `<span class="fleet-stn" data-state="pipeline" title="${escFleet(p.note)}"
+                        aria-label="${escFleet(p.label)} — in the pipeline, not deployed">
+                    <span class="fleet-copy">
+                      <span class="fleet-dest">${escFleet(p.label)}</span>
+                      <span class="fleet-code">${escFleet(p.note || '')}</span>
+                    </span>
                   </span>`;
         }
         const v = data.sites[d];
         const state = parked.has(d) ? 'parked' : (OK_CODE(v.code) ? 'up' : 'down');
+        const name = stationDest(d);
         return `<button class="fleet-stn" data-dom="${d}" data-state="${state}"
-                        aria-label="${d} — ${state}">
-                  <span class="fleet-dot" aria-hidden="true"></span>
-                  <span class="fleet-code">${stationCode(d)}</span>
+                        aria-label="${escFleet(name)} — ${escFleet(d)} — ${state}">
+                  <span class="fleet-copy">
+                    <span class="fleet-dest">${escFleet(name)}</span>
+                    <span class="fleet-code">${escFleet(stationCode(d))}</span>
+                  </span>
                 </button>`;
       }).join('')}</div>
     </div>
@@ -6779,7 +7053,7 @@ async function fetchFleetExtra() {
   } catch (_) { /* offline — the board keeps its last painted state */ }
 }
 fetchFleetExtra();
-setInterval(fetchFleetExtra, 5 * 60_000);
+setInterval(() => { if (!document.hidden) fetchFleetExtra(); }, 5 * 60_000);
 
 // The 60s status poll already paints the plan; hang the board off it.
 paintPlanStatus = ((orig) => function (data) {
@@ -6971,6 +7245,10 @@ async function initGround() {
     GROUND.mod = mod;
     GROUND.group.visible = false;
     scene.add(GROUND.group);
+    // Keep the HUD caption honest while the auto-zoom ramps: every time
+    // the integer zoom changes (whether from tilt, wheel, or pinch),
+    // refresh the "X M ACROSS · KIND" label and the lat/lon.
+    GROUND.setZoomListener(() => updateGroundCaption());
     if (gHint) gHint.disabled = false;
   } catch (_) {
     gHint?.remove();
@@ -7667,6 +7945,7 @@ if (WEBGL_OK && SITE.length > 1) {
 // Leaving the 3D surface suspends every locomotion owner. The plan is an
 // operating surface, not a world that keeps walking or driving behind it.
 window.__suspendWorldMechanics = () => {
+  WALK.uiSuspended = true;
   window.__cancelTravel?.();
   endDolly();
   if (DRIVE.active) exitTruck();
@@ -7862,8 +8141,8 @@ window.addEventListener('keydown', (e) => {
       // Pinch works the map. Each 30% of spread is one zoom level, and
       // the baseline resets so a single long pinch keeps stepping.
       const ratio = d / pinch0;
-      if (ratio > 1.3)  { GROUND.setZoom(GROUND.getZoom() + 1); updateGroundCaption(); pinch0 = d; }
-      if (ratio < 0.77) { GROUND.setZoom(GROUND.getZoom() - 1); updateGroundCaption(); pinch0 = d; }
+      if (ratio > 1.3)  { GROUND.setZoom(GROUND.getZoom() + 1); GROUND.markManualZoom(); updateGroundCaption(); pinch0 = d; }
+      if (ratio < 0.77) { GROUND.setZoom(GROUND.getZoom() - 1); GROUND.markManualZoom(); updateGroundCaption(); pinch0 = d; }
       return;
     }
     setFov(fov0 * (pinch0 / d));
@@ -7891,6 +8170,7 @@ window.addEventListener('keydown', (e) => {
     // plotter ever made. Scroll away = wider = the city, the region.
     if ((window.__groundBlend || 0) > 0.5 && GROUND) {
       GROUND.setZoom(GROUND.getZoom() - Math.sign(e.deltaY));
+      GROUND.markManualZoom();
       updateGroundCaption();
       return;
     }
@@ -8018,3 +8298,8 @@ if (WEBGL_OK && PAVILION) {
 // breath. Deterministic by date, so it is the same poem all day.
 // ════════════════════════════════════════════════════════
 window.__poemToday = () => poemForDate(new Date());
+
+// Browser smoke-test marker: reaching this line proves every synchronous
+// initializer (including the door and PLAN controls) completed successfully.
+// Put it on the DOM so an isolated browser-test world can read it too.
+document.body.dataset.appReady = '1';

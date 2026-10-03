@@ -7,7 +7,7 @@
 // promenade), a front door you cannot get through, a car missing from
 // under the house, and a ramp that no longer lifts you to the terrace.
 import assert from 'node:assert';
-import { PLAN, groundWall, colliderBoxes, floorPatches, rampStops } from './savoye.js';
+import { PLAN, groundWall, colliderBoxes, floorPatches, rampStops, openings } from './savoye.js';
 import { PLAN as GLASS } from './glasshouse.js';
 import { PLAN as PAVILION } from './pavilion.js';
 import { Walk } from './walk.js';
@@ -138,6 +138,25 @@ assert.equal(PLAN.levels.firstTop - PLAN.levels.first, 3.0,
   // North terrace — open to the sky (beside the ramp well, not in it).
   assert.equal(living.heightAt(3.5, -PLAN.box.d / 2 + 1.2), PLAN.levels.first,
     'north terrace is not walkable');
+
+  // ── Walked == drawn ─────────────────────────────────────
+  // The roof patch used to answer for the whole box while the slab was
+  // drawn over the southern 72% — visitors walked six metres of air over
+  // the open terrace, then fell 6.78m where the patch ran out. The
+  // walkable roof is the drawn slab and nothing else.
+  const O = openings(PLAN);
+  const roof = patches.find(p => p.kind === 'roof');
+  assert.equal(roof.heightAt(5, O.rz0 - 0.5), null,
+    'roof patch reaches past the drawn slab — that is air over the terrace');
+  assert.equal(roof.heightAt(5, O.rz0 + 0.5), PLAN.levels.roof,
+    'roof is not walkable just inside the slab edge');
+  // The top flight rises through the roof slab; the well must be open.
+  assert.equal(roof.heightAt(0, 0), null, 'roof floor fills the ramp well');
+  // The helix arrives through both slabs; the stairwell must be open.
+  for (const [p, name] of [[living, 'living'], [roof, 'roof']]) {
+    assert.equal(p.heightAt(PLAN.stair.cx, PLAN.stair.cz), null,
+      `${name} floor is solid across the stairwell — the stair pierces it`);
+  }
 }
 
 // ── Dense estate: walkable between buildings, no trek ──────
@@ -323,6 +342,36 @@ const step = (w, yaw, n = 60, dt = 1 / 60) => { for (let i = 0; i < n; i++) w.up
   go(Math.PI);                // flight 3 toward +z → roof
   assert(w.floorY >= PLAN.levels.roof - 0.25,
     `roof floorY=${w.floorY.toFixed(2)} — promenade does not reach the garden`);
+}
+
+// The roof garden ends at its own edge, not in mid-air. Walking north
+// on the slab must stop at the rail on the slab's north lip — before
+// this collider existed you stepped straight off the concrete.
+{
+  const O = openings(PLAN);
+  const w = mkWalk(BOXES, { x: 5, z: 8, floorY: PLAN.levels.roof });
+  w.keys.add('w');
+  step(w, 0, 600);            // yaw 0 → forward is −z
+  assert(w.pos.z > O.rz0 - RADIUS - 0.05,
+    `walked to z=${w.pos.z.toFixed(2)} — off the north edge of the roof slab`);
+  assert(Math.abs(w.floorY - PLAN.levels.roof) < 0.1,
+    `floorY=${w.floorY.toFixed(2)} — fell off the roof garden`);
+}
+
+// The solarium windbreak is a wall, not a drawing: solid to a walker on
+// the roof, absent to one on the living floor below it.
+{
+  const s = PLAN.solarium;
+  // Not the arc's midpoint: that hangs over the open ramp well, where a
+  // collider would rightly be missing (nothing to stand on beside it).
+  // Probe the eastern run, which stands on the slab.
+  const a = s.a0 + (s.a1 - s.a0) * 0.15;
+  const px = s.x + Math.sin(a) * s.r, pz = s.z + Math.cos(a) * s.r;
+  const w = mkWalk(BOXES, { x: px, z: pz, floorY: PLAN.levels.roof });
+  assert(w._blocked(px, pz, PLAN.levels.roof),
+    'the solarium windbreak has no collider — you walk through 28 wall segments');
+  assert(!w._blocked(px, pz, PLAN.levels.first),
+    'the solarium collider reaches down into the living floor');
 }
 
 // The doorway is wide enough for a person and nothing else is.

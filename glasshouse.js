@@ -89,11 +89,14 @@ export function colliderBoxes(plan = PLAN) {
   };
   runX(-hd); runX(hd); runZ(-hw); runZ(hw);
 
-  // The cylinder as a square. ponytail: walk.js does AABBs only, so a
-  // circle becomes the square that fits inside it — you can brush the
-  // brick at the diagonals. Upgrade to a circle test in walk.js if that
-  // ever reads as wrong; at 1.55m radius it does not.
-  const c = plan.cylinder, s = c.r * 0.86;
+  // The cylinder as a square. ponytail: walk.js does AABBs only, so the
+  // circle becomes its true inscribed square — half-size r/√2 ≈ 0.70r,
+  // corners exactly on the brick. A larger factor pokes the collider's
+  // corners outside the cylinder and stops you in mid-air; the price of
+  // the inscribed one is that face-on you can press ~0.3r into the
+  // curve, which the 0.34m walk radius mostly absorbs. Upgrade to a
+  // circle test in walk.js if that ever reads as wrong.
+  const c = plan.cylinder, s = c.r * 0.70;
   out.push({ minX: c.x - s, maxX: c.x + s, minZ: c.z - s, maxZ: c.z + s });
 
   const k = plan.cabinet;
@@ -250,8 +253,10 @@ export function buildGlassHouse(THREE, scene, opts = {}) {
 
   // ── Roof ────────────────────────────────────────────────
   const rt = PLAN.roofT;
-  at(box(h.w + 0.3, rt, h.d + 0.3, MATS.roof), 0, h.h + rt / 2, 0);
-  at(edges(h.w + 0.3, rt, h.d + 0.3), 0, h.h + rt / 2, 0);
+  // Sunk 2cm — the mullions, corner flanges and head channels all top out at
+  // h.h, so a tangent soffit strobed against every one of them.
+  at(box(h.w + 0.3, rt, h.d + 0.3, MATS.roof), 0, h.h + rt / 2 - 0.02, 0);
+  at(edges(h.w + 0.3, rt, h.d + 0.3), 0, h.h + rt / 2 - 0.02, 0);
 
   // ── The brick cylinder ──────────────────────────────────
   // The only solid, the only amber, the only thing that goes through

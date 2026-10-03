@@ -98,7 +98,10 @@ export function paletteFor(altDeg, rising) {
   const k = altDeg >= 0 ? Math.max(0, (t - 0.5) * 2) : Math.max(0, (0.5 - t) * 2);
   const out = { phase: key, label: twilight.label, lineOpacity: twilight.lineOpacity };
   for (const c of ['bg', 'travertine', 'green', 'chrome', 'water', 'podium', 'roof', 'line']) {
-    out[c] = lerpHex(twilight[c], toward[c], k * 0.75);
+    // Full blend, not 0.75: capping at 75% left a 25% colour jump the
+    // moment phaseFor switched to the pure palette at +/-8 deg altitude —
+    // once every morning and evening the whole estate stepped in one tick.
+    out[c] = lerpHex(twilight[c], toward[c], k);
   }
   out.light = Math.max(0, Math.min(1, (altDeg + 6) / 14));
   return out;
@@ -178,7 +181,8 @@ export function makeRain(THREE, plan, count = 900) {
     tick(dt, on, who) {
       if (who) { at.x = who.x; at.z = who.z; }
       const targetOpacity = on ? 0.5 : 0;
-      mat.opacity += (targetOpacity - mat.opacity) * 0.04;
+      // dt-based: the 0.04/frame version faded twice as fast at 120Hz.
+      mat.opacity += (targetOpacity - mat.opacity) * (1 - Math.exp(-2.4 * dt));
       points.visible = mat.opacity > 0.01;
       if (!points.visible) return;
       const a = geo.attributes.position.array;

@@ -53,7 +53,9 @@ export function framePlan(plan) {
   const L = plan.levels;
   const half = plan.box.w / 2;              // 10.75
   const y = L.first + 1.55;                 // frame centre, eye height
-  const inset = half - 0.55;                // just inside the ribbon wall
+  const inset = half - 0.15;                // just inside the ribbon wall
+  // was half - 0.55 (10.20) while the wall's inner face is ~10.64 — every
+  // photograph hung 44cm off the wall in mid-air.
   const out = [];
   // South wall (z = +inset, faces −Z into the room): 3 frames.
   for (let i = 0; i < 3; i++) {
