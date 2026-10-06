@@ -62,7 +62,15 @@ say "verify"
 # poll rather than sleeping once and hoping.
 for i in $(seq 1 12); do
   # Verify by BUILD HASH, not version number — the number can collide.
-  LIVE=$(curl -s "${DOMAIN}/app.js?cb=$RANDOM$i" | grep -m1 -oE "NON_BUILD = '[^']+'" | grep -oE "'[^']+'" | tr -d "'")
+  # Capture the response before matching it. With `pipefail`, piping curl
+  # directly into `grep -m1` can make a perfectly good request exit 56 when
+  # grep closes the pipe as soon as it finds the build stamp.
+  LIVE_BODY=$(curl -fsS --max-time 25 "${DOMAIN}/app.js?cb=$RANDOM$i" || true)
+  if [[ "$LIVE_BODY" =~ NON_BUILD\ =\ \'([^\']+)\' ]]; then
+    LIVE="${BASH_REMATCH[1]}"
+  else
+    LIVE=""
+  fi
   if [ "$LIVE" = "$BUILD_SHA" ]; then
     echo "  live build ${LIVE} matches HEAD"
     HTTP=$(curl -s -o /dev/null -w '%{http_code}' "$DOMAIN")
@@ -71,7 +79,8 @@ for i in $(seq 1 12); do
     # can rewrite _headers no-cache back to max-age=14400. Content can
     # still be correct (this loop proved the hash). Warn loudly so the
     # next agent does not call Cache-Control "fixed" from pages.dev alone.
-    CC=$(curl -sI "${DOMAIN}/app.js?cb=$RANDOM" | tr -d '\r' | grep -i '^cache-control:' | head -1)
+    CC_HEADERS=$(curl -fsSI --max-time 25 "${DOMAIN}/app.js?cb=$RANDOM" || true)
+    CC=$(grep -im1 '^cache-control:' <<< "${CC_HEADERS//$'\r'/}" || true)
     echo "  ${CC:-cache-control: (missing)}"
     case "${CC}" in
       *no-cache*|*no-store*|*max-age=0*) ;;

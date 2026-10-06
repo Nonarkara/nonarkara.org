@@ -8,6 +8,7 @@ const index = read('./index.html');
 const mixtape = read('./mixtape.html');
 const headers = read('./_headers');
 const worker = read('./worker/src/index.js');
+const ship = read('./ship.sh');
 
 assert(!app.includes('ipapi.co'), 'the browser must not disclose visitor IPs to a third party');
 assert(!app.includes('script.google.com'), 'the public visitor collector must stay removed');
@@ -47,4 +48,8 @@ for (const file of ['./.github/workflows/cloudflare-pages.yml', './.github/workf
   }
 }
 
-console.log('security: CSP hashes · SRI · privacy · capture boundary · pinned CI');
+assert(ship.includes('LIVE_BODY=$(curl -fsS'), 'deployment verifier must capture the full response before matching');
+assert(!/curl[^\n]+\|\s*grep\s+-m1/.test(ship),
+  'deployment verifier must not let an early-exit grep turn a successful curl into a pipefail error');
+
+console.log('security: CSP hashes · SRI · privacy · capture boundary · pinned CI · honest deploy verification');
