@@ -7187,6 +7187,10 @@ async function initGround() {
   try {
     const mod = await import('./ground.js');
     GROUND = mod.buildGround(0xe6edf3, 0xf59e0b, renderer.capabilities.getMaxAnisotropy());
+    GROUND.setTileListener(({ expected, loaded, failed }) => {
+      document.body.dataset.groundTiles = `${loaded}/${expected}`;
+      document.body.dataset.groundTileFailures = String(failed);
+    });
     window.__groundGroup = GROUND.group;
     window.__ground = GROUND;   // verification handle
     GROUND.mod = mod;

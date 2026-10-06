@@ -19,12 +19,18 @@
 
 import * as THREE from 'three';
 
-// OSM raster tiles: attribution required and shown; a personal site
-// pulling a few dozen tiles per look-down is well inside the policy.
-const TILE_URL = (z, x, y) =>
-  `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
+// Three explicitly attributed, public OSM raster edges. OSMF is usually the
+// fastest global edge; OSM Germany and OSM France are fallbacks.
+// Keeping the provider list here makes the dependency swappable without
+// touching map geometry, as the OSMF tile policy recommends.
+const TILE_URLS = [
+  (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`,
+  (z, x, y) => `https://tile.openstreetmap.de/${z}/${x}/${y}.png`,
+  (z, x, y) => `https://a.tile.openstreetmap.fr/hot/${z}/${x}/${y}.png`,
+];
 
 export const ATTRIBUTION = '© OPENSTREETMAP CONTRIBUTORS';
+const TILE_TIMEOUT_MS = 3500;
 
 export const ZOOM = 13;          // default: city — location, not a street atlas
 export const ZOOM_MIN = 11;      // whole-region view
@@ -94,6 +100,10 @@ export function buildGround(lineColor = 0xe6edf3, amber = 0xf59e0b, maxAnisotrop
   const ctxTiles = makeLayer(CGRID, SPAN * Math.pow(2, CTX_DZ), 0.55, -0.004);
   const tiles = makeLayer(GRID, SPAN, 0.92, 0);
 
+  let tileHandler = null;
+  let tileStatus = { generation: 0, expected: 0, loaded: 0, failed: 0 };
+  const reportTile = () => tileHandler?.({ ...tileStatus });
+
   function placeAndLoad(meshes, grid, span, site, z, gen) {
     const f = tileXY(site.lat, site.lon, z);
     const cx = Math.floor(f.x), cy = Math.floor(f.y);
@@ -113,9 +123,7 @@ export function buildGround(lineColor = 0xe6edf3, amber = 0xf59e0b, maxAnisotrop
       mesh.material.map = null;
       mesh.material.color.setHex(0x0a0d10);
       mesh.material.needsUpdate = true;
-      loader.load(
-        TILE_URL(z, tx, ty),
-        (tex) => {
+      const onTile = (tex) => {
           // A tile from a superseded zoom resolving late would paint a map
           // of somewhere you are not; drop it instead.
           if (gen !== loadGen) { tex.dispose(); return; }
@@ -124,10 +132,38 @@ export function buildGround(lineColor = 0xe6edf3, amber = 0xf59e0b, maxAnisotrop
           mesh.material.map = tex;
           mesh.material.color.setHex(0xffffff);   // restore so the new tile isn't tinted
           mesh.material.needsUpdate = true;
-        },
-        undefined,
-        () => { /* a missing tile is a hole in the picture, not an error */ }
-      );
+          tileStatus.loaded++;
+          reportTile();
+      };
+      const loadFrom = (provider) => {
+        let finished = false;
+        const next = () => {
+          if (finished) return;
+          finished = true;
+          clearTimeout(timer);
+          if (provider + 1 < TILE_URLS.length) loadFrom(provider + 1);
+          else if (gen === loadGen) {
+            tileStatus.failed++;
+            reportTile();
+            // All missing: a hole in the picture is quieter than an error.
+          }
+        };
+        // HTML image requests can hang for minutes on a dead tile edge and
+        // TextureLoader has no timeout. Move on quickly so looking down never
+        // becomes a blank-floor lottery on mobile networks.
+        const timer = setTimeout(next, TILE_TIMEOUT_MS);
+        loader.load(
+          TILE_URLS[provider](z, tx, ty),
+          (tex) => {
+            if (finished) { tex.dispose(); return; }
+            finished = true;
+            clearTimeout(timer);
+            onTile(tex);
+          },
+          undefined,
+          next);
+      };
+      loadFrom(0);
     });
   }
 
@@ -184,6 +220,8 @@ export function buildGround(lineColor = 0xe6edf3, amber = 0xf59e0b, maxAnisotrop
     loadedFor = key;
     lastSite = site;
     const gen = ++loadGen;
+    tileStatus = { generation: gen, expected: tiles.length + ctxTiles.length, loaded: 0, failed: 0 };
+    reportTile();
     placeAndLoad(tiles, GRID, SPAN, site, zoom, gen);
     placeAndLoad(ctxTiles, CGRID, SPAN * Math.pow(2, CTX_DZ), site, zoom - CTX_DZ, gen);
   }
@@ -256,6 +294,7 @@ export function buildGround(lineColor = 0xe6edf3, amber = 0xf59e0b, maxAnisotrop
   // app to keep the HUD scale label honest while the auto-zoom runs).
   let zoomHandler = null;
   const setZoomListener = (fn) => { zoomHandler = fn; };
+  const setTileListener = (fn) => { tileHandler = fn; reportTile(); };
 
   /**
    * How far below the walker the map sits, in scene units. At the
@@ -278,7 +317,7 @@ export function buildGround(lineColor = 0xe6edf3, amber = 0xf59e0b, maxAnisotrop
   const fadeTargets = () => [...tiles, ...ctxTiles, grid, cross, northTick];
 
   return {
-    group, load, setZoom, getZoom, setZoomListener,
+    group, load, setZoom, getZoom, setZoomListener, setTileListener,
     setAutoZoomForPitch, tickAutoZoom, markManualZoom, pitchToZoom,
     getDepth, fadeTargets, scaleLabel, tiles, GRID, SPAN,
   };

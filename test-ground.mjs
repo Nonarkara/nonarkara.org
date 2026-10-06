@@ -3,6 +3,7 @@
 // map that looks perfectly plausible and is mirrored.
 import assert from 'node:assert';
 const { tileXY, metresPerPixel, dampZoom, ZOOM } = await import('./ground.js');
+import { readFileSync } from 'node:fs';
 
 const near = (a, b, tol, what) =>
   assert(Math.abs(a - b) <= tol, `${what}: got ${a}, want ${b} ±${tol}`);
@@ -13,6 +14,16 @@ const near = (a, b, tol, what) =>
   const t = tileXY(0, 0, 0);
   near(t.x, 0.5, 1e-9, 'origin x at zoom 0');
   near(t.y, 0.5, 1e-9, 'origin y at zoom 0');
+}
+
+{
+  const source = readFileSync(new URL('./ground.js', import.meta.url), 'utf8');
+  assert(source.includes('tile.openstreetmap.de/'), 'ground needs a policy-compliant fallback tile edge');
+  assert(source.includes('a.tile.openstreetmap.fr/hot/'), 'ground needs a policy-compliant resilient tile edge');
+  assert(source.includes('tile.openstreetmap.org/'), 'standard OSM remains the fallback');
+  assert(source.includes('© OPENSTREETMAP CONTRIBUTORS'), 'the map keeps visible data attribution');
+  assert(source.includes('TILE_TIMEOUT_MS'), 'a stalled tile edge must yield to the fallback');
+  assert(source.includes('setTileListener'), 'tile loading must expose diagnostics for browser regression tests');
 }
 
 // Greenwich at zoom 1 sits on the vertical seam.
