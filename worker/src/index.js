@@ -75,6 +75,28 @@ const ACTIVE = [
   "watch-1de.pages.dev",
   "luma-house.pages.dev",
   "depa-usdot.nonarkara.org",
+  "blog.nonarkara.org",
+  "sabaisabai-airdnd.pages.dev",
+  "nst.nonarkara.org",
+  "lopburi.nonarkara.org/lopburi",
+  "malaysia.nonarkara.org",
+  "bkk.nonarkara.org",
+  "globalmonitor.nonarkara.org",
+  "asia.nonarkara.org",
+  "mem.nonarkara.org",
+  "day2.nonarkara.org",
+  "carbon.nonarkara.org",
+  "games.nonarkara.org",
+  "shophouses.nonarkara.org",
+  "shanghai.nonarkara.org",
+  "rag.nonarkara.org",
+  "champion.nonarkara.org",
+  "soccer.nonarkara.org",
+  "vision.nonarkara.org",
+  "each.nonarkara.org",
+  "colors.nonarkara.org",
+  "otop.pages.dev",
+  "superleague-xxd.pages.dev",
 ];
 
 // In the pipeline: real work with no public URL yet, either because it
@@ -83,7 +105,6 @@ const ACTIVE = [
 // appear on the board, because a board that only shows what is
 // deployable is not a picture of the work.
 const PIPELINE = [
-  { id: "sabai-sabai",  label: "SABAI SABAI",  note: "Air D&D · experimental" },
   { id: "tkc-pmo",      label: "TKC PMO",      note: "client · NDA" },
   { id: "each",         label: "EACH",         note: "ERP · ACT · CRM · HR" },
   { id: "otop",         label: "OTOP",         note: "in development" },
@@ -232,13 +253,13 @@ async function tg(env, text) {
 
 // Uptime from what we already store: 24h out of the ring buffer, 7d/30d
 // out of the daily rollups. No extra writes.
-function uptimeFor(fleet, domain) {
+function uptimeFor(fleet, domain, now = new Date()) {
   const hist = fleet.history[domain] || [];
   const pct = (ok, n) => (n ? Math.round((ok / n) * 1000) / 10 : null);
   const day24 = pct(hist.filter(h => isUp(h[1])).length, hist.length);
 
   const rollupPct = days => {
-    const cutoff = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+    const cutoff = new Date(now.getTime() - days * 86_400_000).toISOString().slice(0, 10);
     let checks = 0, ok = 0;
     for (const [d, byDomain] of Object.entries(fleet.rollups)) {
       if (d < cutoff) continue;
@@ -257,6 +278,71 @@ const corsHeaders = {
   "Cache-Control": "public, max-age=30",
 };
 
+// Capture is a write into a private queue, not another public status feed.
+// The Origin check is a browser boundary (not authentication), while the
+// hashed-IP minute bucket limits direct scripted abuse without retaining an IP.
+const CAPTURE_ORIGINS = new Set([
+  "https://nonarkara.org",
+  "https://www.nonarkara.org",
+]);
+const CAPTURE_MAX_BYTES = 8_192;
+const CAPTURE_MAX_TEXT = 4_000;
+const CAPTURE_MAX_PER_MINUTE = 12;
+
+function isCaptureOriginAllowed(origin) {
+  return CAPTURE_ORIGINS.has(origin || "");
+}
+
+function captureCorsHeaders(origin) {
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Cache-Control": "no-store",
+    "Vary": "Origin",
+    "X-Content-Type-Options": "nosniff",
+  };
+}
+
+function sanitizeCapture(body) {
+  if (!body || typeof body.text !== "string") return null;
+  const text = body.text.trim();
+  if (!text || text.length > CAPTURE_MAX_TEXT) return null;
+
+  const source = body.source === "steps" ? "steps" : "note";
+  const tags = Array.isArray(body.tags)
+    ? body.tags.filter(t => typeof t === "string").slice(0, 10).map(t => t.slice(0, 40))
+    : [];
+  const session_id = typeof body.session_id === "string"
+    ? body.session_id.slice(0, 80) : null;
+
+  let metadata = {};
+  if (source === "steps") {
+    const steps = Number(body.metadata?.steps);
+    const date = body.metadata?.date;
+    if (Number.isInteger(steps) && steps >= 0 && steps <= 500_000 &&
+        typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      metadata = { steps, date };
+    }
+  }
+  return { text, source, session_id, tags, metadata };
+}
+
+async function captureRateLimited(req, env) {
+  const ip = req.headers.get("CF-Connecting-IP") || "unknown";
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(ip));
+  const id = [...new Uint8Array(digest)].slice(0, 12)
+    .map(b => b.toString(16).padStart(2, "0")).join("");
+  const minute = Math.floor(Date.now() / 60_000);
+  const key = `capture-rate:${id}:${minute}`;
+  const count = Number(await env.STATUS.get(key) || 0);
+  if (count >= CAPTURE_MAX_PER_MINUTE) return true;
+  await env.STATUS.put(key, String(count + 1), { expirationTtl: 120 });
+  return false;
+}
+
+export { isCaptureOriginAllowed, sanitizeCapture };
+
 export default {
   // ── Scheduled handler (cron */5) ────────────────────────────
   async scheduled(_event, env, ctx) {
@@ -274,6 +360,12 @@ export default {
   // ── HTTP handler ───────────────────────────────────────────
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
+
+    if (req.method === "OPTIONS" && url.pathname === "/capture") {
+      const origin = req.headers.get("Origin") || "";
+      if (!isCaptureOriginAllowed(origin)) return new Response(null, { status: 403 });
+      return new Response(null, { headers: captureCorsHeaders(origin) });
+    }
 
     if (req.method === "OPTIONS") {
       return new Response(null, { headers: corsHeaders });
@@ -401,12 +493,51 @@ export default {
     // POST /capture  → appends to Supabase + Google Sheets + embeds text
     // Body: { text, source?, session_id?, tags? }
     // Secrets in Worker env: SB_URL, SB_SERVICE_KEY, OPENAI_KEY, BRAIN_SHEET_URL
+    if (url.pathname === "/capture" && req.method !== "POST") {
+      return new Response(JSON.stringify({ error: "method not allowed" }), {
+        status: 405,
+        headers: { "Allow": "POST, OPTIONS", "Content-Type": "application/json", "Cache-Control": "no-store" },
+      });
+    }
+
     if (url.pathname === "/capture" && req.method === "POST") {
+      const origin = req.headers.get("Origin") || "";
+      if (!isCaptureOriginAllowed(origin)) {
+        return new Response(JSON.stringify({ error: "forbidden" }), {
+          status: 403, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+        });
+      }
+      const captureHeaders = { ...captureCorsHeaders(origin), "Content-Type": "application/json" };
+      if (!(req.headers.get("Content-Type") || "").toLowerCase().startsWith("application/json")) {
+        return new Response(JSON.stringify({ error: "application/json required" }), {
+          status: 415, headers: captureHeaders,
+        });
+      }
+      const declaredBytes = Number(req.headers.get("Content-Length") || 0);
+      if (declaredBytes > CAPTURE_MAX_BYTES) {
+        return new Response(JSON.stringify({ error: "payload too large" }), {
+          status: 413, headers: captureHeaders,
+        });
+      }
       try {
-        const body = await req.json();
-        if (!body?.text?.trim()) {
-          return new Response(JSON.stringify({ error: "text required" }), {
-            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        const raw = await req.text();
+        if (new TextEncoder().encode(raw).length > CAPTURE_MAX_BYTES) {
+          return new Response(JSON.stringify({ error: "payload too large" }), {
+            status: 413, headers: captureHeaders,
+          });
+        }
+        let body;
+        try { body = JSON.parse(raw); }
+        catch { return new Response(JSON.stringify({ error: "bad json" }), { status: 400, headers: captureHeaders }); }
+        const clean = sanitizeCapture(body);
+        if (!clean) {
+          return new Response(JSON.stringify({ error: "invalid capture" }), {
+            status: 400, headers: captureHeaders,
+          });
+        }
+        if (await captureRateLimited(req, env)) {
+          return new Response(JSON.stringify({ error: "rate limited" }), {
+            status: 429, headers: { ...captureHeaders, "Retry-After": "60" },
           });
         }
 
@@ -414,11 +545,7 @@ export default {
         const ts = new Date().toISOString();
         const record = {
           id, created_at: ts,
-          text: body.text.trim(),
-          source: body.source || "note",
-          session_id: body.session_id || null,
-          tags: body.tags || [],
-          metadata: body.metadata || {},
+          ...clean,
         };
 
         // KV queue — the path braind actually drains into the vault.
@@ -497,11 +624,12 @@ export default {
         await Promise.allSettled(tasks);
 
         return new Response(JSON.stringify({ ok: true, id, ts }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: captureHeaders,
         });
       } catch (e) {
-        return new Response(JSON.stringify({ error: String(e) }), {
-          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        console.error("capture failed", e instanceof Error ? e.message : "unknown error");
+        return new Response(JSON.stringify({ error: "capture unavailable" }), {
+          status: 500, headers: captureHeaders,
         });
       }
     }

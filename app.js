@@ -21,21 +21,7 @@ import { buildBalls, crossedGoal, throughHoop } from './balls.js';
 import { buildExhibit } from './exhibit.js';
 import { poemForDate } from './poems.js';
 import * as STARLORE_MOD from './starlore.js';
-
-// ── Visitor tracker — fire-and-forget, one ping per session ──────────────────
-(function () {
-  if (sessionStorage.getItem('non_v')) return;
-  sessionStorage.setItem('non_v', '1');
-  const SH = 'https://script.google.com/macros/s/AKfycbwzTwBNOseKkvkkjD-LH6B3GWrsFcwS6MTDbn7W5eb3zHxA-swtlHYuwJ3w5PAVXDhU7Q/exec';
-  const b = { dashboard: 'NON', hostname: location.hostname, page: location.href,
-    referrer: document.referrer || 'Direct', userAgent: navigator.userAgent,
-    language: navigator.language, screen: `${screen.width}x${screen.height}`,
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
-  const send = p => fetch(SH, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(p) }).catch(() => {});
-  fetch('https://ipapi.co/json/').then(r => r.json())
-    .then(d => { b.ip = d.ip; b.country = d.country_name; b.region = d.region; b.city = d.city; send(b); })
-    .catch(() => send(b));
-})();
+import { AdaptiveResolution, preferredPixelRatio } from './render-quality.js';
 
 // ════════════════════════════════════════════════════════
 // WebGL fallback — detect support before building scene
@@ -57,6 +43,17 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.43 (2026-10-07) one complete work index: the 2D project board now
+//                    carries every public Axiom system, the canonical blog
+//                    archive and Sabai Sabai. Adaptive resolution, coalesced
+//                    viewport changes, working tilt-to-street map zoom and
+//                    refresh-rate-correct ambient motion keep the 3D estate
+//                    crisp without sacrificing movement.
+//                    Includes the v4.42 security hardening pass.
+//   4.42 (2026-10-02) security hardening — remove the public IP/UA visitor
+//                    collector, constrain capture writes at the Worker,
+//                    add a strict script CSP + SRI, pin CI actions, and
+//                    make authenticated pop-outs sever their opener.
 //   4.41 (2026-09-06) phone PLAN boot repair — the render loop is first
 //                    scheduled for the next frame, after the module has
 //                    initialized every world binding. A ground-map TDZ
@@ -423,7 +420,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.41';
+const NON_VERSION = '4.43';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -808,8 +805,9 @@ const PROJECTS = [
   { code: 'TOMASITY', title: 'Muang Thong Thani · MTT view',      url: 'https://mtt-super-dashboard-v2.pages.dev/',          img: 'screenshots/monitor.jpg',   dom: 'mtt-super-dashboard-v2.pages.dev' },
   { code: 'BANGKOK',  title: 'Bangkok IOC · BKK view',             url: 'https://bangkok-ioc.pages.dev/',                    img: 'screenshots/monitor.jpg',   dom: 'bangkok-ioc.pages.dev' },
   { code: 'CDP v2',   title: 'CD Data Platform',                  url: 'https://cdp.nonarkara.org',                         img: 'screenshots/cdp.jpg',       dom: 'cdp.nonarkara.org' },
-  { code: 'CONFLICT', title: 'Global Political Monitor',          url: 'https://global.nonarkara.org/',                     img: 'screenshots/conflict.jpg',  dom: 'global.nonarkara.org' },
-  { code: 'MEM',      title: 'Middle Eastern Monitor',            url: 'https://conflict.nonarkara.org/',                   img: 'screenshots/mem.jpg',       dom: 'conflict.nonarkara.org' },
+  { code: 'CONFLICT', title: 'World Console',                     url: 'https://global.nonarkara.org/',                     img: 'screenshots/conflict.jpg',  dom: 'global.nonarkara.org' },
+  { code: 'MEM',      title: 'Middle East Monitor',               url: 'https://mem.nonarkara.org/',                        img: 'screenshots/mem.jpg',       dom: 'mem.nonarkara.org' },
+  { code: 'MEM LEGACY', title: 'Conflict Monitor · Archive',      url: 'https://conflict.nonarkara.org/',                   img: 'screenshots/mem.jpg',       dom: 'conflict.nonarkara.org' },
   { code: 'GEO',      title: 'Thailand Geopolitical Watch',       url: 'https://geo.nonarkara.org',                         img: 'screenshots/geo.jpg',       dom: 'geo.nonarkara.org' },
   { code: 'PHUKET',   title: 'Phuket Ops · War Room',             url: 'https://phuket.nonarkara.org/war-room',             img: 'screenshots/phuket.jpg',    dom: 'phuket.nonarkara.org' },
   { code: 'BUS',      title: 'Phuket Smart Bus',                  url: 'https://bus.nonarkara.org',                         img: 'screenshots/bus.jpg',       dom: 'bus.nonarkara.org' },
@@ -826,6 +824,7 @@ const PROJECTS = [
   { code: 'SLOWDOWN', title: 'The Things You Can See',            url: 'https://slowdown.nonarkara.org',                    img: 'screenshots/slowdown.jpg', dom: 'slowdown.nonarkara.org' },
   { code: 'NOVELS',   title: 'Substack · Novels',                 url: 'https://substack.com/@nonarkara',                   img: 'screenshots/substack.jpg' },
   { code: 'ESSAYS',   title: 'Medium · Essays',                   url: 'https://nonsmartcity.medium.com/',                  img: 'screenshots/medium.jpg' },
+  { code: 'BLOG',     title: 'Dr Non · The Archive',              url: 'https://blog.nonarkara.org/',                       img: 'screenshots/medium.jpg',    dom: 'blog.nonarkara.org' },
   { code: 'SOLITUDE', title: '100 Days of Solitude',              url: 'https://solitude.nonarkara.org',                    img: 'screenshots/solitude.jpg',  dom: 'solitude.nonarkara.org' },
   { code: 'YOUTUBE',  title: 'YouTube · @nonarkara',              url: 'https://www.youtube.com/@nonarkara',                img: 'screenshots/youtube.jpg' },
   { code: 'ACADEMIC', title: 'Academic Profile',                  url: 'https://arkaraprasertkul.socialpsychology.org/',    img: 'screenshots/academic.jpg' },
@@ -844,6 +843,7 @@ const PROJECTS = [
   { code: 'YALA',       title: 'Yala Control Tower',               url: 'https://yala-control-tower.pages.dev/',             img: 'screenshots/sciti.jpg',     dom: 'yala-control-tower.pages.dev' },
   { code: 'CITY HUB',   title: 'City Hub',                         url: 'https://city-hub.pages.dev/',                       img: 'screenshots/cdp.jpg',       dom: 'city-hub.pages.dev' },
   { code: 'AIRDASH',    title: 'AirDash · Thailand Air Quality',   url: 'https://air.nonarkara.org/',                       img: 'screenshots/sciti.jpg',     dom: 'air.nonarkara.org' },
+  { code: 'SABAI',      title: 'Sabai Sabai · Air D&D',            url: 'https://sabaisabai-airdnd.pages.dev/',              img: 'screenshots/sciti.jpg',     dom: 'sabaisabai-airdnd.pages.dev' },
   { code: 'DAYTRADERS', title: 'DayTraders · Siam Markets',        url: 'https://siam-markets.pages.dev/',                   img: 'screenshots/cdp.jpg',       dom: 'siam-markets.pages.dev' },
   { code: 'SECOND BRAIN', title: 'Second Brain OS',                url: 'https://github.com/agentic-ai-research/second-brain-os', img: 'screenshots/academic.jpg' },
   { code: 'HORIZON 45', title: 'Horizon 45 · Capability Lab',      url: 'https://horizon-field-lab.pages.dev/',              img: 'screenshots/academic.jpg',  dom: 'horizon-field-lab.pages.dev' },
@@ -857,6 +857,35 @@ const PROJECTS = [
   { code: 'LUMA/HOUSE', title: 'Luma/house',                       url: 'https://luma-house.pages.dev/',                     img: 'screenshots/academic.jpg',  dom: 'luma-house.pages.dev' },
   { code: 'SCL',        title: 'Smart City Lighthouse',            url: 'https://scl.nonarkara.org/',                        img: 'screenshots/sciti.jpg',     dom: 'scl.nonarkara.org' },
   { code: 'DEPA-USDOT', title: 'depa × U.S. DOT',                  url: 'https://depa-usdot.nonarkara.org/',                 img: 'screenshots/sciti.jpg',     dom: 'depa-usdot.nonarkara.org' },
+  // Newly published Axiom systems. Keeping them here—not in view-specific
+  // markup—means PLAN, MENU, command search and all future project surfaces
+  // receive the same complete set.
+  { code: 'FLOOD COMMUNITY', title: 'FloodDash Community',         url: 'https://bit.ly/flooddashthai',                      img: 'screenshots/cdp.jpg' },
+  { code: 'NST-01',      title: 'NST-01 · Nakhon Si Thammarat',    url: 'https://nst.nonarkara.org/',                        img: 'screenshots/sciti.jpg',     dom: 'nst.nonarkara.org' },
+  { code: 'LOPBURI',     title: 'Lopburi Operations',              url: 'https://lopburi.nonarkara.org/lopburi',             img: 'screenshots/sciti.jpg',     dom: 'lopburi.nonarkara.org' },
+  { code: 'MALAYSIA',    title: 'Malaysia · God Mode',              url: 'https://malaysia.nonarkara.org/',                   img: 'screenshots/monitor.jpg',   dom: 'malaysia.nonarkara.org' },
+  { code: 'BKK CULTURE', title: 'BKKx Culture · Heritage Atlas',    url: 'https://bkk.nonarkara.org/',                        img: 'screenshots/cdp.jpg',       dom: 'bkk.nonarkara.org' },
+  { code: 'GLOBAL',      title: 'Global Monitor',                   url: 'https://globalmonitor.nonarkara.org/',              img: 'screenshots/conflict.jpg',  dom: 'globalmonitor.nonarkara.org' },
+  { code: 'ASIA',        title: 'Asia Political Dashboard',        url: 'https://asia.nonarkara.org/',                       img: 'screenshots/conflict.jpg',  dom: 'asia.nonarkara.org' },
+  { code: 'DAY 2',       title: 'DAY 2 · Working Instrument',       url: 'https://day2.nonarkara.org/',                       img: 'screenshots/cdp.jpg',       dom: 'day2.nonarkara.org' },
+  { code: 'CARBON',      title: 'Forest Carbon Thailand',          url: 'https://carbon.nonarkara.org/?lang=th',             img: 'screenshots/sciti.jpg',     dom: 'carbon.nonarkara.org' },
+  { code: '20 MIN',      title: '20 Minutes with Dr Non',          url: 'https://open.spotify.com/show/0342w6de0LJk5wXCSNCqa3?si=jGar41OPTHak-43L2ltq9w', img: 'screenshots/youtube.jpg' },
+  { code: 'ARCADE',      title: 'OmniArcade',                      url: 'https://games.nonarkara.org/',                      img: 'screenshots/academic.jpg',  dom: 'games.nonarkara.org' },
+  { code: 'OPENCLAW',    title: 'OpenClaw Set-Up',                 url: 'https://github.com/Nonarkara/dr-non-openclaw-setup', img: 'screenshots/academic.jpg' },
+  { code: 'SHOPHOUSE',   title: 'Shophouse Metropolis',            url: 'https://shophouses.nonarkara.org/',                 img: 'screenshots/academic.jpg',  dom: 'shophouses.nonarkara.org' },
+  { code: 'SHANGHAI',    title: 'Locating Shanghai',               url: 'https://shanghai.nonarkara.org/',                   img: 'screenshots/academic.jpg',  dom: 'shanghai.nonarkara.org' },
+  { code: 'RAG',         title: 'RAG.NONARKARA',                   url: 'https://rag.nonarkara.org/',                        img: 'screenshots/academic.jpg',  dom: 'rag.nonarkara.org' },
+  { code: 'CHAMPION',    title: 'CHAOS XI · Champion',             url: 'https://champion.nonarkara.org/',                   img: 'screenshots/academic.jpg',  dom: 'champion.nonarkara.org' },
+  { code: 'SOCCER',      title: 'Soccer · NSP',                    url: 'https://soccer.nonarkara.org/',                     img: 'screenshots/academic.jpg',  dom: 'soccer.nonarkara.org' },
+  { code: 'VISION',      title: 'Vision · Computer-Vision Classroom', url: 'https://vision.nonarkara.org/',                  img: 'screenshots/academic.jpg',  dom: 'vision.nonarkara.org' },
+  { code: 'EACH',        title: 'EACH · Business Operations',      url: 'https://each.nonarkara.org/',                       img: 'screenshots/cdp.jpg',       dom: 'each.nonarkara.org' },
+  { code: 'PALETTE',     title: 'Palette · Colour Exhibition',     url: 'https://colors.nonarkara.org/',                     img: 'screenshots/academic.jpg',  dom: 'colors.nonarkara.org' },
+  { code: 'AXIOM CORE',  title: 'Axiom Design Core',               url: 'https://github.com/Nonarkara/Axiom-Design-Core',    img: 'screenshots/academic.jpg' },
+  { code: 'RAMS × NYCTA', title: 'Rams × NYCTA Design Core',       url: 'https://github.com/Nonarkara/Rams-NYCTA-Design-Core', img: 'screenshots/academic.jpg' },
+  { code: 'LUGGAGE TAG', title: 'Luggage Tag Aesthetic',           url: 'https://github.com/Nonarkara/dr-non-luggage-tag-aesthetic', img: 'screenshots/academic.jpg' },
+  { code: 'MOMA',        title: 'MoMA Rules',                      url: 'https://github.com/Nonarkara/moma-rules',           img: 'screenshots/academic.jpg' },
+  { code: 'O3',          title: 'O3 · Power of the Third',         url: 'https://otop.pages.dev/',                           img: 'screenshots/cdp.jpg',       dom: 'otop.pages.dev' },
+  { code: 'SUPER LEAGUE', title: 'Super League',                   url: 'https://superleague-xxd.pages.dev/#/lobby',         img: 'screenshots/academic.jpg',  dom: 'superleague-xxd.pages.dev' },
   // (LINKEDIN dropped from PROJECTS — it's identity, not project
   //  work; the row in PERSONAL already covers it. Norman mapping:
   //  one label, one action.)
@@ -959,7 +988,17 @@ LOOK.yaw = camera.rotation.y;
 LOOK.pitch = camera.rotation.x;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const RENDER_QUALITY = new AdaptiveResolution(renderer, {
+  maxPixelRatio: preferredPixelRatio({
+    devicePixelRatio: window.devicePixelRatio,
+    width: window.innerWidth,
+    height: window.innerHeight,
+    deviceMemory: navigator.deviceMemory,
+    coarsePointer: window.matchMedia('(pointer: coarse)').matches,
+  }),
+});
+window.__renderQuality = RENDER_QUALITY;
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.getElementById('canvas-root').appendChild(renderer.domElement);
 
@@ -973,7 +1012,7 @@ renderer.domElement.addEventListener('webglcontextlost', (e) => {
 renderer.domElement.addEventListener('webglcontextrestored', () => {
   isWebGLContextLost = false;
   console.log('[NON] WebGL context restored — resuming render loop');
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  syncRendererSize(true);
 }, false);
 
 // ════════════════════════════════════════════════════════
@@ -2990,7 +3029,7 @@ WALL_TVS.forEach((p, i) => {
   window.__portraitFadeDir = 1;
 
   // tick — call from animate()
-  window.__tickAphorism = function (now) {
+  window.__tickAphorism = function (now, frameScale = 1) {
     const elapsedSinceSwap = now - aphLastSwap;
     // First-time bootstrap
     if (!aphCurrent) {
@@ -3001,11 +3040,11 @@ WALL_TVS.forEach((p, i) => {
     }
     // Fade animation
     if (aphFadeDir === 1) {
-      aphFade = Math.min(1, aphFade + 0.016);
+      aphFade = Math.min(1, aphFade + 0.016 * frameScale);
       if (aphFade >= 1 && elapsedSinceSwap > 23000) aphFadeDir = -1;
       drawAphorism();
     } else {
-      aphFade = Math.max(0, aphFade - 0.016);
+      aphFade = Math.max(0, aphFade - 0.016 * frameScale);
       if (aphFade <= 0) {
         aphCurrent = pickAphorism();
         aphFadeDir = 1;
@@ -3365,11 +3404,11 @@ WALL_TVS.forEach((p, i) => {
   let pulseArcIdx = 0;
   let pulseT = 0;          // 0..1 along current arc
   let pulseDwell = 0;      // post-arc dwell counter
-  window.__tickPulse = function () {
+  window.__tickPulse = function (frameScale = 1) {
     if (!linkArcs.length) return;
-    if (pulseDwell > 0) { pulseDwell--; return; }
+    if (pulseDwell > 0) { pulseDwell -= frameScale; return; }
     const arc = linkArcs[pulseArcIdx];
-    pulseT += 0.012;       // ~80 frames per arc, ~1.3s at 60fps
+    pulseT += 0.012 * frameScale;       // ~1.3s regardless of refresh rate
     if (pulseT >= 1) {
       pulseT = 0;
       pulseArcIdx = (pulseArcIdx + 1) % linkArcs.length;
@@ -3409,10 +3448,10 @@ WALL_TVS.forEach((p, i) => {
   const particles = new THREE.Points(partGeom, partMat);
   scene.add(particles);
   window.__partMat = partMat;
-  window.__tickParticles = function () {
+  window.__tickParticles = function (frameScale = 1) {
     const p = partGeom.attributes.position.array;
     for (let i = 0; i < PARTICLE_COUNT; i++) {
-      p[i * 3 + 1] -= speeds[i];
+      p[i * 3 + 1] -= speeds[i] * frameScale;
       if (p[i * 3 + 1] < 0) {
         // recycle to top with new horizontal position — a thought
         // returning to the source
@@ -3818,12 +3857,32 @@ function openExhibitModal(photo) {
 window.addEventListener('click', onClick);
 window.addEventListener('touchend', onClick);
 
-window.addEventListener('resize', () => {
+let viewportWidth = window.innerWidth;
+let viewportHeight = window.innerHeight;
+let viewportRAF = 0;
+function syncRendererSize(force = false) {
+  const width = Math.max(1, Math.round(window.innerWidth));
+  const height = Math.max(1, Math.round(window.innerHeight));
+  if (!force && width === viewportWidth && height === viewportHeight) return;
+  viewportWidth = width;
+  viewportHeight = height;
   applyCameraFraming();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
+  renderer.setSize(width, height);
+}
+function queueRendererResize() {
+  if (viewportRAF) return;
+  viewportRAF = requestAnimationFrame(() => {
+    viewportRAF = 0;
+    syncRendererSize();
+  });
+}
+window.addEventListener('resize', queueRendererResize, { passive: true });
+// Mobile browser chrome and the software keyboard can change the visual
+// viewport without a reliable layout-viewport event. Coalescing both event
+// sources into one animation frame avoids repeated GPU buffer allocations.
+window.visualViewport?.addEventListener('resize', queueRendererResize, { passive: true });
 window.addEventListener('orientationchange', () => {
-  setTimeout(() => { applyCameraFraming(); renderer.setSize(window.innerWidth, window.innerHeight); }, 100);
+  setTimeout(() => syncRendererSize(true), 100);
 });
 
 // ════════════════════════════════════════════════════════
@@ -5199,7 +5258,8 @@ document.getElementById('note-save')?.addEventListener('click', async () => {
   const meta = document.getElementById('note-meta');
   if (meta) meta.textContent = 'saving to second brain…';
 
-  // Fire-and-forget to the pipeline (Supabase + Google Sheets + embedding)
+  // Send the local note to the private second-brain queue. The local copy
+  // above remains the source of truth if the network or rate limit declines.
   try {
     const r = await fetch('https://api.nonarkara.org/capture', {
       method: 'POST',
@@ -5209,7 +5269,7 @@ document.getElementById('note-save')?.addEventListener('click', async () => {
     const d = await r.json();
     if (meta) {
       meta.textContent = d.ok
-        ? '✓ saved · sheet · supabase · embedded'
+        ? '✓ saved to second brain'
         : '✓ saved locally (sync later)';
       setTimeout(() => { meta.textContent = 'stored on this device + second brain'; }, 3000);
     }
@@ -5709,6 +5769,7 @@ window.setView = function(v) {
   }
 };
 const startTime = performance.now();
+let lastFrameTime = startTime;
 document.querySelector('.veil').classList.add('gone');
 setTimeout(() => {
   document.querySelector('.brand').classList.add('in');
@@ -5891,7 +5952,7 @@ function updateDolly() {
     if (item.action) { item.action(); return; }
     if (item.type === 'project' && item.url) {
       if (isPersonalUrl(item.url)) openUrlModal(item.url, item.title, item.code);
-      else window.open(item.url, '_blank');
+      else window.open(item.url, '_blank', 'noopener,noreferrer');
     }
     if (item.type === 'city' && item.tz) openCityModal(item.tz);
     if (item.type === 'music' && item.idx !== undefined) {
@@ -5938,7 +5999,12 @@ function updateDolly() {
 
 function animate() {
   requestAnimationFrame(animate);
-  const t = (performance.now() - startTime) / 1000;
+  const frameNow = performance.now();
+  const rawFrameMs = frameNow - lastFrameTime;
+  lastFrameTime = frameNow;
+  const dtFrame = Math.min(Math.max(rawFrameMs / 1000, 1 / 240), 0.05);
+  const frameScale = dtFrame * 60;
+  const t = (frameNow - startTime) / 1000;
   const fadeT = Math.min(t / 3.5, 1);
   // Every room opacity in this loop is written as `ease * k`, so folding
   // the sky's dimming factor into `ease` fades the whole room at once.
@@ -5962,14 +6028,14 @@ function animate() {
 
   // Tickers — scroll their textures, fade in to a calm dim
   TICKERS.forEach(tk => {
-    tk.tex.offset.x += tk.scrollSpeed;
+    tk.tex.offset.x += tk.scrollSpeed * frameScale;
     tk.mat.opacity = ease * 0.55;
   });
 
   // Chandelier — slow Y rotation; click to toggle theme
-  if (CHAND_GROUP) CHAND_GROUP.rotation.y += 0.0035;
+  if (CHAND_GROUP) CHAND_GROUP.rotation.y += 0.0035 * frameScale;
   // Vinyl disc — spins only while music is playing (33⅓ rpm in spirit)
-  if (RECORD_DISC && !audio.paused) RECORD_DISC.rotation.z -= 0.04;
+  if (RECORD_DISC && !audio.paused) RECORD_DISC.rotation.z -= 0.04 * frameScale;
   // Pomodoro button plane fades in alongside everything else
   if (window.__pomoBtnPlane) window.__pomoBtnPlane.material.opacity = ease * 0.7;
   // Switch panel label plate fades in alongside everything else
@@ -5988,9 +6054,9 @@ function animate() {
   // Mind-layer fades + ticks
   if (window.__linkLineMat) window.__linkLineMat.opacity = ease * 0.18;
   if (window.__partMat)     window.__partMat.opacity     = ease * 0.18;
-  if (typeof window.__tickPulse === 'function')     window.__tickPulse();
-  if (typeof window.__tickParticles === 'function') window.__tickParticles();
-  if (typeof window.__tickAphorism === 'function') window.__tickAphorism(performance.now());
+  if (typeof window.__tickPulse === 'function')     window.__tickPulse(frameScale);
+  if (typeof window.__tickParticles === 'function') window.__tickParticles(frameScale);
+  if (typeof window.__tickAphorism === 'function') window.__tickAphorism(frameNow, frameScale);
   // Translucent portrait rotator — cycles every ~30s, cross-fades 1.5s.
   // Max opacity 0.32 so the aphorism text stays the dominant read.
   if (window.__portraitPlane && window.__portraitMats) {
@@ -5998,10 +6064,10 @@ function animate() {
     const sinceSwap = now - window.__portraitLastSwap;
     const TARGET_OP = 0.32;
     if (window.__portraitFadeDir === 1) {
-      window.__portraitFade = Math.min(TARGET_OP, window.__portraitFade + 0.004);
+      window.__portraitFade = Math.min(TARGET_OP, window.__portraitFade + 0.004 * frameScale);
       if (sinceSwap > 28000) window.__portraitFadeDir = -1;
     } else {
-      window.__portraitFade = Math.max(0, window.__portraitFade - 0.004);
+      window.__portraitFade = Math.max(0, window.__portraitFade - 0.004 * frameScale);
       if (window.__portraitFade <= 0) {
         window.__portraitIdx = (window.__portraitIdx + 1) % window.__portraitMats.length;
         window.__portraitPlane.material = window.__portraitMats[window.__portraitIdx];
@@ -6259,9 +6325,9 @@ function animate() {
     const positions = particles.geometry.attributes.position.array;
     for (let i = 0; i < PARTICLE_COUNT; i++) {
       const v = particleVelocities[i];
-      positions[i*3] += v.x + Math.sin(t * 0.3 + i) * 0.0005;
-      positions[i*3+1] += v.y;
-      positions[i*3+2] += v.z + Math.cos(t * 0.2 + i) * 0.0005;
+      positions[i*3] += (v.x + Math.sin(t * 0.3 + i) * 0.0005) * frameScale;
+      positions[i*3+1] += v.y * frameScale;
+      positions[i*3+2] += (v.z + Math.cos(t * 0.2 + i) * 0.0005) * frameScale;
       if (positions[i*3+1] > 5.5) positions[i*3+1] = 0.2;
       if (positions[i*3] > 9) positions[i*3] = -9;
       if (positions[i*3] < -9) positions[i*3] = 9;
@@ -6269,12 +6335,12 @@ function animate() {
       if (positions[i*3+2] < -7) positions[i*3+2] = 7;
     }
     particles.geometry.attributes.position.needsUpdate = true;
-    particles.material.opacity = Math.min(0.35, particles.material.opacity + 0.002);
+    particles.material.opacity = Math.min(0.35, particles.material.opacity + 0.002 * frameScale);
   }
   // Data pulse particles
   pulseAnims.forEach(p => {
-    if (!p.active) { p.delay--; if (p.delay <= 0) { p.active = true; p.progress = 0; } return; }
-    p.progress += p.speed;
+    if (!p.active) { p.delay -= frameScale; if (p.delay <= 0) { p.active = true; p.progress = 0; } return; }
+    p.progress += p.speed * frameScale;
     if (p.progress >= 1) { p.progress = 0; p.active = false; p.delay = 60+Math.random()*120; p.mesh.visible = false; return; }
     p.mesh.visible = true;
     const pos = p.mesh.geometry.attributes.position.array;
@@ -6288,6 +6354,7 @@ function animate() {
   updateDolly();
 
   renderer.render(scene, camera);
+  RENDER_QUALITY.sample(rawFrameMs);
 }
 // Do not execute the render loop while this module is still initializing.
 // The world is intentionally assembled below this point; starting immediately
@@ -7059,7 +7126,10 @@ function toggleSky() { CAMERA_MODE === 'sky' ? exitSky() : enterSky(); }
 // every side-effect hangs off the transition.
 function updateGroundCaption() {
   const cap = document.getElementById('ground-cap');
-  if (cap && GROUND) cap.textContent = `${GROUND.scaleLabel(WORLD_SITE.lat)} · ${GROUND.mod.ATTRIBUTION}`;
+  if (cap && GROUND) {
+    cap.textContent = `${GROUND.scaleLabel(WORLD_SITE.lat)} · ${GROUND.mod.ATTRIBUTION}`;
+    document.body.dataset.groundZoom = String(GROUND.getZoom());
+  }
 }
 
 function syncOverheadHud() {

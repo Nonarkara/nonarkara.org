@@ -42,8 +42,8 @@ assert(p.history[PARKED[0]].length === 5, "parked host is still recorded");
 // ── uptime arithmetic: 3 up of 4 probes = 75% ─────────────────
 let u = emptyFleet();
 round(u, 200, 0); round(u, 200, 1); round(u, 200, 2); round(u, 500, 3);
-assert.equal(uptimeFor(u, "nonarkara.org").d1, 75, "24h uptime from history");
-assert.equal(uptimeFor(u, "nonarkara.org").d7, 75, "7d uptime from rollups");
+assert.equal(uptimeFor(u, "nonarkara.org", at(3)).d1, 75, "24h uptime from history");
+assert.equal(uptimeFor(u, "nonarkara.org", at(3)).d7, 75, "7d uptime from rollups");
 
 // ── ring buffer caps at 24h ───────────────────────────────────
 let r = emptyFleet();

@@ -19,6 +19,16 @@
 # /heal + self-heal is what actually clears a visitor's disk cache.
 # ship.sh warns when the custom domain still serves the 4h header.
 
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-j799OgeCQWJ7WHQmR+XR+J4Z9v5NXkHqM811pPMApf8=' 'sha256-NqizBrOnYS9ghKUw9h5To7QoyURzCnoYX/49t64nBlk=' 'sha256-09+iC3cfZoRHc4znTvMsaqNfA3+z2zt+nE8Yd8GuPMs=' https://cdn.jsdelivr.net https://static.cloudflareinsights.com; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://tile.openstreetmap.org; media-src 'self' blob: https://api.nonarkara.org; connect-src 'self' https://api.nonarkara.org https://open.er-api.com https://api.open-meteo.com https://air-quality-api.open-meteo.com https://hacker-news.firebaseio.com https://api.github.com https://cloudflareinsights.com; frame-src https://games.nonarkara.org; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  Permissions-Policy: accelerometer=(self), gyroscope=(self), magnetometer=(self), geolocation=(self), camera=(), microphone=(), payment=(), usb=(), browsing-topics=()
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Cross-Origin-Opener-Policy: same-origin
+  Origin-Agent-Cluster: ?1
+  Strict-Transport-Security: max-age=31536000
+
 /
   Cache-Control: no-cache
 

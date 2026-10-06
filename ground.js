@@ -51,6 +51,10 @@ export function tileXY(lat, lon, z) {
 export const metresPerPixel = (lat, z) =>
   156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, z);
 
+/** One refresh-rate-independent zoom step; exported for the regression test. */
+export const dampZoom = (current, target, dt, speed = 2.2) =>
+  current + (target - current) * (1 - Math.exp(-speed * Math.max(0, dt)));
+
 export function buildGround(lineColor = 0xe6edf3, amber = 0xf59e0b, maxAnisotropy = 1) {
   const group = new THREE.Group();
   group.name = 'ground';
@@ -167,6 +171,11 @@ export function buildGround(lineColor = 0xe6edf3, amber = 0xf59e0b, maxAnisotrop
   let loadedFor = null;
   let loadGen = 0;   // bumped per load(); a late tile from an old gen is dropped
   let zoom = ZOOM;
+  // Keep the fractional state separate from the integer tile level. The old
+  // loop rounded every tiny damped step back to 13, so auto-zoom could never
+  // accumulate enough motion to load z14. The HUD promised tilt-to-streets
+  // while the floor remained a blurred 19 km city tile forever.
+  let zoomFloat = ZOOM;
   let lastSite = null;
 
   function load(site) {
@@ -186,7 +195,8 @@ export function buildGround(lineColor = 0xe6edf3, amber = 0xf59e0b, maxAnisotrop
    * did, exactly like turning the knob on a chart plotter.
    */
   function setZoom(next) {
-    const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.round(next)));
+    zoomFloat = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, next));
+    const z = Math.round(zoomFloat);
     if (z === zoom) return zoom;
     const prev = zoom;
     zoom = z;
@@ -239,8 +249,7 @@ export function buildGround(lineColor = 0xe6edf3, amber = 0xf59e0b, maxAnisotrop
       return;
     }
     // Inlined exponential ease — ground.js stays dependency-free.
-    const k = 1 - Math.exp(-AUTO_ZOOM_SPEED * Math.max(0, dt));
-    setZoom(zoom + (autoZoom - zoom) * k);
+    setZoom(dampZoom(zoomFloat, autoZoom, dt, AUTO_ZOOM_SPEED));
   }
 
   // Caller can register a callback for integer-zoom changes (used by the

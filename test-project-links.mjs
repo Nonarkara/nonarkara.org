@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 const app = readFileSync(new URL('./app.js', import.meta.url), 'utf8');
 
 // Public project destinations presented on axiom.nonarkara.org as of
-// 2026-08-09. This catches the quiet failure where the portfolio site
+// 2026-10-07. This catches the quiet failure where the portfolio site
 // grows but the personal site's all-projects screen does not.
 const AXIOM_LINKS = [
   'https://flood-ami.pages.dev/',
@@ -45,11 +45,43 @@ const AXIOM_LINKS = [
   'https://solomon.nonarkara.org',
   'https://scl.nonarkara.org/',
   'https://depa-usdot.nonarkara.org/',
+  'https://bit.ly/flooddashthai',
+  'https://nst.nonarkara.org/',
+  'https://lopburi.nonarkara.org/lopburi',
+  'https://malaysia.nonarkara.org/',
+  'https://bkk.nonarkara.org/',
+  'https://globalmonitor.nonarkara.org/',
+  'https://asia.nonarkara.org/',
+  'https://mem.nonarkara.org/',
+  'https://day2.nonarkara.org/',
+  'https://carbon.nonarkara.org/?lang=th',
+  'https://open.spotify.com/show/0342w6de0LJk5wXCSNCqa3?si=jGar41OPTHak-43L2ltq9w',
+  'https://games.nonarkara.org/',
+  'https://github.com/Nonarkara/dr-non-openclaw-setup',
+  'https://shophouses.nonarkara.org/',
+  'https://shanghai.nonarkara.org/',
+  'https://rag.nonarkara.org/',
+  'https://champion.nonarkara.org/',
+  'https://soccer.nonarkara.org/',
+  'https://vision.nonarkara.org/',
+  'https://each.nonarkara.org/',
+  'https://colors.nonarkara.org/',
+  'https://github.com/Nonarkara/Axiom-Design-Core',
+  'https://github.com/Nonarkara/Rams-NYCTA-Design-Core',
+  'https://github.com/Nonarkara/dr-non-luggage-tag-aesthetic',
+  'https://github.com/Nonarkara/moma-rules',
+  'https://otop.pages.dev/',
+  'https://superleague-xxd.pages.dev/#/lobby',
 ];
 
 for (const url of AXIOM_LINKS) assert(app.includes(url), `missing Axiom project: ${url}`);
 assert(app.includes('<span class="title">${p.title}</span>'), 'plan must show project titles');
+assert(app.includes("url: 'https://blog.nonarkara.org/'"), 'canonical Dr Non archive belongs in the work index');
+assert(app.includes("url: 'https://sabaisabai-airdnd.pages.dev/'"), 'Sabai Sabai belongs in the all-projects index');
+const projectBlock = app.match(/const PROJECTS = \[([\s\S]*?)\n\];/)?.[1] || '';
+assert.equal((projectBlock.match(/\{ code:/g) || []).length, 82,
+  'the complete project registry stays intact');
 assert.equal((app.match(/makeSabaiCup\(/g) || []).length, 4,
   'Sabai Sabai should be discoverable in Pavilion, Glass House and Farnsworth House');
 
-console.log(`project links: ${AXIOM_LINKS.length} Axiom destinations · Sabai Sabai in 3 houses`);
+console.log(`project links: ${AXIOM_LINKS.length} Axiom destinations · 82 total · Sabai Sabai in 3 houses`);

@@ -13,7 +13,7 @@
 # succeeded; it says nothing about whether the site now serves what you
 # just built. This compares the version stamp in the local app.js to the
 # one the live domain actually returns, and fails loudly when they differ.
-set -uo pipefail
+set -euo pipefail
 
 cd "$(dirname "$0")"
 PROJECT="nonarkara-org"
@@ -28,8 +28,8 @@ say "shipping v${LOCAL_VERSION}"
 
 # Refuse to ship a working tree that does not match what is committed —
 # otherwise the version you verify is not the version in git.
-if [ -n "$(git status --porcelain -- app.js index.html styles.css sw.js mixtape.html sky.js ground.js pavilion.js glasshouse.js savoye.js farnsworth.js fallingwater.js interiors.js walk.js look.js 2>/dev/null)" ]; then
-  die "uncommitted changes to shipped files — commit first, or you will deploy something git does not have"
+if [ -n "$(git status --porcelain --untracked-files=no 2>/dev/null)" ]; then
+  die "uncommitted tracked changes — commit first, or you will deploy bytes git does not have"
 fi
 
 if [ "${1:-}" != "--no-push" ]; then

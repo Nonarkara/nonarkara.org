@@ -2,7 +2,7 @@
 // The failure this catches: a north/south sign flip, which produces a
 // map that looks perfectly plausible and is mirrored.
 import assert from 'node:assert';
-const { tileXY, metresPerPixel, ZOOM } = await import('./ground.js');
+const { tileXY, metresPerPixel, dampZoom, ZOOM } = await import('./ground.js');
 
 const near = (a, b, tol, what) =>
   assert(Math.abs(a - b) <= tol, `${what}: got ${a}, want ${b} ±${tol}`);
@@ -84,6 +84,14 @@ near(tileXY(51.4778, 0, 1).x, 1.0, 1e-9, 'Greenwich is on the prime meridian');
   // (19–38 km), the default underfoot view.
   const across = metresPerPixel(13.7563, 11) * 256 * 4 / 1000;
   assert(across > 60 && across < 90, `z11 span ${across.toFixed(0)}km should be region scale`);
+}
+
+// Fractional auto-zoom must accumulate between integer tile loads. Rounding
+// each frame back to z13 made the tilt mechanic a permanent no-op.
+{
+  let z = ZOOM;
+  for (let i = 0; i < 120; i += 1) z = dampZoom(z, 17, 1 / 60);
+  assert(z > 16.8, `two seconds looking down should approach street zoom, got ${z}`);
 }
 
 console.log('ground: all checks passed');

@@ -6,7 +6,7 @@
  * for same-origin, so a stale version means users keep the old shell.
  */
 
-const CACHE_VERSION = 'non-2026-09-06-v4.41';
+const CACHE_VERSION = 'non-2026-10-07-v4.43';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 // The app's own code. These are always revalidated when online so a
@@ -14,6 +14,7 @@ const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const CODE = new Set([
   '/', '/index.html', '/mixtape.html',
   '/styles.css', '/app.js', '/discover.js', '/sky.js', '/ground.js',
+  '/render-quality.js',
   '/pavilion.js', '/glasshouse.js', '/savoye.js', '/farnsworth.js', '/fallingwater.js',
   '/walk.js', '/daylight.js', '/astronomy.js', '/world.js', '/poems.js', '/starlore.js', '/look.js', '/pool.js', '/interiors.js',
   '/yard.js', '/drive.js', '/arcade.js', '/exhibit.js', '/balls.js',
@@ -29,6 +30,7 @@ const SHELL = [
   '/mixtape.html',
   '/styles.css',                    // v2: extracted from inline
   '/app.js',                        // v2: extracted from inline
+  '/render-quality.js',             // adaptive DPR + frame pacing
   '/discover.js',                   // pavilion discovery counter
   '/sky.js',                        // the planetarium — must work offline
   '/pavilion.js',                   // the Barcelona plan

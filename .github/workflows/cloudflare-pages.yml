@@ -32,7 +32,13 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Run world and Worker regression suites
+        run: |
+          node --check app.js
+          for test_file in test-*.mjs; do node "$test_file"; done
+          for test_file in worker/test-*.mjs; do node "$test_file"; done
 
       # Pages uploads whatever directory it is given, verbatim, and has no
       # ignore mechanism. Stage a clean copy instead of shipping the repo.
@@ -43,7 +49,7 @@ jobs:
           find dist -type f | wc -l
 
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
