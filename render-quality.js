@@ -51,12 +51,13 @@ export class AdaptiveResolution {
       this.minPixelRatio,
       Math.min(this.maxPixelRatio, Math.round(next * 4) / 4),
     );
-    if (ratio === this.pixelRatio && this.renderer.getPixelRatio?.() === ratio) return false;
+    const unchanged = ratio === this.pixelRatio && this.renderer.getPixelRatio?.() === ratio;
     this.pixelRatio = ratio;
-    this.renderer.setPixelRatio(ratio);
     if (this.renderer.domElement?.dataset) {
       this.renderer.domElement.dataset.pixelRatio = String(ratio);
     }
+    if (unchanged) return false;
+    this.renderer.setPixelRatio(ratio);
     return true;
   }
 
