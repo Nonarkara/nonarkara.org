@@ -40,26 +40,15 @@ jobs:
         run: |
           set +e
           # semgrep/semgrep:1.180.0
+          # The image runs as root. chmod inside the container so the
+          # runner user can replace the SARIF after redacting it.
           docker run --rm \
             -v "${GITHUB_WORKSPACE}:/src" \
             -w /src \
+            --entrypoint /bin/sh \
             semgrep/semgrep@sha256:529ee8a277ec8adc5b534d7c74eea0a47e9de21d62852b6ba7ac6ba9566845c3 \
-            semgrep scan \
-              --metrics=off \
-              --disable-version-check \
-              --quiet \
-              --sarif \
-              --output semgrep.sarif \
-              --config p/javascript \
-              --config p/nodejs \
-              --config p/clientside-js \
-              --config p/secrets \
-              --config p/github-actions \
-              .
+            -c 'semgrep scan --metrics=off --disable-version-check --quiet --sarif --output semgrep.sarif --config p/javascript --config p/nodejs --config p/clientside-js --config p/secrets --config p/github-actions .; status=$?; if [ -f semgrep.sarif ]; then chmod a+rw semgrep.sarif; fi; exit $status'
           status=$?
-          if [ -f semgrep.sarif ]; then
-            chmod a+r semgrep.sarif
-          fi
           echo "semgrep_exit=${status}"
           # Scanner stdout can echo a matched secret. Do not print it.
           exit 0
@@ -280,9 +269,11 @@ jobs:
               return findings
 
           def write_back(path, data):
-              with open(path, "w", encoding="utf-8") as handle:
+              temporary = path + ".tmp"
+              with open(temporary, "w", encoding="utf-8") as handle:
                   json.dump(data, handle)
                   handle.write("\n")
+              os.replace(temporary, path)
 
           def bullet(finding):
               line = finding["line"]
