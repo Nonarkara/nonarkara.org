@@ -1,0 +1,372 @@
+# Report-only security scan. Findings are uploaded to code scanning and
+# written to the job summary. They do not fail this workflow.
+#
+# Semgrep OSS packs match the languages that have a public registry pack:
+#   p/javascript     site modules, tests, worker, Apps Script (.js/.mjs)
+#   p/nodejs         Cloudflare Worker (nodejs_compat) and Node test scripts
+#   p/clientside-js  browser JavaScript (the pavilion and NON OS surfaces)
+#   p/secrets        required
+#   p/github-actions required
+# No public p/html, p/css, p/sql, or p/bash pack exists. HTML, CSS, the SQL
+# migration, and the shell scripts are still covered by p/secrets where those
+# rules apply, and workflows are covered by p/github-actions.
+name: Security
+
+on:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # Weekly, Monday 06:17 UTC.
+    - cron: "17 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Report-only scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Semgrep OSS
+        run: |
+          set +e
+          # semgrep/semgrep:1.180.0
+          # The image runs as root. chmod inside the container so the
+          # runner user can replace the SARIF after redacting it.
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/src" \
+            -w /src \
+            --entrypoint /bin/sh \
+            semgrep/semgrep@sha256:529ee8a277ec8adc5b534d7c74eea0a47e9de21d62852b6ba7ac6ba9566845c3 \
+            -c 'semgrep scan --metrics=off --disable-version-check --quiet --sarif --output semgrep.sarif --config p/javascript --config p/nodejs --config p/clientside-js --config p/secrets --config p/github-actions .; status=$?; if [ -f semgrep.sarif ]; then chmod a+rw semgrep.sarif; fi; exit $status'
+          status=$?
+          echo "semgrep_exit=${status}"
+          # Scanner stdout can echo a matched secret. Do not print it.
+          exit 0
+
+      - name: Trivy filesystem scan
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          format: sarif
+          output: trivy.sarif
+          exit-code: "0"
+          hide-progress: "true"
+          cache: "false"
+          timeout: 15m
+          version: v0.70.0
+
+      - name: Redact SARIF and write job summary
+        id: report
+        if: always()
+        run: |
+          python3 << 'PY'
+          import json
+          import os
+          import re
+          import sys
+
+          SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN")
+          LEVEL_MAP = {
+              "error": "HIGH",
+              "warning": "MEDIUM",
+              "note": "LOW",
+              "none": "UNKNOWN",
+          }
+          CREDENTIAL = re.compile(
+              r"(AKIA[0-9A-Z]{16}"
+              r"|ghp_[A-Za-z0-9]{20,}"
+              r"|github_pat_[A-Za-z0-9_]{20,}"
+              r"|gho_[A-Za-z0-9]{20,}"
+              r"|xox[baprs]-[A-Za-z0-9-]{10,}"
+              r"|sk-(?:proj-)?[A-Za-z0-9]{20,}"
+              r"|AIza[0-9A-Za-z_\-]{20,}"
+              r"|-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----"
+              r"|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})"
+          )
+          TOP_LIMIT = 20
+
+          def text_of(node):
+              if isinstance(node, str):
+                  return node
+              if isinstance(node, dict):
+                  return node.get("text") or node.get("markdown") or ""
+              return ""
+
+          def tags_of(rule):
+              props = (rule or {}).get("properties") or {}
+              tags = props.get("tags") or []
+              return [t for t in tags if isinstance(t, str)]
+
+          def rule_embeds_secret(rule):
+              # Trivy writes the matched secret into the rule help text.
+              name = ((rule or {}).get("name") or "").lower()
+              tags = [t.lower() for t in tags_of(rule)]
+              return name == "secret" or "secret" in tags
+
+          def is_secret_result(result, rule):
+              rid = (result.get("ruleId") or "").lower()
+              if rule_embeds_secret(rule):
+                  return True
+              if ".secrets." in rid or "private-key" in rid:
+                  return True
+              if "hardcoded" in rid and any(
+                  word in rid for word in ("secret", "password", "token", "key")
+              ):
+                  return True
+              for tag in tags_of(rule):
+                  if tag.upper().startswith("CWE-798"):
+                      return True
+              return False
+
+          def severity(result, rule):
+              for source in (
+                  (result.get("properties") or {}).get("tags") or [],
+                  tags_of(rule),
+              ):
+                  upper = [t.upper() for t in source if isinstance(t, str)]
+                  for name in SEVERITIES:
+                      if name in upper:
+                          return name
+              for props in (
+                  result.get("properties") or {},
+                  (rule or {}).get("properties") or {},
+              ):
+                  raw = props.get("security-severity")
+                  if raw is None:
+                      continue
+                  try:
+                      score = float(raw)
+                  except (TypeError, ValueError):
+                      continue
+                  if score >= 9:
+                      return "CRITICAL"
+                  if score >= 7:
+                      return "HIGH"
+                  if score >= 4:
+                      return "MEDIUM"
+                  if score > 0:
+                      return "LOW"
+                  return "UNKNOWN"
+              level = result.get("level") or (
+                  (rule or {}).get("defaultConfiguration") or {}
+              ).get("level") or "warning"
+              return LEVEL_MAP.get(str(level).lower(), "UNKNOWN")
+
+          def location(result):
+              locs = result.get("locations") or []
+              if not locs:
+                  return "unknown", None
+              phys = (locs[0].get("physicalLocation") or {})
+              art = phys.get("artifactLocation") or {}
+              uri = art.get("uri") or "unknown"
+              uri = uri.split("file://", 1)[-1]
+              for marker in ("/workspace/", "/github/workspace/"):
+                  if marker in uri:
+                      uri = uri.split(marker, 1)[1]
+              uri = uri.lstrip("./")
+              line = (phys.get("region") or {}).get("startLine")
+              return uri or "unknown", line
+
+          def looks_like_credential(value):
+              return bool(CREDENTIAL.search(value or ""))
+
+          def redact_snippets(node):
+              if isinstance(node, dict):
+                  snippet = node.get("snippet")
+                  if isinstance(snippet, dict) and "text" in snippet:
+                      snippet["text"] = "value omitted"
+                  elif isinstance(snippet, str):
+                      node["snippet"] = "value omitted"
+                  for value in node.values():
+                      redact_snippets(value)
+              elif isinstance(node, list):
+                  for value in node:
+                      redact_snippets(value)
+
+          def set_text(node, key, value):
+              current = node.get(key)
+              if isinstance(current, dict):
+                  current["text"] = value
+                  if "markdown" in current:
+                      current["markdown"] = value
+              else:
+                  node[key] = {"text": value}
+
+          def load_sarif(path):
+              if not os.path.isfile(path):
+                  return None, "not produced"
+              try:
+                  with open(path, encoding="utf-8") as handle:
+                      data = json.load(handle)
+              except Exception:
+                  os.remove(path)
+                  return None, "unreadable and removed"
+              if not isinstance(data, dict) or not isinstance(data.get("runs"), list):
+                  os.remove(path)
+                  return None, "unreadable and removed"
+              return data, "ok"
+
+          def redact(data):
+              findings = []
+              for run in data.get("runs") or []:
+                  driver = ((run.get("tool") or {}).get("driver") or {})
+                  rules = {
+                      rule.get("id"): rule
+                      for rule in (driver.get("rules") or [])
+                      if isinstance(rule, dict) and rule.get("id")
+                  }
+                  for rule in rules.values():
+                      if not rule_embeds_secret(rule):
+                          continue
+                      # Trivy stores the matched secret in the rule body.
+                      # Keep a non-credential title so the key type still shows.
+                      short = text_of(rule.get("shortDescription"))
+                      if not short or looks_like_credential(short):
+                          set_text(rule, "shortDescription", rule.get("id") or "secret")
+                      set_text(rule, "fullDescription", "Value omitted.")
+                      rule["help"] = {
+                          "text": "Value omitted.",
+                          "markdown": "Value omitted.",
+                      }
+                  for result in run.get("results") or []:
+                      if not isinstance(result, dict):
+                          continue
+                      rule = rules.get(result.get("ruleId")) or {}
+                      secret = is_secret_result(result, rule)
+                      message = text_of(result.get("message"))
+                      if secret or looks_like_credential(message):
+                          result["message"] = {
+                              "text": "Credential finding. Value omitted."
+                          }
+                          redact_snippets(result)
+                          secret = True
+                      path, line = location(result)
+                      findings.append(
+                          {
+                              "severity": severity(result, rule),
+                              "path": path,
+                              "line": line,
+                              "rule": result.get("ruleId") or "unknown-rule",
+                              "secret": secret,
+                              "message": ""
+                              if secret
+                              else " ".join(message.split()),
+                          }
+                      )
+              return findings
+
+          def write_back(path, data):
+              temporary = path + ".tmp"
+              with open(temporary, "w", encoding="utf-8") as handle:
+                  json.dump(data, handle)
+                  handle.write("\n")
+              os.replace(temporary, path)
+
+          def bullet(finding):
+              line = finding["line"]
+              where = finding["path"] if line is None else f"{finding['path']}:{line}"
+              rule = finding["rule"].replace("`", "'")
+              if finding["secret"]:
+                  return f"- `{where}` `{rule}`"
+              message = finding["message"].replace("`", "'")
+              if len(message) > 180:
+                  message = message[:177] + "..."
+              if message:
+                  return f"- `{where}` `{rule}` — {message}"
+              return f"- `{where}` `{rule}`"
+
+          def section(title, status, findings):
+              lines = [f"## {title}", ""]
+              if status != "ok":
+                  lines.append(f"Scan {status}. No SARIF to upload.")
+                  lines.append("")
+                  return lines
+              counts = {name: 0 for name in SEVERITIES}
+              for finding in findings:
+                  counts[finding["severity"]] = counts.get(finding["severity"], 0) + 1
+              lines.append("| Severity | Count |")
+              lines.append("| --- | ---: |")
+              for name in SEVERITIES:
+                  lines.append(f"| {name.title()} | {counts[name]} |")
+              lines.append("")
+              ranked = {"CRITICAL": 0, "HIGH": 1}
+              top = [item for item in findings if item["severity"] in ranked]
+              top.sort(key=lambda item: (ranked[item["severity"]], item["path"], item["line"] or 0))
+              lines.append("### Critical and high")
+              lines.append("")
+              if not top:
+                  lines.append("No critical or high findings.")
+              else:
+                  for finding in top[:TOP_LIMIT]:
+                      lines.append(bullet(finding))
+                  remaining = len(top) - TOP_LIMIT
+                  if remaining > 0:
+                      lines.append(f"- {remaining} more critical/high findings omitted from this summary.")
+              lines.append("")
+              secrets = [item for item in findings if item["secret"]]
+              lines.append("### Secrets")
+              lines.append("")
+              lines.append("File, line, and rule only. Values are omitted.")
+              lines.append("")
+              if not secrets:
+                  lines.append("No secret findings.")
+              else:
+                  for finding in secrets[:TOP_LIMIT]:
+                      lines.append(bullet(finding))
+                  remaining = len(secrets) - TOP_LIMIT
+                  if remaining > 0:
+                      lines.append(f"- {remaining} more secret findings omitted from this summary.")
+              lines.append("")
+              return lines
+
+          parts = [
+              "# Security scan (report only)",
+              "",
+              "Findings do not fail this job.",
+              "",
+          ]
+          for title, filename in (
+              ("Semgrep OSS", "semgrep.sarif"),
+              ("Trivy", "trivy.sarif"),
+          ):
+              data, status = load_sarif(filename)
+              findings = []
+              if data is not None:
+                  findings = redact(data)
+                  write_back(filename, data)
+              parts.extend(section(title, status, findings))
+
+          summary = "\n".join(parts).rstrip() + "\n"
+          destination = os.environ.get("GITHUB_STEP_SUMMARY")
+          if destination:
+              with open(destination, "a", encoding="utf-8") as handle:
+                  handle.write(summary)
+          sys.stdout.write(summary)
+          PY
+
+      - name: Upload Semgrep SARIF
+        if: ${{ always() && steps.report.outcome == 'success' && hashFiles('semgrep.sarif') != '' }}
+        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep-oss
+
+      - name: Upload Trivy SARIF
+        if: ${{ always() && steps.report.outcome == 'success' && hashFiles('trivy.sarif') != '' }}
+        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          sarif_file: trivy.sarif
+          category: trivy-fs

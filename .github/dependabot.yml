@@ -1,0 +1,15 @@
+# GitHub Actions is the only package ecosystem in this repo.
+# There is no application manifest: no package.json, lockfile, Dockerfile,
+# or requirements file. node_modules/three/package.json is a vendored stub
+# with no dependencies, so it is not an npm project for Dependabot.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      github-actions:
+        patterns:
+          - "*"
