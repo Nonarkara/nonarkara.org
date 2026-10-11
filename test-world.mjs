@@ -8,6 +8,8 @@ import { ridgeHeight } from './world.js';
 const BANGKOK = { lat: 13.7563, lon: 100.5018 };
 
 // Bangkok has an easterly sunrise and westerly sunset on an ordinary day.
+// Local noon is intentional: the host zone used to move the search window,
+// and GitHub's UTC runner then paired sunset with the next sunrise.
 {
   const d = new Date(2026, 7, 11, 12);
   const e = solarEvents(d, BANGKOK.lat, BANGKOK.lon);

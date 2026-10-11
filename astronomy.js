@@ -112,14 +112,19 @@ export function moonPhase(date) {
 }
 
 /**
- * Sunrise and sunset for the visitor's local calendar day. A numerical
+ * Sunrise and sunset for the mean-solar day at this longitude. Fifteen
+ * degrees of longitude is one hour, east positive. The day must not follow
+ * the visitor's browser zone: a UTC clock would otherwise keep Bangkok's
+ * evening and hand back the next morning as "sunrise". A numerical
  * crossing is slower than a closed-form equation by microseconds and more
  * robust near the polar circles. -0.833° includes refraction and solar radius.
  */
 export function solarEvents(date, lat, lon) {
-  const start = new Date(
-    date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0,
-  ).getTime();
+  const offsetMs = lon * (60 * 60 * 1000) / 15;
+  const local = new Date(date.getTime() + offsetMs);
+  const start = Date.UTC(
+    local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate(),
+  ) - offsetMs;
   const end = start + 24 * 60 * 60 * 1000;
   const threshold = -0.833;
   const valueAt = (ms) => sunHorizontal(new Date(ms), lat, lon).alt - threshold;
