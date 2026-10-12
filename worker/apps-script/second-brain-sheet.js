@@ -67,18 +67,18 @@ function appendVisitor(p) {
     bkk,
     bkk.split(' ')[0],
     bkk.split(' ')[1],
-    p.dashboard  || '',
-    p.hostname   || '',
-    p.page       || '',
-    p.country    || '',
-    p.region     || '',
-    p.city       || '',
-    p.ip         || '',
-    p.referrer   || 'Direct',
-    p.language   || '',
-    p.screen     || '',
-    p.timezone   || '',
-    (p.userAgent || '').slice(0, 200),
+    sheetCell(p.dashboard  || ''),
+    sheetCell(p.hostname   || ''),
+    sheetCell(p.page       || ''),
+    sheetCell(p.country    || ''),
+    sheetCell(p.region     || ''),
+    sheetCell(p.city       || ''),
+    sheetCell(p.ip         || ''),
+    sheetCell(p.referrer   || 'Direct'),
+    sheetCell(p.language   || ''),
+    sheetCell(p.screen     || ''),
+    sheetCell(p.timezone   || ''),
+    sheetCell((p.userAgent || '').slice(0, 200)),
   ]);
 
   return jsonResponse({ ok: true });
@@ -106,14 +106,14 @@ function appendCapture(p) {
   const words = (p.text || '').trim().split(/\s+/).length;
 
   sheet.appendRow([
-    p.id          || '',
+    sheetCell(p.id          || ''),
     bkk,
     bkk.split(' ')[0],
     bkk.split(' ')[1],
-    p.text        || '',
-    p.source      || 'note',
-    (p.tags || []).join(', '),
-    p.session_id  || '',
+    sheetCell(p.text        || ''),
+    sheetCell(p.source      || 'note'),
+    sheetCell((p.tags || []).join(', ')),
+    sheetCell(p.session_id  || ''),
     words,
   ]);
 
@@ -139,20 +139,28 @@ function appendSession(p) {
     : '';
 
   sheet.appendRow([
-    p.id           || '',
+    sheetCell(p.id           || ''),
     fmt(p.started_at),
     fmt(p.ended_at),
-    p.duration_min || 25,
-    p.type         || 'pomodoro',
+    sheetCell(p.duration_min || 25),
+    sheetCell(p.type         || 'pomodoro'),
     p.completed    ? 'YES' : 'NO',
-    p.reflection   || '',
-    (p.tags || []).join(', '),
+    sheetCell(p.reflection   || ''),
+    sheetCell((p.tags || []).join(', ')),
   ]);
 
   return jsonResponse({ ok: true });
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
+// Caller strings can start with =, +, -, @, or a control character.
+// A leading apostrophe stores that value as text in the sheet.
+function sheetCell(value) {
+  if (typeof value === 'number' || typeof value === 'boolean') return value;
+  const text = value == null ? '' : String(value);
+  return /^[=+\-@\t\r]/.test(text) ? "'" + text : text;
+}
+
 function jsonResponse(obj) {
   return ContentService
     .createTextOutput(JSON.stringify(obj))
