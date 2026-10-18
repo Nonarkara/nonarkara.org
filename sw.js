@@ -6,7 +6,7 @@
  * for same-origin, so a stale version means users keep the old shell.
  */
 
-const CACHE_VERSION = 'non-2026-10-07-v4.43.2';
+const CACHE_VERSION = 'non-2026-10-18-v4.43.3';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 // The app's own code. These are always revalidated when online so a
@@ -22,6 +22,8 @@ const CODE = new Set([
   // about staleness, which is a very good way to never fix anything.
   '/version.json',
   '/heal',
+  // Podcast archive (18 Oct 2026): data + code must not stick in the runtime cache.
+  '/podcast-archive/archive.json', '/podcast-archive/archive.js',
 ]);
 
 const SHELL = [
@@ -134,12 +136,21 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
 
+  // Audio and range requests go straight to the network, never the cache:
+  // media elements ask for byte ranges, and a 206 Partial Content response
+  // makes cache.put() reject (podcast archive, 18 Oct 2026).
+  // Podcast host only: the site's own /music/track-NN.mp3 stay cache-first (warmMusic keeps them offline).
+  if (url.hostname === 'api.nonarkara.org' && (req.destination === 'audio' || req.destination === 'video' ||
+      req.headers.has('range') || /\.(mp3|m4a|aac|wav|ogg|opus)$/i.test(url.pathname))) return;
+
   if (url.hostname === 'api.nonarkara.org') {
     event.respondWith((async () => {
       try {
         const fresh = await fetch(req);
-        const cache = await caches.open(RUNTIME_CACHE);
-        cache.put(req, fresh.clone());
+        if (fresh && fresh.status === 200) {
+          const cache = await caches.open(RUNTIME_CACHE);
+          cache.put(req, fresh.clone()).catch(() => {});
+        }
         return fresh;
       } catch (e) {
         const cached = await caches.match(req);
@@ -171,7 +182,7 @@ self.addEventListener('fetch', (event) => {
           const fresh = await fetch(req);
           if (fresh && fresh.ok) {
             const cache = await caches.open(CACHE_VERSION);
-            cache.put(req, fresh.clone());
+            if (fresh.status === 200) cache.put(req, fresh.clone()).catch(() => {});
             return fresh;
           }
         } catch (e) { /* offline — fall through to cache */ }
@@ -190,9 +201,9 @@ self.addEventListener('fetch', (event) => {
       }
       try {
         const fresh = await fetch(req);
-        if (fresh && fresh.ok) {
+        if (fresh && fresh.status === 200) {
           const cache = await caches.open(RUNTIME_CACHE);
-          cache.put(req, fresh.clone());
+          cache.put(req, fresh.clone()).catch(() => {});
         }
         return fresh;
       } catch (e) {

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Podcast archive · Dr Non Arkaraprasertkul</title>
+<meta name="description" content="Episodes Dr Non published before his podcasts restarted in October 2026: The Non-Philosophy Podcast, The World in Twenty Minutes and One App a Day.">
+<link rel="canonical" href="https://nonarkara.org/podcast-archive/">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500&family=Josefin+Sans:wght@300;700&family=IBM+Plex+Sans+Thai:wght@400&family=Noto+Sans+SC:wght@400&display=swap" rel="stylesheet">
+<style>
+/* type scale: .8 / 1 / 1.15 / 1.45 / 2.9 rem */
+:root{--bg:#f5f5f0;--ink:#14181d;--mute:#5d636b;--rule:#d9d9d0;--accent:#A41034}
+*{box-sizing:border-box}
+html{font-size:17px}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 1rem/1.55 Jost,'IBM Plex Sans Thai','Noto Sans SC',sans-serif;padding-bottom:5.5rem}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.wrap{max-width:1180px;margin:0 auto;padding:2.2rem 1.5rem 0;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:3.5rem;align-items:start}
+.side{position:sticky;top:1.5rem}
+.kicker{font:700 .8rem/1.2 'Josefin Sans',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin:0 0 .9rem}
+.kicker a{color:inherit;text-decoration:none}
+h1{font:300 2.9rem/1.05 'Josefin Sans','IBM Plex Sans Thai','Noto Sans SC',sans-serif;margin:0 0 1rem}
+.lede{max-width:40ch;color:var(--mute);margin:0 0 1.8rem}
+.tabs{display:flex;flex-direction:column;align-items:flex-start;gap:.15rem;margin:0 0 2rem}
+.tab{all:unset;cursor:pointer;font:300 1.45rem/1.3 'Josefin Sans',sans-serif;color:var(--mute);display:flex;gap:.6rem;align-items:baseline}
+.tab span{font:400 .8rem Jost,sans-serif}
+.tab[aria-selected=true]{color:var(--ink);font-weight:700}
+.tab[aria-selected=true]::before{content:"";width:.5rem;height:.5rem;background:var(--accent);align-self:center}
+.tab:focus-visible,.play:focus-visible,.more:focus-visible,.search input:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.now{border-top:1px solid var(--ink);padding-top:1rem;max-width:44ch}
+.now h2{font:700 1.15rem/1.3 'Josefin Sans',sans-serif;margin:.35rem 0 .5rem}
+.now p{margin:0;color:var(--mute)}
+.search{display:flex;gap:.75rem;align-items:baseline;border-bottom:1px solid var(--ink);margin:0 0 .4rem}
+.search input{all:unset;flex:1;font:400 1.15rem/1.4 Jost,'IBM Plex Sans Thai','Noto Sans SC',sans-serif;padding:.45rem 0}
+.search input::placeholder{color:var(--mute)}
+.count{font-size:.8rem;color:var(--mute);white-space:nowrap}
+ol{list-style:none;margin:0;padding:0}
+li.ep{border-bottom:1px solid var(--rule);display:grid;grid-template-columns:2.4rem minmax(0,1fr) auto;gap:.2rem .9rem;padding:.8rem 0;align-items:start}
+.play{all:unset;cursor:pointer;width:2.1rem;height:2.1rem;border:1px solid var(--ink);display:grid;place-items:center;margin-top:.1rem}
+.play svg{width:.7rem;height:.7rem;fill:var(--ink)}
+li.on .play{background:var(--accent);border-color:var(--accent)}
+li.on .play svg{fill:#fff}
+.t{font:500 1rem/1.35 Jost,sans-serif;margin:0}
+li.on .t{color:var(--accent)}
+.meta{font-size:.8rem;color:var(--mute);text-align:right;white-space:nowrap;padding-top:.15rem}
+.d{grid-column:2/4;margin:.15rem 0 0;color:var(--mute);max-width:65ch}
+.d[hidden]{display:none}
+.more{all:unset;cursor:pointer;grid-column:2;justify-self:start;font-size:.8rem;color:var(--accent)}
+.msg{color:var(--mute);padding:1.2rem 0;max-width:50ch}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--ink);padding:.55rem 1.5rem}
+.bar[hidden]{display:none}
+.bar-in{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,22rem) minmax(0,1fr);gap:1.25rem;align-items:center}
+.bar b{display:block;font:500 1rem/1.3 Jost,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar small{color:var(--mute);font-size:.8rem}
+.bar .err{color:var(--accent)}
+audio{width:100%;height:2.2rem}
+footer{max-width:1180px;margin:3rem auto 0;padding:0 1.5rem;font-size:.8rem;color:var(--mute)}
+footer p{max-width:70ch}
+@media (max-width:860px){
+ .wrap{grid-template-columns:1fr;gap:1.6rem;padding-top:1.4rem}
+ .side{position:static}
+ h1{font-size:2.9rem}
+ .tabs{flex-direction:row;flex-wrap:wrap;gap:.2rem 1.1rem;margin-bottom:1rem}
+ .tab{font-size:1.15rem}
+ .now{display:none}
+ .bar-in{grid-template-columns:1fr;gap:.2rem}
+}
+</style>
+</head>
+<body>
+<main class="wrap">
+ <aside class="side">
+  <p class="kicker"><a href="/">nonarkara.org</a> · <span data-i="kicker">Podcast archive</span></p>
+  <h1 data-i="h1">Before the restart</h1>
+  <p class="lede" data-i="lede">Episodes Dr Non published before his podcasts started again from Episode 1 in October 2026. Play any of them here.</p>
+  <div class="tabs" role="tablist" id="tabs" aria-label="Shows"></div>
+  <section class="now" id="now" aria-live="polite"></section>
+ </aside>
+ <section id="panel" role="tabpanel">
+  <label class="search"><input id="q" type="search" placeholder="Search titles and descriptions" aria-label="Search episodes"><span class="count" id="count" aria-live="polite"></span></label>
+  <ol id="list"><li class="msg" data-i="loading">Loading episodes…</li></ol>
+  <noscript><p class="msg">This archive needs JavaScript to play episodes. The RSS feeds below list the current shows.</p></noscript>
+ </section>
+</main>
+<footer><p><span data-i="feeds">New episodes (RSS):</span> <a href="https://api.nonarkara.org/podcast/nonism/feed.xml">Non-Philosophy</a>, <a href="https://api.nonarkara.org/podcast/feed.xml">The World in Twenty Minutes</a>, <a href="https://api.nonarkara.org/podcast/oneapp/feed.xml">One App a Day</a>. <span data-i="voice">Most episodes are narrated in an AI clone of Dr Non's voice, used with his consent.</span></p></footer>
+<div class="bar" id="bar" hidden><div class="bar-in"><div><b id="bt"></b><small id="bs"></small></div><audio id="au" controls preload="none" aria-label="Episode player"></audio></div></div>
+<script src="archive.js" defer></script>
+</body>
+</html>
