@@ -55,13 +55,59 @@ const run = (d, n = 60, dt = 1 / 60) => { for (let i = 0; i < n; i++) d.update(d
   assert(Math.abs(d.yaw) > 0.15, 'a moving truck turns');
 }
 
-// ── Drive proposes a chase view; it never writes camera rotation ──
+// ── You get in and you are IN it: the driver's seat ────────
 {
   const d = mk();
+  assert(d.mode === 'seat', 'the seat is the default view — not a camera behind the truck');
   d.keys.add('w');
   const view = d.update(1 / 60);
-  assert(Number.isFinite(view.yaw) && Number.isFinite(view.pitch), 'chase view is finite');
+  assert(Number.isFinite(view.yaw) && Number.isFinite(view.pitch), 'seat view is finite');
+  assert(Math.abs(view.pitch) < 0.01, 'the driver looks straight ahead, not down at the bonnet');
+  assert(Math.abs(view.yaw - d.yaw) < 0.01, 'the driver faces where the truck faces');
+}
+
+// ── The chase view is still there, on C ────────────────────
+{
+  const d = mk();
+  assert(d.toggleSeat() === 'chase', 'C swaps to the chase view');
+  d.keys.add('w');
+  const view = d.update(1 / 60);
   assert(view.pitch < 0, 'the elevated chase camera looks down toward the truck');
+  assert(d.toggleSeat() === 'seat', 'and back again');
+}
+
+// ── The camera sits in the driver's seat, not above the truck ──
+{
+  const d = mk([], { x: 10, z: 20, yaw: 0 });
+  d.update(1 / 60);
+  const cam = d.camera;
+  assert(Math.abs(cam.position.y - 1.28) < 0.01, 'eye height, not roof height');
+  // Facing −Z at yaw 0, the driver's seat is behind the middle of the truck
+  // and to its left.
+  assert(cam.position.z > d.pos.z - 1.0, 'the camera is inside the truck, not in front of it');
+  assert(Math.abs(cam.position.x - d.pos.x) < 2.2, 'the camera is within the truck\'s width');
+}
+
+// ── Free look from the seat is bounded and eases back ─────
+{
+  const d = mk();
+  d.addLook(10, 10);
+  assert(Math.abs(d.look.yaw) <= 2.4 + 1e-9, 'look yaw is clamped');
+  assert(Math.abs(d.look.pitch) <= 0.9 + 1e-9, 'look pitch is clamped');
+  for (let i = 0; i < 120; i++) d.update(1 / 60);
+  assert(Math.abs(d.look.yaw) < 0.2, 'the view returns to centre when you let go');
+}
+
+// ── Autopilot turns the wheel by itself ────────────────────
+{
+  const d = mk();
+  assert(d.toggleAutopilot() === true, 'P hands the wheel over');
+  for (let i = 0; i < 60; i++) d.update(1 / 60);
+  assert(d.decision !== null, 'the autopilot says what it is doing');
+  assert(typeof d.decision.reason === 'string' && d.decision.reason.length > 0,
+    'and it gives a reason');
+  d.toggleAutopilot();
+  assert(d.decision === null, 'taking the wheel back ends the reasoning');
 }
 
 // ── Steering response is elapsed-time based ────────────────

@@ -3,7 +3,7 @@ import {
   moonPhase, solarEvents, sunHorizontal,
 } from './astronomy.js';
 import { visibilityFor } from './sky.js';
-import { ridgeHeight } from './world.js';
+import { KHAO_YAI_BEARING, khaoYaiHeight, ridgeHeight } from './world.js';
 
 const BANGKOK = { lat: 13.7563, lon: 100.5018 };
 
@@ -44,5 +44,11 @@ assert.equal(visibilityFor(-18, -5, 1).moon, 0, 'the Moon below the horizon is h
   assert(Math.min(...ridge) >= 0.14 && Math.max(...ridge) <= 0.92);
   assert(Math.max(...ridge) - Math.min(...ridge) > 0.25, 'mountains need a readable silhouette');
 }
+
+// Khao Yai is a broad north-east table, not another random triangle.
+assert(KHAO_YAI_BEARING > 40 && KHAO_YAI_BEARING < 65, 'Khao Yai sits north-east of Bangkok');
+assert(khaoYaiHeight(-10) > khaoYaiHeight(-35), 'the west shoulder rises from the horizon');
+assert(khaoYaiHeight(9) > khaoYaiHeight(0), 'the eastern shoulder stands above the saddle');
+assert.equal(khaoYaiHeight(80), khaoYaiHeight(40), 'the profile is bounded');
 
 console.log('world: all checks passed · real rise/set · phased moon · night stars · mountain horizon');

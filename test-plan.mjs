@@ -36,4 +36,13 @@ assert(app.includes("planEl.setAttribute('aria-hidden', v === 'plan' ? 'false' :
 assert(/@media \(max-width: 600px\)[\s\S]*?\.view-toggle \{[\s\S]*?height:\s*44px;/.test(css),
   'phone PLAN control must keep a 44px touch target');
 
-console.log('plan: phone boot deferred · controls wired · 44px touch target');
+// A deep-work home has one first action and does not open on market noise.
+assert(/#hud-focus[\s\S]*?grid-column:\s*1\s*\/\s*-1/.test(css),
+  'FOCUS must dominate the owner home grid');
+assert(html.includes('class="plan-brief folded"') &&
+  html.includes('id="os-signals-toggle"') && html.includes('aria-expanded="false"'),
+  'market signals must begin folded');
+assert(app.includes("SAVED_THEME || (LOCAL_HOUR >= 18 || LOCAL_HOUR < 6 ? 'dark' : 'light')"),
+  'first-run theme must be light by day and dark only at night');
+
+console.log('plan: phone boot deferred · controls wired · focus-first · quiet signals · solar theme');

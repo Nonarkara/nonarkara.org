@@ -16,12 +16,20 @@ import {
 import { buildMountains } from './world.js';
 import { buildYard, PITCH, COURT } from './yard.js';
 import { buildCybertruck, Drive, TRUCK } from './drive.js';
+import { buildProps, tickProps } from './props.js';
+import { drawOverlay } from './cv-overlay.js';
+import { drawSideFeed } from './side-cam.js';
+import { conditionFor } from './vision.js';
+import { rng } from './rng.js';
+import { IOC, IOC_COUNT } from './ioc.js';
+import { Crt } from './crt.js';
 import { buildArcade, KIOSKS, colliderBoxes as kioskColliders } from './arcade.js';
 import { buildBalls, crossedGoal, throughHoop } from './balls.js';
 import { buildExhibit } from './exhibit.js';
 import { poemForDate } from './poems.js';
 import * as STARLORE_MOD from './starlore.js';
 import { AdaptiveResolution, preferredPixelRatio } from './render-quality.js';
+import { buildWorldLighting } from './world-lighting.js';
 
 // ════════════════════════════════════════════════════════
 // WebGL fallback — detect support before building scene
@@ -43,6 +51,20 @@ const WEBGL2_OK = hasWebGL2();
 
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.48 (2026-10-25) real sun shadows, a north-east Khao Yai landmark,
+//                    independent flank-camera perception and a focus-first
+//                    quiet 2D desk. Persistent simulation RNG stops roaming
+//                    life from repeating the same frame forever.
+//   4.47 (2026-10-24) the spatial-law pass. The pavilion is the first screen
+//                    on EVERY device: the desk used to be guessed by viewport
+//                    width and sat behind the sign on a phone for over a
+//                    second, and the desk is now closed until the app opens
+//                    it. The no-WebGL curtain became a corner notice and the
+//                    OS opens underneath it. The desk's own date and council
+//                    status stopped being pinned to the top-left corner by a
+//                    class name borrowed from the room overlay. Six grids now
+//                    take their column count from what they hold.
+//                    Includes the v4.44–v4.46 sky, ground and truck passes.
 //   4.43 (2026-10-07) one complete work index: the 2D project board now
 //                    carries every public Axiom system, the canonical blog
 //                    archive and Sabai Sabai. Adaptive resolution, coalesced
@@ -420,7 +442,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.43';
+const NON_VERSION = '4.48';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -444,21 +466,27 @@ window.__discover = (id) => { try { return DISCOVERY?.mark(id); } catch (_) { re
 // enumerated 200/301/302 only, so every 307 (tkc, war-room) painted red.
 const OK_CODE = c => c >= 200 && c < 400;
 
-// Wire WebGL fallback — show the plan-view fallback UI and skip scene setup
-// if WebGL is unavailable. Without this guard, THREE.WebGLRenderer() throws
-// a silent crash that breaks the whole module.
+// Wire the no-WebGL path — the OS is the site, and one line in the corner
+// says why. Without this guard, THREE.WebGLRenderer() throws a silent
+// crash that breaks the whole module.
+//
+// The old path put a full-screen black curtain over the page and asked the
+// reader to press a button to continue. That was a wall on first load, and
+// it hid the one thing the browser COULD see. Now the desk opens
+// underneath and the notice is a card beside it.
 if (!WEBGL_OK) {
   const fb = document.getElementById('webgl-fallback');
   if (fb) fb.style.display = 'flex';
+  // The pavilion is a WebGL room. Without WebGL there is nothing to walk
+  // into, so the sign has nothing to stand in front of and the OS opens
+  // straight away. The door module reads this and keeps out of the way.
+  document.body.dataset.view = 'plan';
+  document.body.dataset.noWebGL = '1';
+  const planEl = document.getElementById('plan');
+  if (planEl) planEl.setAttribute('aria-hidden', 'false');
   const btn = document.getElementById('fallback-btn');
   if (btn) btn.addEventListener('click', () => {
     if (fb) fb.style.display = 'none';
-    try { setView('plan'); } catch (_) {
-      // setView not yet defined — fall back to direct DOM manipulation
-      document.body.dataset.view = 'plan';
-      const p = document.getElementById('plan');
-      if (p) p.setAttribute('aria-hidden', 'false');
-    }
   });
   // Boot fades, then we're done — skip all Three.js setup
   const bootEl = document.getElementById('boot');
@@ -479,6 +507,15 @@ const I18N = {
     palace:  'the pavilion',
     hint:    'tap to discover · drag to look around · ◎ counts what you find',
     contact: 'contact',
+    door_q:             'how did you arrive',
+    door_host_eyebrow:  'this is my device',
+    door_host_title:    'NON OS',
+    door_host_sub:      'time · fleet · signals · keep it open all day',
+    door_guest_eyebrow: 'you arrived by link',
+    door_guest_title:   'enter the pavilion',
+    door_guest_sub:     'walk the room · find who Non is · Easter eggs',
+    door_reading:       'Read biography & selected work →',
+    door_foot:          'no login · this choice stays on this device · ?door to choose again',
     cv_eyebrow:      'CV',
     cv_title:        'Curriculum Vitae',
     cv_cap:          'scan to download · or tap to open',
@@ -516,6 +553,11 @@ const I18N = {
     sky_here:        'here',
     sky_mag:         'mag',
     sky_folly:       'the one overhead',
+    place_ask:          'use my location',
+    place_ask_asking:   'finding you',
+    place_ask_refused:  'location refused · showing bangkok',
+    place_ask_unavailable: 'no location · showing bangkok',
+    place_ask_done:     'your location',
     fleet_pipeline:  'in the pipeline',
     health_systems:  'systems',
     health_allgood:  'all running',
@@ -569,6 +611,15 @@ const I18N = {
     palace:  'ศาลา',
     hint:    'แตะเพื่อค้นพบ · ลากเพื่อมองรอบ · ◎ นับสิ่งที่เจอ',
     contact: 'ติดต่อ',
+    door_q:             'คุณมาถึงอย่างไร',
+    door_host_eyebrow:  'เครื่องนี้ของฉันเอง',
+    door_host_title:    'NON OS',
+    door_host_sub:      'เวลา · ยานพาหนะ · สัญญาณ · เปิดค้างทั้งวัน',
+    door_guest_eyebrow: 'คุณมาจากลิงก์',
+    door_guest_title:   'เข้าไปในศาลา',
+    door_guest_sub:     'เดินดูห้อง · หาว่านนคือใคร · ไข่อีสเตอร์',
+    door_reading:       'อ่านประวัติและผลงานที่คัดสรร →',
+    door_foot:          'ไม่ต้องล็อกอิน · ตัวเลือกนี้อยู่บนเครื่องนี้ · ?door เพื่อเลือกใหม่',
     cv_eyebrow:      'ประวัติ',
     cv_title:        'ประวัติย่อ',
     cv_cap:          'สแกนเพื่อดาวน์โหลด · หรือแตะเพื่อเปิด',
@@ -606,6 +657,11 @@ const I18N = {
     sky_here:        'ตรงนี้',
     sky_mag:         'ความสว่าง',
     sky_folly:       'ดวงที่อยู่เหนือหัว',
+    place_ask:          'ใช้ตำแหน่งของฉัน',
+    place_ask_asking:   'กำลังหาคุณ',
+    place_ask_refused:  'ปฏิเสธตำแหน่ง · กำลังแสดงกรุงเทพ',
+    place_ask_unavailable: 'ไม่พบตำแหน่ง · กำลังแสดงกรุงเทพ',
+    place_ask_done:     'ตำแหน่งของคุณ',
     fleet_pipeline:  'กำลังพัฒนา',
     health_systems:  'ระบบ',
     health_allgood:  'ทำงานปกติ',
@@ -659,6 +715,15 @@ const I18N = {
     palace:  '亭',
     hint:    '点按去发现 · 拖动环视 · ◎ 计数',
     contact: '联系',
+    door_q:             '你是怎么来的',
+    door_host_eyebrow:  '这是我的设备',
+    door_host_title:    'NON OS',
+    door_host_sub:      '时间 · 车队 · 信号 · 全天开着',
+    door_guest_eyebrow: '你从链接而来',
+    door_guest_title:   '进入亭子',
+    door_guest_sub:     '走进房间 · 认识 Non · 彩蛋',
+    door_reading:       '阅读传记与精选作品 →',
+    door_foot:          '无需登录 · 这个选择留在这台设备 · ?door 重新选择',
     cv_eyebrow:      '简历',
     cv_title:        '个人履历',
     cv_cap:          '扫码下载 · 或点击打开',
@@ -696,6 +761,11 @@ const I18N = {
     sky_here:        '此处',
     sky_mag:         '星等',
     sky_folly:       '正上方的那一颗',
+    place_ask:          '使用我的位置',
+    place_ask_asking:   '正在定位',
+    place_ask_refused:  '拒绝定位 · 显示曼谷',
+    place_ask_unavailable: '无法定位 · 显示曼谷',
+    place_ask_done:     '你的位置',
     fleet_pipeline:  '开发中',
     health_systems:  '系统',
     health_allgood:  '全部正常',
@@ -953,10 +1023,12 @@ scene.background = new THREE.Color(0x000000);
 // as it did.
 scene.fog = new THREE.Fog(0x000000, 30, 460);
 
-// far = 1200: the star dome is 400 units out and the podium is 54 long.
-// At the old far = 100 the sky was entirely behind the far plane, which
-// is most of why looking up produced nonsense rather than stars.
-const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 1200);
+// far = 6000: the star dome is 400 units out, the podium is 54 long, and
+// the ground plate falls a kilometre below the eye when you look down — a
+// z15 plate's far corner is nearly 4 km off. At the old far = 100 the sky
+// was entirely behind the far plane, which is most of why looking up
+// produced nonsense rather than stars.
+const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 6000);
 camera.rotation.order = 'YXZ';
 // THE look integrator — the only thing allowed to write camera.rotation.
 // See look.js for why: four systems used to fight over it, and the
@@ -1086,7 +1158,11 @@ function activatePulses() {
 
 
 // ── Theme system ─────────────────────────────────────────
-let CURRENT_THEME = localStorage.getItem('nonarkara.theme') || 'dark';
+// A desk used all day opens light in daylight and dark after nightfall.
+// An explicit choice always wins; the clock is only the first-run default.
+const SAVED_THEME = localStorage.getItem('nonarkara.theme');
+const LOCAL_HOUR = new Date().getHours();
+let CURRENT_THEME = SAVED_THEME || (LOCAL_HOUR >= 18 || LOCAL_HOUR < 6 ? 'dark' : 'light');
 const THEMES = {
   dark:  { bg: 0x000000, line: 0xf5f5f0, accent: 0xf59e0b, bgCss: '#000000', fgCss: '#f5f5f0', accentCss: '#f59e0b' },
   light: { bg: 0xf5f5f0, line: 0x1a1a1a, accent: 0xb85c28, bgCss: '#f5f5f0', fgCss: '#1a1a1a', accentCss: '#b85c28' },
@@ -1127,6 +1203,7 @@ const placeAt = (obj, x, y, z) => { obj.position.set(x, y, z); return obj; };
 let PAVILION = null;
 let POOL = null;
 let GLASS = null, SAVOYE = null, FARNSWORTH = null, FALLINGWATER = null, MOUNTAINS = null;
+let WORLD_LIGHTING = null;
 // Every building on the site, nearest-first lookups included. The
 // Pavilion is at the origin because it was here first and everything
 // else — the poem, the rain, the spawn — is measured from it.
@@ -1388,6 +1465,77 @@ WALK.colliders.push(TRUCK_BOX);
   INTERACTABLES_PENDING.push(TRUCK_BUILD.group);
 }
 
+// ── The props the cameras can see ──────────────────────────
+//
+// A dog, a bicycle, a bench, a hydrant, a traffic light, potted plants —
+// and the buildings themselves, registered so the detector can SEE them and
+// refuse to name them. That refusal is the lesson, and it needs something
+// to refuse (see vision.js).
+const PROPS = buildProps(THREE, scene, { dark: true });
+DRIVE._rng = rng(20261012);
+
+// The big benches and planters are solid: you walk around them, not through
+// them. The dog and the bicycles are not — one moves, and the other is a
+// display piece in a car bay.
+for (const o of PROPS.objects) {
+  if (!o.named) continue;
+  if (!['bench', 'planter', 'hydrant', 'light', 'stopSign'].includes(o.kind)) continue;
+  const r = o.r;
+  WALK.colliders.push({
+    minX: o.x - r, maxX: o.x + r, minZ: o.z - r, maxZ: o.z + r, maxY: o.h,
+  });
+}
+
+// ── The camera overlay ─────────────────────────────────────
+//
+// A 2D canvas over the 3D scene, drawn only while the truck is driving
+// with its cameras on. It shows what the detector believes in: a box, a
+// name, a percentage — and, in the corner, the number of things in view
+// that it has no word for.
+const CV_CANVAS = document.createElement('canvas');
+CV_CANVAS.id = 'cv-overlay';
+CV_CANVAS.className = 'cv-overlay';
+document.body.appendChild(CV_CANVAS);
+const CV_CTX = CV_CANVAS.getContext('2d');
+const _cvVec = new THREE.Vector3();
+const _cvForward = new THREE.Vector3();
+const _cvDelta = new THREE.Vector3();
+
+function drawCvOverlay() {
+  const on = DRIVE.active && DRIVE.cv;
+  document.body.classList.toggle('cv-on', on);
+  if (!on) {
+    if (CV_CTX) CV_CTX.clearRect(0, 0, CV_CANVAS.width, CV_CANVAS.height);
+    return;
+  }
+  const w = CV_CANVAS.clientWidth || window.innerWidth;
+  const h = CV_CANVAS.clientHeight || window.innerHeight;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const pw = Math.round(w * dpr), ph = Math.round(h * dpr);
+  if (CV_CANVAS.width !== pw || CV_CANVAS.height !== ph) {
+    CV_CANVAS.width = pw; CV_CANVAS.height = ph;
+  }
+  CV_CTX.setTransform(dpr, 0, 0, dpr, 0, 0);
+  camera.getWorldDirection(_cvForward);
+  const project = (x, y, z) => {
+    _cvDelta.set(x, y, z).sub(camera.position);
+    if (_cvDelta.dot(_cvForward) <= camera.near) return null;
+    _cvVec.set(x, y, z).project(camera);
+    return _cvVec;
+  };
+  drawOverlay(CV_CTX, {
+    tracks: [...DRIVE.ego.tracks.values()],
+    unnamed: DRIVE.unnamed(),
+    decision: DRIVE.decision,
+    autopilot: DRIVE.autopilot,
+    condition: DRIVE.condition,
+    range: DRIVE.ego.sensorRange,
+    project,
+    width: w,
+    height: h,
+  });
+}
+
 function yardToast(msg, ms = 2600) {
   const el = document.getElementById('discover-toast');
   if (!el) return;
@@ -1420,6 +1568,39 @@ const BALLS = buildBalls(THREE, scene, [
     field: { cx: COURT.cx, cz: COURT.cz, w: COURT.w, d: COURT.d } },
 ], { dark: true });
 window.__balls = BALLS;
+
+// The balls, as things the detector can see. A ball in flight is the one
+// object in the estate with a confident name and a moving position, which
+// makes it the best proof that the overlay is tracking the world and not
+// drawing a fixed set of labels.
+const BALL_RECORDS = BALLS.map((b, i) => ({
+  id: `ball-${i}-${b.ball.kind}`,
+  kind: 'sportsBall',
+  x: b.ball.pos.x, z: b.ball.pos.z, y: b.ball.pos.y,
+  vx: 0, vz: 0,
+  r: b.ball.r,
+  named: true,
+  state: 'still',
+}));
+// What the cameras can see: the props, the buildings it cannot name, and
+// the two balls in play.
+DRIVE.setObjects([...PROPS.objects, ...BALL_RECORDS]);
+
+// Real shadows without sacrificing the exact architectural palette. The
+// light follows the same astronomical sun as the sky; the receiver is a
+// transparent layer over the estate plain.
+WORLD_LIGHTING = buildWorldLighting(THREE, renderer, scene, {
+  roots: [
+    PAVILION?.group, GLASS?.group, SAVOYE?.group, FARNSWORTH?.group,
+    FALLINGWATER?.group, YARD?.group, TRUCK_BUILD?.group, PROPS?.group,
+    ARCADE?.group,
+  ],
+  width: window.innerWidth,
+  height: window.innerHeight,
+  deviceMemory: navigator.deviceMemory,
+  coarsePointer: window.matchMedia('(pointer: coarse)').matches,
+});
+window.__worldLighting = WORLD_LIGHTING;
 
 // Where a shot can score. Goals are planes; hoops are rings.
 const GOALS = [-1, 1].map(s => ({
@@ -1626,9 +1807,14 @@ function enterTruck() {
   WALK.keys.clear();
   document.body.classList.add('driving');
   document.body.dataset.driving = '1';
+  // You get in and you are IN it — the driver's seat, not a camera hovering
+  // behind the truck. The chase view is still there on C.
+  DRIVE._applyVisibility();
   const lbl = document.getElementById('drive-chip-label');
   if (lbl) lbl.textContent = 'STEP OUT';
-  yardToast('DRIVE · STICK STEERS · TAP STEP OUT WHEN YOU ARE DONE', 4000);
+  document.body.classList.toggle('seat-view', DRIVE.mode === 'seat');
+  window.__driveChips?.sync();
+  yardToast('DRIVE · W/S THROTTLE · A/D STEER · V CAMERAS · P AUTOPILOT · C VIEW', 5200);
 }
 function exitTruck() {
   if (!DRIVE.active) return;
@@ -1639,6 +1825,9 @@ function exitTruck() {
   DRIVE.active = false;
   DRIVE.v = 0;
   DRIVE.steer = 0;
+  DRIVE.autopilot = false;
+  DRIVE.cv = false;
+  DRIVE._applyVisibility();
   parkTruckBox();
   const s = DRIVE.exitSpot();
   WALK.enabled = true;
@@ -1663,6 +1852,91 @@ window.__enterTruck = enterTruck;
 window.__exitTruck = exitTruck;
 window.__nearTruck = nearTruck;
 
+// ── The IOC wall ──────────────────────────────────────────
+//
+// Every city system, one photograph of each, behind a television that is
+// losing its lock. The grid is built once — twenty systems, four columns,
+// five rows — and the signal is drawn over it every frame while the view
+// is open.
+const iocGrid = document.getElementById('ioc-grid');
+const iocCount = document.getElementById('ioc-count');
+if (iocGrid) {
+  const frag = document.createDocumentFragment();
+  for (const s of IOC) {
+    const a = document.createElement('a');
+    a.className = 'ioc-cell';
+    a.href = s.url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    const img = document.createElement('img');
+    img.src = s.shot;
+    img.alt = s.title;
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    const cap = document.createElement('figcaption');
+    const code = document.createElement('span');
+    code.className = 'ioc-code';
+    code.textContent = s.code;
+    const name = document.createElement('span');
+    name.className = 'ioc-name';
+    name.textContent = s.title;
+    cap.append(code, name);
+    a.append(img, cap);
+    frag.appendChild(a);
+  }
+  iocGrid.appendChild(frag);
+  if (iocCount) iocCount.textContent = `${IOC_COUNT} SYSTEMS`;
+}
+const CRT = new Crt(document.getElementById('crt-fx'), { seed: 20261023 });
+
+/** Size the signal canvas to its screen and draw one frame of the fault. */
+function drawCrt(dt) {
+  const open = document.body.dataset.view === 'ioc';
+  const cvs = document.getElementById('crt-fx');
+  if (!cvs) return;
+  if (!open) { if (CRT.ctx) CRT.ctx.clearRect(0, 0, cvs.width, cvs.height); return; }
+  const w = cvs.clientWidth, h = cvs.clientHeight;
+  // One device pixel per CSS pixel. Scanlines are the substrate, not
+  // artwork — at 1× they are chunkier, which is more honest, and it is
+  // four times cheaper over a live WebGL scene.
+  if (cvs.width !== w || cvs.height !== h) { cvs.width = w; cvs.height = h; }
+  CRT.draw(dt, false);
+}
+
+/**
+ * The truck's two flank cameras, drawn as feeds in the two mirrors.
+ *
+ * They are feeds, not renders: a second and third WebGL pass would triple
+ * the cost of a scene that is already heavy, and a mirror exists to say
+ * what is beside you — a list of things and where they are.
+ */
+function drawMirrors() {
+  const on = DRIVE.active && DRIVE.cv && DRIVE.mode === 'seat';
+  for (const [id, side] of [['mirror-l', -1], ['mirror-r', 1]]) {
+    const el = document.getElementById(id);
+    const cvs = document.getElementById(`${id}-canvas`);
+    if (!el || !cvs) continue;
+    el.setAttribute('aria-hidden', on ? 'false' : 'true');
+    if (!on) continue;
+    const ctx = cvs.getContext('2d');
+    if (!ctx) continue;
+    const w = cvs.clientWidth, h = cvs.clientHeight;
+    if (!w || !h) continue;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const pw = Math.round(w * dpr), ph = Math.round(h * dpr);
+    if (cvs.width !== pw || cvs.height !== ph) { cvs.width = pw; cvs.height = ph; }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawSideFeed(ctx, {
+      ego: DRIVE.ego,
+      side,
+      objects: DRIVE.objects,
+      width: w,
+      height: h,
+      condition: DRIVE.condition,
+    });
+  }
+}
+
 // ── The contextual chips ─────────────────────────────────
 // Each appears only when it does something (see styles.css), and each is
 // a tap target of its own so nothing depends on a keyboard.
@@ -1674,6 +1948,67 @@ document.getElementById('shoot-chip')?.addEventListener('click', (e) => {
   e.stopPropagation();
   shootHeldBall();
 });
+// ── The truck's three switches ─────────────────────────────
+//
+// V turns the cameras on, P hands the wheel to the autopilot, C swaps
+// between the driver's seat and the chase view. Each is a chip as well as
+// a key, because a phone has no keyboard and the lesson is worthless if
+// the only way in is a keycap.
+function syncDriveChips() {
+  const set = (id, on, onText, offText) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.toggle('on', on);
+    const lbl = el.querySelector('.hud-chip-label');
+    if (lbl) lbl.textContent = on ? onText : offText;
+  };
+  set('cv-chip', DRIVE.cv, 'CAMERAS ON', 'CAMERAS');
+  set('auto-chip', DRIVE.autopilot, 'AUTOPILOT ON', 'AUTOPILOT');
+  set('view-chip', DRIVE.mode === 'seat', 'SEAT', 'CHASE');
+  // The mirrors belong to the seat. From the chase camera you are looking
+  // at the truck, and two camera feeds hanging in the air beside it would
+  // be a hallucination.
+  document.body.classList.toggle('seat-view', DRIVE.mode === 'seat');
+}
+function toggleCv() {
+  if (!DRIVE.active) return;
+  DRIVE.toggleCV();
+  syncDriveChips();
+  yardToast(DRIVE.cv ? 'CAMERAS ON · WHAT THE TRUCK BELIEVES IT SEES' : 'CAMERAS OFF');
+}
+function toggleAutopilot() {
+  if (!DRIVE.active) return;
+  DRIVE.toggleAutopilot();
+  syncDriveChips();
+  yardToast(DRIVE.autopilot
+    ? 'AUTOPILOT ON · THE WHEEL TURNS BY ITSELF'
+    : 'AUTOPILOT OFF · YOU HAVE THE WHEEL');
+}
+function toggleSeat() {
+  if (!DRIVE.active) return;
+  DRIVE.toggleSeat();
+  syncDriveChips();
+  yardToast(DRIVE.mode === 'seat' ? 'DRIVER SEAT' : 'CHASE VIEW');
+}
+document.getElementById('cv-chip')?.addEventListener('click', (e) => {
+  e.stopPropagation(); toggleCv();
+});
+document.getElementById('auto-chip')?.addEventListener('click', (e) => {
+  e.stopPropagation(); toggleAutopilot();
+});
+document.getElementById('view-chip')?.addEventListener('click', (e) => {
+  e.stopPropagation(); toggleSeat();
+});
+window.addEventListener('keydown', (e) => {
+  if (!DRIVE.active) return;
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  const k = e.key.toLowerCase();
+  if (k === 'v') { e.preventDefault(); toggleCv(); }
+  else if (k === 'p') { e.preventDefault(); toggleAutopilot(); }
+  else if (k === 'c') { e.preventDefault(); toggleSeat(); }
+});
+window.__driveChips = { toggleCv, toggleAutopilot, toggleSeat, sync: syncDriveChips };
 document.getElementById('level-chip')?.addEventListener('click', (e) => {
   e.stopPropagation();
   recentreGyro();
@@ -4674,8 +5009,16 @@ function chooseDefaultView() {
   const mode = lsGet('nonarkara.mode');
   if (mode === 'host') return 'plan';
   if (mode === 'guest') return 'room';
-  try { return matchMedia('(max-width: 768px)').matches ? 'plan' : 'room'; }
-  catch (_) { return 'room'; }
+  // No mode yet, so the sign is up and the question has not been answered.
+  // The pavilion is the first screen — on EVERY device.
+  //
+  // This used to guess by viewport and hand a phone the NON OS dashboard.
+  // That was worse than a wrong guess: the desk switch is animated, so the
+  // phone sat on the dashboard for over a second while the sign was still
+  // up. The same site had two different first screens depending on the
+  // width of the machine asking. The mode owns the desk; the sign owns the
+  // mode; until the sign is answered, there is no desk but the Pavilion.
+  return 'room';
 }
 function setView(v) {
   // Walk keys belong to the room. In the plan view they were still being
@@ -4687,9 +5030,15 @@ function setView(v) {
     document.body.dataset.view = v;
     lsSet('nonarkara.view', v);
     if (planEl) planEl.setAttribute('aria-hidden', v === 'plan' ? 'false' : 'true');
+    document.getElementById('ioc')?.setAttribute('aria-hidden', v === 'ioc' ? 'false' : 'true');
     document.getElementById('room-hud')?.setAttribute('aria-hidden', v === 'room' ? 'false' : 'true');
     if (v === 'plan') { renderPlan(); refreshStatus(); }
-  } catch (_) {}
+  } catch (err) {
+    // This used to be a silent catch, which is how a broken view switcher
+    // hides for months: the view simply never changed and nothing said why.
+    // A failed view change is a bug; it gets logged.
+    console.error('[setView] could not switch to', v, err);
+  }
 }
 try {
   document.body.dataset.view = chooseDefaultView();
@@ -4810,7 +5159,9 @@ setInterval(() => { if (!document.hidden) tickPlanClock(); }, 1000);
     btn.setAttribute('aria-expanded', folded ? 'false' : 'true');
     if (fold) fold.textContent = folded ? '+' : '−';
   };
-  apply(lsGet('nonarkara.signals') === 'folded');
+  // New installations begin quiet. A person who explicitly opens the
+  // market board keeps it open on this device; everyone else sees the work.
+  apply(lsGet('nonarkara.signals') !== 'open');
   btn?.addEventListener('click', () => {
     const folded = !brief.classList.contains('folded');
     lsSet('nonarkara.signals', folded ? 'folded' : 'open');
@@ -5441,6 +5792,20 @@ if (planRoomBtn)   planRoomBtn.addEventListener('click', () => {
   (window.setView || setView)('room');
 });
 if (viewToggleBtn) viewToggleBtn.addEventListener('click', () => setView('plan'));
+
+// The IOC wall. One click from the room, one click back out.
+document.getElementById('ioc-toggle')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  setView('ioc');
+});
+document.getElementById('ioc-close')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  setView('room');
+});
+// Escape leaves the wall. It is a view, and views are escapable.
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.body.dataset.view === 'ioc') setView('room');
+});
 if (planThemeBtn)  planThemeBtn.addEventListener('click', toggleTheme);
 
 // HUD buttons at the top of plan view — the always-visible quad
@@ -5700,6 +6065,7 @@ paintSteps();
 
 window.__planReady = true;
 if (viewToggleBtn) setTimeout(() => viewToggleBtn.classList.add('in'), 200);
+document.getElementById('ioc-toggle')?.classList.add('in');
 
 // Version stamp — populate all [data-v-stamp] and #plan-version-stamp
 // with the current NON_VERSION. Runs once after plan is ready.
@@ -6226,6 +6592,33 @@ function animate() {
   }
   camera.rotation.set(eff.pitch, eff.yaw, 0);
 
+  // The truck's world. The dog keeps walking whether or not you are
+  // driving it — an animal that only exists while you are looking at it
+  // is a set piece, and the detector would know.
+  tickProps(PROPS.objects, dtLook);
+  // The balls are in the world too, and they are the one thing the
+  // detector will happily call a sports ball.
+  for (let i = 0; i < BALLS.length; i++) {
+    const rec = BALL_RECORDS[i];
+    const b = BALLS[i].ball;
+    rec.x = b.pos.x; rec.z = b.pos.z; rec.y = b.pos.y;
+    rec.vx = b.vel?.x ?? 0; rec.vz = b.vel?.z ?? 0;
+  }
+  if (driving) {
+    const D = window.__drive;
+    // What the cameras can see depends on the light and the weather, and
+    // the estate already knows both.
+    D.condition = conditionFor(
+      window.__worldState?.sun?.alt ?? 30,
+      window.__raining === true,
+    );
+    drawCvOverlay();
+    drawMirrors();
+  }
+  // The signal on the IOC wall. It runs whether or not anyone is looking,
+  // but it is only drawn while the wall is on screen.
+  drawCrt(dtLook);
+
   // The sky and the ground are places, not modes: how much of each you
   // see comes from nothing but where you are looking. Look up — stars.
   // Look down — the map of where you stand. Look back — the room.
@@ -6314,8 +6707,9 @@ function animate() {
     // supposed to replace.
     window.__groundGroup.position.x = camera.position.x;
     window.__groundGroup.position.z = camera.position.z;
-    // Altitude follows zoom: wider map, higher eye. Eased, so stepping
-    // the wheel reads as a lift, not a cut.
+    // Altitude follows zoom: a wider map has to sit further down, because
+    // that is the only distance at which its texels resolve. Eased, so
+    // stepping the wheel reads as a lift, not a cut.
     const wantY = (GROUND && GROUND.getDepth) ? GROUND.getDepth() : 0.06;
     window.__groundGroup.position.y = damp(window.__groundGroup.position.y, wantY, 5, dtLook);
   }
@@ -6563,6 +6957,15 @@ function closeFrameWithRitual() {
 (() => {
   const doorEl = document.getElementById('door');
   if (!doorEl) return;
+
+  // Without WebGL there is no pavilion, so the question the sign asks has
+  // no answer to give — the reader cannot walk in either way. The OS is
+  // already open underneath the notice. Keep the sign out of it.
+  if (!WEBGL_OK) {
+    doorEl.classList.add('skip');
+    return;
+  }
+
   const KEY = 'nonarkara.mode';
   const lsRead  = () => { try { return localStorage.getItem(KEY); } catch (_) { return null; } };
   const lsWrite = (m) => { try { localStorage.setItem(KEY, m); } catch (_) {} };
@@ -6596,13 +6999,60 @@ function closeFrameWithRitual() {
   if (params.has('host'))  { lsWrite('host');  applyMode('host'); }
   if (params.has('guest')) { lsWrite('guest'); applyMode('guest'); }
 
+  // ── A URL can name the desk ─────────────────────────────────────────
+  // ?view=plan | room | ioc opens that desk directly. The mode still says
+  // WHO you are; this says WHERE you are looking.
+  //
+  // It has to be the query string and not the fragment. The spatial gate
+  // finds the page it is measuring by a token in location.SEARCH, so a
+  // route that carries its own parameter in the fragment puts the gate's
+  // token in the fragment too — and the gate then measures a page it
+  // cannot find. The query is the only place a parameter can live and
+  // still be found.
+  const wanted = params.get('view');
+  const named = wanted === 'plan' || wanted === 'room' || wanted === 'ioc' ? wanted : null;
+
   const stored = lsRead();
   if (stored === 'host') setTimeout(warmMusic, 15_000);   // after the shell settles
   if (stored === 'host' || stored === 'guest') {
     applyMode(stored);
     if (stored === 'guest') paintGuestCardQR();
     doorEl.classList.add('skip');
+    // The mode owns the desk: host → the OS, guest → the Pavilion. A desk
+    // named in the URL wins over both, and a view the visitor saved and
+    // toggled wins over the mode's default.
+    try {
+      const savedView = localStorage.getItem('nonarkara.view');
+      const go = named
+        || (savedView === 'plan' || savedView === 'room' ? savedView : (stored === 'host' ? 'plan' : 'room'));
+      _origSetView(go);
+      // A desk the MODE or the URL chose is not a preference the visitor
+      // made, so it is not remembered as one. setView saves whatever it
+      // sets, and that used to leave the host's desk in storage — so the
+      // next visit, as a guest, opened the OS instead of the Pavilion.
+      if (go !== savedView) localStorage.removeItem('nonarkara.view');
+    } catch (_) {}
     return;
+  }
+
+  // No stored mode — but the URL may still name a desk.
+  if (named) {
+    doorEl.classList.add('skip');
+    try {
+      _origSetView(named);
+      localStorage.removeItem('nonarkara.view');
+    } catch (_) { document.body.dataset.view = named; }
+    return;
+  }
+
+  // ── The question is up. The pavilion is the first screen, so the
+  //    room has to be the room on every device — the plan (NON OS) is
+  //    the other mode's desk and must not be what a first-time visitor
+  //    sees behind the sign. setView also remembers the view; the pick
+  //    below overwrites that memory with the mode's own default.
+  document.body.dataset.door = 'open';
+  try { (window.setView || setView)('room'); } catch (_) {
+    document.body.dataset.view = 'room';
   }
 
   // No stored mode — door is visible underneath boot (z 9999).
@@ -6634,6 +7084,8 @@ function closeFrameWithRitual() {
     if (mode === 'host') warmMusic();
     if (mode === 'guest') paintGuestCardQR();
     doorEl.classList.add('skip');
+    // The room's furniture comes back with the answer.
+    delete document.body.dataset.door;
     // Host → OS all day. Guest → Pavilion. Clear saved view so the
     // mode's default wins on this first choice (later toggles stick).
     try {
@@ -7021,7 +7473,9 @@ if (window.__lastStatusData) paintFleet(window.__lastStatusData);
 // ════════════════════════════════════════════════════════
 
 let CAMERA_MODE = 'room';           // 'room' | 'sky' | 'ground'  (dolly on top)
-let SKY = null;                     // the built dome, once WebGL is confirmed
+let SKY = null;                     // the built dome, once it is wanted
+let SKY_MOD = null;                 // the sky module, loaded at boot
+let SKY_BUILDING = null;            // the dome being built right now
 let SKY_BLEND = 0;                  // 0 room · 1 sky
 // Reused every frame. Allocating two Colors per frame is 120 objects a
 // second for the garbage collector to clean up after, for no reason.
@@ -7038,10 +7492,10 @@ const SKY_PITCH = 1.32;             // ~76°, so the horizon stays in frame
 const skyHud  = document.getElementById('sky-hud');
 const skyHint = document.getElementById('sky-hint');
 
-function skyAvailable() { return WEBGL_OK && SKY; }
+function skyAvailable() { return WEBGL_OK && (SKY || SKY_MOD); }
 
 async function initSky() {
-  if (!WEBGL_OK || SKY) return;
+  if (!WEBGL_OK || SKY_MOD) return;
   // Show the control immediately — waiting on the module made the sky
   // look "missing" for the whole first second (and forever if import failed silently).
   if (skyHint) {
@@ -7052,17 +7506,42 @@ async function initSky() {
     const mod = await import('./sky.js');
     // Starlight, not theme foreground: the sky is night in both themes,
     // and the light theme's near-black would draw invisible stars.
-    SKY = mod.buildSky(0xe6edf3, 0xf59e0b);
-    window.__skyGroup = SKY.group;
-    SKY.mod = mod;
-    SKY.group.visible = false;
-    scene.add(SKY.group);
-    recalcSky(true);
+    SKY_MOD = mod;
     if (skyHint) skyHint.disabled = false;
   } catch (e) {
     // No sky is a missing feature, not a broken room.
     if (skyHint) skyHint.remove();
   }
+}
+
+/**
+ * The dome, built the first time somebody looks up.
+ *
+ * The star catalogue is 5,022 real stars in 29 KB. Building the dome means
+ * fetching that catalogue, and a room that waits for a star chart before
+ * it can be walked in is a room with a slow door. So the module loads at
+ * boot and the chart waits for the first glance.
+ */
+function ensureSky() {
+  if (SKY) return Promise.resolve(SKY);
+  if (!SKY_BUILDING) {
+    SKY_BUILDING = (async () => {
+      const mod = SKY_MOD || await import('./sky.js');
+      const sky = await mod.buildSky(0xe6edf3, 0xf59e0b);
+      window.__skyGroup = sky.group;
+      sky.group.visible = false;
+      scene.add(sky.group);
+      SKY = sky;
+      SKY.mod = mod;
+      recalcSky(true);
+      return sky;
+    })().catch((e) => {
+      console.error('the sky could not be built', e);
+      SKY_BUILDING = null;
+      return null;
+    });
+  }
+  return SKY_BUILDING;
 }
 
 // The sky turns a quarter of a degree per minute. Recomputing every
@@ -7090,22 +7569,57 @@ const cardinal = (deg) =>
 
 // Ask once, gently, and treat a refusal as a normal answer. Bangkok is
 // not a failure state — it is where this was built.
-function askForLocation() {
-  if (!navigator.geolocation || WORLD_SITE.asked) return;
+//
+// THE ORDER MATTERS. The visitor asks, and then the browser asks the
+// device. The old code fired the geolocation request the moment you
+// looked up, which put a permission prompt in front of somebody who had
+// not been told what it was for. The button says what it does; the
+// browser then does it, and a refusal is an answer, not an error.
+function askForLocation(force = false) {
+  if (!navigator.geolocation) { setPlaceAsk('unavailable'); return; }
+  if (WORLD_SITE.asked && !force) return;
   WORLD_SITE.asked = true;
+  setPlaceAsk('asking');
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       WORLD_SITE.lat = pos.coords.latitude;
       WORLD_SITE.lon = pos.coords.longitude;
       WORLD_SITE.label = t('sky_here');
+      WORLD_SITE.source = 'device';
+      setPlaceAsk('done');
       recalcSky(true);
       if (GROUND) GROUND.load(WORLD_SITE);
       window.__worldLocationChanged?.();
     },
-    () => {},
-    { timeout: 8000, maximumAge: 600_000 }
+    (err) => {
+      WORLD_SITE.source = 'default';
+      setPlaceAsk(err && err.code === 1 ? 'refused' : 'unavailable');
+    },
+    { timeout: 8000, maximumAge: 600_000, enableHighAccuracy: false }
   );
 }
+
+// The button states the honest answer to "where is this coming from".
+const PLACE_ASK_COPY = {
+  idle: 'place_ask',
+  asking: 'place_ask_asking',
+  refused: 'place_ask_refused',
+  unavailable: 'place_ask_unavailable',
+  done: 'place_ask_done',
+};
+function setPlaceAsk(state) {
+  WORLD_SITE.askState = state;
+  const key = PLACE_ASK_COPY[state] || 'place_ask';
+  document.querySelectorAll('[data-place-ask]').forEach((b) => {
+    const label = b.querySelector('span');
+    if (label) label.textContent = t(key);
+    b.classList.toggle('done', state === 'done');
+    b.disabled = (state === 'asking' || state === 'done');
+  });
+}
+document.querySelectorAll('[data-place-ask]').forEach((b) => {
+  b.addEventListener('click', () => askForLocation(WORLD_SITE.source !== 'device'));
+});
 
 // The buttons and keys are conveniences now, not doorways: they simply
 // aim the view up or down through the same integrator the finger uses.
@@ -7113,7 +7627,7 @@ function askForLocation() {
 function enterSky() {
   if (!skyAvailable()) return;
   LOOK.aimAt(LOOK.yaw, 1.15, 0.10);
-  askForLocation();
+  ensureSky();
   try { enableGyro(); } catch (_) {}
 }
 
@@ -7124,10 +7638,16 @@ function toggleSky() { CAMERA_MODE === 'sky' ? exitSky() : enterSky(); }
 // HUD bookkeeping follows the blends — it never leads them. One place
 // decides what "in the sky" means (you are mostly looking at it), and
 // every side-effect hangs off the transition.
+// The caption must describe what is actually on screen: the ground you
+// can see, at the scale you can see it. The width of the frame changes as
+// the eye tilts, so the caption is refreshed with the view and not only
+// when the zoom steps.
 function updateGroundCaption() {
   const cap = document.getElementById('ground-cap');
   if (cap && GROUND) {
-    cap.textContent = `${GROUND.scaleLabel(WORLD_SITE.lat)} · ${GROUND.mod.ATTRIBUTION}`;
+    const pitch = CAMERA_MODE === 'ground' ? camera.rotation.x : GROUND_PITCH;
+    const across = GROUND.scaleLabel(WORLD_SITE.lat, window.innerWidth / window.innerHeight, pitch);
+    cap.textContent = `${across} · ${GROUND.mod.ATTRIBUTION}`;
     document.body.dataset.groundZoom = String(GROUND.getZoom());
   }
 }
@@ -7138,7 +7658,7 @@ function syncOverheadHud() {
   if (mode === CAMERA_MODE) return;
 
   if (mode === 'sky') {
-    askForLocation();
+    ensureSky();
     recalcSky(true);
     document.body.dataset.sky = 'on';
     if (skyHud) skyHud.setAttribute('aria-hidden', 'false');
@@ -7153,7 +7673,6 @@ function syncOverheadHud() {
   }
 
   if (mode === 'ground') {
-    askForLocation();
     if (GROUND) {
       GROUND.load(WORLD_SITE);
       const cap = document.getElementById('ground-cap');
@@ -7178,7 +7697,14 @@ function syncOverheadHud() {
 // that north on the photograph is north in the room.
 let GROUND = null;
 let GROUND_BLEND = 0;
-const GROUND_PITCH = -1.18;
+let GROUND_CAPTION_TICK = 0;
+// 78° down. The plate is 1:1 with the world, so the frame can only hold a
+// neighbourhood if the eye looks nearly straight down: at 68° the far edge
+// of the picture sits 2.7 km away and the plate would have to be twice its
+// size to fill the view. Steep is also what makes the scale honest — at 78°
+// one texel lands on about two screen pixels, and the map reads as a place
+// rather than a smear.
+const GROUND_PITCH = -1.36;
 
 async function initGround() {
   if (!WEBGL_OK || GROUND) return;
@@ -7208,8 +7734,7 @@ async function initGround() {
 
 function enterGround() {
   if (!GROUND) return;
-  LOOK.aimAt(LOOK.yaw, -1.15, 0.10);
-  askForLocation();
+  LOOK.aimAt(LOOK.yaw, -1.36, 0.10);
   try { enableGyro(); } catch (_) {}
 }
 
@@ -7381,6 +7906,10 @@ function tickGround(dt = 1 / 60) {
   GROUND.fadeTargets().forEach(o => {
     o.material.opacity = (o.userData.targetOpacity ?? 0.8) * GROUND_BLEND;
   });
+  // The caption tracks the frame, not the zoom: it reports how much ground
+  // is on screen, and that changes as the eye tilts.
+  GROUND_CAPTION_TICK = (GROUND_CAPTION_TICK + 1) % 12;
+  if (GROUND_CAPTION_TICK === 0) updateGroundCaption();
   // "The floor goes to glass" has to be literal. At block zoom the map
   // floated 6cm above the floor and got away with it; at city zoom it
   // sits 25–53 units below, under an OPAQUE plain and podium — which is
@@ -7972,7 +8501,9 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && WALK.enabled) setWalk(false);
   const t = e.target;
   if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-  // Same key that starts a walk in most games.
+  // Same key that starts a walk in most games. While driving, V belongs to
+  // the truck's cameras — see the driving key handler above.
+  if (DRIVE.active) return;
   if ((e.key === 'v' || e.key === 'V') && document.body.dataset.view === 'room') setWalk(!WALK.enabled);
 
   // Pressing a movement key IS the request to move. Call setWalk so
@@ -8214,12 +8745,13 @@ if (WEBGL_OK && PAVILION) {
     const palette = paletteFor(sun.alt, sun.alt > before);
     WORLD_STATE = { now, sun, moon, lunar, events, palette };
     window.__worldState = WORLD_STATE;
+    WORLD_LIGHTING?.setSun(sun);
     applyPalette(palette);
     recalcSky(true);
   };
 
   const refreshWeather = () => fetchWeather(WORLD_SITE.lat, WORLD_SITE.lon)
-    .then((w) => { weather = w; refresh(); });
+    .then((w) => { weather = w; window.__raining = !!w?.raining; refresh(); });
 
   // One geolocation request updates every consumer. Previously the sky and
   // daylight each held a private coordinate, so accepting one prompt could
@@ -8227,7 +8759,6 @@ if (WEBGL_OK && PAVILION) {
   window.__worldLocationChanged = () => { refresh(); refreshWeather(); };
   refresh();
   refreshWeather();
-  askForLocation();
   setInterval(refresh, 60_000);
   setInterval(refreshWeather, 15 * 60_000);
 

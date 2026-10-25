@@ -1,5 +1,7 @@
 .DS_Store
 .wrangler/
+.msh*/
+.audit-*/
 # Voice samples are biometric. Not in the repo, not in the deploy.
 public/
 

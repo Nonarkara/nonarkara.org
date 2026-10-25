@@ -1,8 +1,10 @@
 // Self-check for the ground projection. `node test-ground.mjs`
-// The failure this catches: a north/south sign flip, which produces a
-// map that looks perfectly plausible and is mirrored.
+// The failures this catches: a north/south sign flip (a map that looks
+// perfectly plausible and is mirrored), and the scale law breaking —
+// which is the bug that made the floor a 14-pixel-per-texel smear.
 import assert from 'node:assert';
-const { tileXY, metresPerPixel, dampZoom, ZOOM } = await import('./ground.js');
+const { tileXY, metresPerPixel, dampZoom, ZOOM, ZOOM_MIN, ZOOM_MAX, GRID,
+        tileMetres, altitudeFor, visibleWidth, VFOV } = await import('./ground.js');
 import { readFileSync } from 'node:fs';
 
 const near = (a, b, tol, what) =>
@@ -52,7 +54,7 @@ near(tileXY(51.4778, 0, 1).x, 1.0, 1e-9, 'Greenwich is on the prime meridian');
       y: (1 - Math.asinh(Math.tan(lat * Math.PI / 180)) / Math.PI) / 2 * n,
     };
   };
-  for (const [lat, lon] of [[13.7563, 100.5018], [51.4778, -0.0015], [-33.87, 151.21], [42.36, -71.09]]) {
+  for (const [lat, lon] of [[13.7563, 100.5018], [51.4778, -0.0018], [-33.87, 151.21], [42.36, -71.09]]) {
     const a = tileXY(lat, lon, 16), b = ref(lat, lon, 16);
     near(a.x, b.x, 1e-6, `tile x at ${lat},${lon}`);
     near(a.y, b.y, 1e-6, `tile y at ${lat},${lon}`);
@@ -69,6 +71,58 @@ near(tileXY(51.4778, 0, 1).x, 1.0, 1e-9, 'Greenwich is on the prime meridian');
   near(metresPerPixel(0, 17), metresPerPixel(0, 16) / 2, 1e-9, 'each zoom level halves the scale');
 }
 
+// ── THE SCALE LAW: one unit is one metre ─────────────────────
+// The estate is 54 m across and the walker's eye is 1.65 m up. The map
+// underneath has to be the same size as the world it sits under, so a
+// tile is as wide in scene units as it is in metres. This is the
+// assertion the old code failed: SPAN was a constant 18 units while the
+// tile behind it changed from 4.7 km to 297 m, so the map claimed a
+// different scale under an unchanged footprint.
+{
+  near(tileMetres(13.7563, 16), metresPerPixel(13.7563, 16) * 256, 1e-6,
+       'a tile is as many units wide as it is metres wide');
+  // The plate is 5×5 of those tiles: 2.97 km of real ground at 1:1.
+  near(GRID * tileMetres(13.7563, 16) / 1000, 2.97, 0.02, 'the plate is ~3 km of real ground');
+  // And the plate must be wide enough to fill the frame at every zoom,
+  // or the view ends in a black rectangle of void.
+  for (const z of [ZOOM_MIN, ZOOM, ZOOM_MAX]) {
+    const plate = GRID * tileMetres(13.7563, z);
+    const frame = visibleWidth(13.7563, z, 1.6, -1.36);
+    assert(plate > frame, `z${z}: plate ${plate.toFixed(0)}m must cover the ${frame.toFixed(0)}m frame`);
+  }
+}
+
+// ── THE ALTITUDE LAW: depth is not a taste decision ──────────
+// Texel density on screen depends on the eye-to-plate distance and on
+// nothing else. This is why lowering the zoom level never fixed the
+// smear: z11, z13 and z17 all gave 14 px per texel. The plate now falls
+// to the one altitude at which the texels land on about two pixels.
+{
+  const h = altitudeFor(13.7563, 16);
+  // At 1440×900 and a 58° vertical FOV, one screen pixel covers
+  // 1.176e-3 × altitude metres radially. A texel is metresPerPixel wide.
+  const radial = h * (2 * (58 * Math.PI / 180 / 2) / 900);
+  const pxPerTexel = metresPerPixel(13.7563, 16) / radial;
+  assert(pxPerTexel > 1.0 && pxPerTexel < 3.0,
+         `z16 texel should land on 1–3 screen pixels, got ${pxPerTexel.toFixed(2)}`);
+  // The altitude must double as the zoom halves, or a zoomed-out map
+  // would be the smear again.
+  near(altitudeFor(13.7563, 15) / altitudeFor(13.7563, 16), 2, 0.01,
+       'altitude doubles per zoom level');
+}
+
+// ── The frame holds a neighbourhood, not a smear and not a continent
+{
+  const w = visibleWidth(13.7563, 16, 1.6, -1.36);
+  assert(w > 1200 && w < 3200, `z16 frame should be 1.2–3.2 km wide, got ${w.toFixed(0)}m`);
+  // Zooming in must actually zoom in.
+  const closer = visibleWidth(13.7563, 18, 1.6, -1.36);
+  assert(closer < w * 0.5, `z18 frame (${closer.toFixed(0)}m) should be far tighter than z16 (${w.toFixed(0)}m)`);
+  // And zooming out must actually zoom out.
+  const wider = visibleWidth(13.7563, 15, 1.6, -1.36);
+  assert(wider > w * 1.5, `z15 frame (${wider.toFixed(0)}m) should be much wider than z16 (${w.toFixed(0)}m)`);
+}
+
 // ── Latitude limits ───────────────────────────────────────────
 // Web Mercator cannot represent the poles; y must stay finite inside the
 // usual ±85.05° cutoff.
@@ -77,32 +131,24 @@ near(tileXY(51.4778, 0, 1).x, 1.0, 1e-9, 'Greenwich is on the prime meridian');
   assert(Number.isFinite(t.y) && t.y >= 0, 'y stays finite at the Mercator limit');
 }
 
-
-// ── Zoom (new) ────────────────────────────────────────────────
-// The map now steps from lane level to region. The clamp and the label
-// tiers are what keep "zoom out a lot" from becoming "zoomed into void".
+// ── Zoom range ────────────────────────────────────────────────
+// The map steps from the neighbourhood (z16) out to the district (z15)
+// and in to your own street (z18). It must not reach lane level under
+// the eye (that is what pixelated) nor the whole region (that is a
+// grey sheet with no streets in it).
 {
-  const { buildGround, ZOOM_MIN, ZOOM_MAX } = await import('./ground.js');
-  // buildGround needs THREE + DOM in the browser; here we only test the
-  // exported range constants and label maths, which are pure.
-  assert(ZOOM_MIN >= 10 && ZOOM_MIN <= 12, 'region floor around z11');
-  assert(ZOOM_MAX >= 16 && ZOOM_MAX <= 18, 'lane ceiling around z17');
-  assert(ZOOM_MAX > ZOOM_MIN + 3, 'the range must actually cover block → region');
-  assert(ZOOM <= 14, 'default must start zoomed out — street tiles pixelate underfoot');
-  assert(ZOOM >= 12, 'default still shows the city, not a continent');
-  // 4 tiles across at z11, Bangkok: ~76 km — the metro region and its
-  // neighbours. "Zoom out a lot" lands here; the CITY tier is z12–13
-  // (19–38 km), the default underfoot view.
-  const across = metresPerPixel(13.7563, 11) * 256 * 4 / 1000;
-  assert(across > 60 && across < 90, `z11 span ${across.toFixed(0)}km should be region scale`);
+  assert(ZOOM_MIN >= 14 && ZOOM_MIN <= 16, 'district floor around z15');
+  assert(ZOOM_MAX >= 17 && ZOOM_MAX <= 19, 'street ceiling around z18');
+  assert(ZOOM_MAX > ZOOM_MIN + 1, 'the range must actually cover street → district');
+  assert(ZOOM === 16, 'the default is the neighbourhood');
 }
 
 // Fractional auto-zoom must accumulate between integer tile loads. Rounding
-// each frame back to z13 made the tilt mechanic a permanent no-op.
+// each frame back to the default made the tilt mechanic a permanent no-op.
 {
   let z = ZOOM;
-  for (let i = 0; i < 120; i += 1) z = dampZoom(z, 17, 1 / 60);
-  assert(z > 16.8, `two seconds looking down should approach street zoom, got ${z}`);
+  for (let i = 0; i < 120; i += 1) z = dampZoom(z, 18, 1 / 60);
+  assert(z > 17.8, `two seconds looking down should approach street zoom, got ${z}`);
 }
 
 console.log('ground: all checks passed');

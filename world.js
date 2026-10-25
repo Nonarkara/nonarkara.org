@@ -1,4 +1,4 @@
-/** Procedural horizon: three quiet mountain rings, no texture or network. */
+/** Procedural horizon: quiet mountain rings plus Khao Yai to the north-east. */
 
 const fract = (n) => n - Math.floor(n);
 const noise = (n, seed) => fract(Math.sin(n * 91.17 + seed * 37.31) * 43758.5453);
@@ -10,6 +10,20 @@ export function ridgeHeight(i, count, layer = 0) {
     0.13 * Math.sin(a * (7 + layer * 2) - 0.8);
   const detail = (noise(i, layer + 11) - 0.5) * 0.16;
   return Math.max(0.14, Math.min(0.92, broad + detail));
+}
+
+// Bangkok → Khao Yai is roughly north-east. The silhouette is intentionally
+// a landmark profile rather than a claim to be a survey-grade terrain model:
+// a long forested table with two shoulders, not a generic alpine triangle.
+export const KHAO_YAI_BEARING = 51;
+
+export function khaoYaiHeight(offsetDeg) {
+  const off = Math.max(-40, Math.min(40, offsetDeg));
+  const broad = 0.48 * Math.exp(-Math.pow(off / 31, 6));
+  const west = 0.24 * Math.exp(-Math.pow((off + 10) / 7.5, 2));
+  const east = 0.29 * Math.exp(-Math.pow((off - 9) / 6.5, 2));
+  const saddle = 0.07 * Math.exp(-Math.pow(off / 4.2, 2));
+  return Math.max(0.03, broad + west + east - saddle);
 }
 
 export function buildMountains(THREE, scene) {
@@ -55,6 +69,46 @@ export function buildMountains(THREE, scene) {
     materials.push({ material, layer });
   }
 
+  // A directional landmark within the rings. It is only 81 vertices and
+  // shares the same untextured language, so phones pay almost nothing for
+  // a horizon that now has a place and an orientation.
+  const landmarkMaterial = new THREE.MeshBasicMaterial({
+    color: 0x263f3a,
+    transparent: true,
+    opacity: 0.72,
+    depthWrite: false,
+    fog: true,
+    side: THREE.DoubleSide,
+  });
+  {
+    const radius = 218;
+    const base = -4;
+    const span = 40;
+    const segments = 80;
+    const vertices = [];
+    const indices = [];
+    for (let i = 0; i <= segments; i++) {
+      const offset = -span + (i / segments) * span * 2;
+      const bearing = (KHAO_YAI_BEARING + offset) * Math.PI / 180;
+      const x = Math.sin(bearing) * radius;
+      const z = -Math.cos(bearing) * radius;
+      const y = base + khaoYaiHeight(offset) * 34;
+      vertices.push(x, base, z, x, y, z);
+      if (i < segments) {
+        const k = i * 2;
+        indices.push(k, k + 1, k + 3, k, k + 3, k + 2);
+      }
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.setIndex(indices);
+    const landmark = new THREE.Mesh(geometry, landmarkMaterial);
+    landmark.name = 'khao-yai-ridge';
+    landmark.renderOrder = -16;
+    landmark.userData = { landmark: 'KHAO YAI', bearing: KHAO_YAI_BEARING };
+    group.add(landmark);
+  }
+
   scene.add(group);
 
   const mixHex = (a, b, t) => {
@@ -75,6 +129,10 @@ export function buildMountains(THREE, scene) {
         material.color.setHex(dusk);
         material.opacity = layer.opacity * (0.82 + daylight * 0.18);
       });
+      const landmarkNight = 0x18312c;
+      const landmarkDay = mixHex(palette.bg, 0x315a45, 0.58);
+      landmarkMaterial.color.setHex(mixHex(landmarkNight, landmarkDay, daylight));
+      landmarkMaterial.opacity = 0.60 + daylight * 0.16;
     },
   };
 }

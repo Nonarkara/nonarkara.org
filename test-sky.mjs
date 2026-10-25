@@ -6,8 +6,12 @@ import assert from 'node:assert';
 
 // sky.js imports 'three'; node_modules/three is a local test shim that
 // provides only the Vector3 the maths uses (see that file).
-const { altAz, gmst, sunPosition, moonPosition, STARS, FIGURES, altAzToVec, BANGKOK } =
+const { altAz, gmst, sunPosition, moonPosition, FIGURES, altAzToVec, BANGKOK, loadCatalog } =
   await import('./sky.js');
+const CAT = await loadCatalog();
+const { RA, DEC, MAG, NAME, count: STAR_COUNT } = CAT;
+const NAME_INDEX = new Map();
+NAME.forEach((n, i) => { if (n && !NAME_INDEX.has(n)) NAME_INDEX.set(n, i); });
 
 const near = (a, b, tol, what) =>
   assert(Math.abs(a - b) <= tol, `${what}: got ${a.toFixed(3)}, want ${b.toFixed(3)} ±${tol}`);
@@ -90,21 +94,59 @@ for (const lat of [13.7563, 51.5, -33.9, 0]) {
 }
 
 // ── Catalogue integrity ───────────────────────────────────────
-STARS.forEach(([ra, dec, mag, name]) => {
-  assert(ra >= 0 && ra < 24, `${name}: RA ${ra} out of range`);
-  assert(dec >= -90 && dec <= 90, `${name}: Dec ${dec} out of range`);
-  assert(mag > -2 && mag < 5, `${name}: magnitude ${mag} out of range`);
-});
-assert(new Set(STARS.map(s => s[3])).size === STARS.length, 'no duplicate star names');
-Object.entries(FIGURES).forEach(([name, idx]) => {
-  assert(idx.length && idx.length % 2 === 0, `${name}: line list must be pairs`);
-  idx.forEach(i => assert(STARS[i], `${name}: index ${i} is not a star`));
-});
+// The catalogue is the sky. Every row of it has to be a real place in the
+// sky, and every line drawn on the dome has to name a star that exists.
+for (let i = 0; i < STAR_COUNT; i++) {
+  assert(RA[i] >= 0 && RA[i] < 24, `${NAME[i] || i}: RA ${RA[i]} out of range`);
+  assert(DEC[i] >= -90 && DEC[i] <= 90, `${NAME[i] || i}: Dec ${DEC[i]} out of range`);
+  assert(MAG[i] > -2 && MAG[i] <= 6.01, `${NAME[i] || i}: magnitude ${MAG[i]} out of range`);
+}
+{
+  const named = NAME.filter(Boolean);
+  assert(new Set(named).size === named.length, 'no duplicate star names');
+}
+
+// ── It must be a real sky, not a planetarium ───────────────────
+// The catalogue used to be 152 stars with the faintest at magnitude 3.85.
+// A naked-eye sky holds about five thousand to magnitude 6. If this ever
+// drops back to a handful, the sky is a decoration again.
+assert(STAR_COUNT > 4000, `the catalogue holds ${STAR_COUNT} stars; a real naked-eye sky holds over four thousand`);
+{
+  const counts = [1, 2, 3, 4, 5, 6].map((m) => {
+    let n = 0;
+    for (let i = 0; i < STAR_COUNT; i++) if (MAG[i] <= m) n++;
+    return n;
+  });
+  assert(counts[0] >= 10 && counts[0] <= 25, `about twenty first-magnitude stars, got ${counts[0]}`);
+  assert(counts[2] > counts[1] && counts[3] > counts[2] && counts[5] > counts[4],
+    'the magnitude counts must rise as the limit rises');
+  assert(counts[5] > 3000, `a magnitude 6 sky should hold thousands of stars, got ${counts[5]}`);
+  // The faintest stars must actually be faint, and the brightest bright.
+  assert(MAG[0] < -1 && MAG[0] > -2, `Sirius-class star at magnitude ${MAG[0]}`);
+  assert(MAG[STAR_COUNT - 1] > 5.4, `the faintest star should be near the limit, got ${MAG[STAR_COUNT - 1]}`);
+  // Sorted brightest first, so the renderer can bin them by walking.
+  for (let i = 1; i < STAR_COUNT; i++) assert(MAG[i] >= MAG[i - 1], 'the catalogue is not sorted by magnitude');
+}
+
+// ── Every constellation line names stars that exist ────────────
+for (const [fig, chains] of Object.entries(FIGURES)) {
+  assert(chains.length, `${fig} has no chains`);
+  for (const chain of chains) {
+    assert(chain.length >= 2, `${fig}: a chain needs at least two stars`);
+    for (const n of chain) {
+      assert(NAME_INDEX.has(n), `${fig} names "${n}", which is not in the catalogue`);
+    }
+  }
+}
 
 // Orion's belt must be three stars in a row: nearly equal spacing and
 // nearly collinear. A typo in any of the three shows up here immediately.
 {
-  const belt = ['Alnitak', 'Alnilam', 'Mintaka'].map(n => STARS.find(s => s[3] === n));
+  const belt = ['Alnitak', 'Alnilam', 'Mintaka'].map(n => {
+    const i = NAME_INDEX.get(n);
+    assert(i != null, `Orion's belt star ${n} is missing`);
+    return [RA[i], DEC[i]];
+  });
   const d = new Date(Date.UTC(2026, 0, 15, 20));
   const v = belt.map(([ra, dec]) => altAzToVec(...Object.values(altAz(ra, dec, 13.75, 100.5, d)), 1));
   const ab = v[0].angleTo(v[1]) * 180 / Math.PI, bc = v[1].angleTo(v[2]) * 180 / Math.PI;
@@ -113,4 +155,4 @@ Object.entries(FIGURES).forEach(([name, idx]) => {
   near(ab + bc, ac, 0.2, "belt stars are collinear");
 }
 
-console.log(`sky: all checks passed · ${STARS.length} stars · ${Object.keys(FIGURES).length} figures`);
+console.log(`sky: all checks passed · ${STAR_COUNT} stars · ${Object.keys(FIGURES).length} figures`);

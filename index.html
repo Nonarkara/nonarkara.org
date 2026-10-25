@@ -175,6 +175,12 @@
       <span class="sky-place" id="sky-place">SKY OVER BANGKOK</span>
       <span class="sky-time" id="sky-time">—</span>
     </div>
+    <!-- The site asks for your location; the browser then asks the device.
+         Not the other way round: nobody should be handing over their
+         position because they scrolled too far. -->
+    <button class="place-ask" id="sky-ask" type="button" data-place-ask>
+      <span data-i18n="place_ask">USE MY LOCATION</span>
+    </button>
     <div class="sky-star" id="sky-star"></div>
     <!-- What the thing you just tapped actually means: how to find it,
          who drew it and why, and one true fact with a number in it. -->
@@ -197,6 +203,9 @@
       <span class="sky-place" id="ground-place">—</span>
       <span class="sky-time" data-i18n="ground_label">THE GROUND</span>
     </div>
+    <button class="place-ask" id="ground-ask" type="button" data-place-ask>
+      <span data-i18n="place_ask">USE MY LOCATION</span>
+    </button>
     <div class="ground-cap" id="ground-cap"></div>
     <button class="sky-exit" id="ground-exit" aria-label="Return to the room">
       <span aria-hidden="true">▲</span>
@@ -223,6 +232,34 @@
   <!-- Floating MENU + PLAN toggle -->
   <button class="menu-btn" id="menu-btn" aria-label="Open menu">MENU</button>
   <button class="view-toggle" id="view-toggle" aria-label="Switch to plan view">▢ PLAN</button>
+  <!-- The wall. Every city system, on one bank of monitors. -->
+  <button class="view-toggle ioc-toggle" id="ioc-toggle" aria-label="Open the IOC wall">▣ IOC</button>
+
+  <!-- THE IOC WALL ───────────────────────────────────────
+       One screen. Inside it, the systems: a photograph of each, its
+       code, its name. The photograph of a system is the system's own
+       screenshot, and the signal on top of it is the signal a CRT gives
+       when it is losing its lock. -->
+  <div id="ioc" aria-hidden="true">
+    <header class="ioc-head">
+      <span class="ioc-title">IOC WALL</span>
+      <span class="ioc-sub" id="ioc-count">— SYSTEMS</span>
+      <button id="ioc-close" class="ioc-close" aria-label="Close the wall">CLOSE</button>
+    </header>
+    <div class="crt-screen">
+      <div class="ioc-grid" id="ioc-grid"></div>
+      <canvas class="crt-fx" id="crt-fx" aria-hidden="true"></canvas>
+    </div>
+  </div>
+
+  <!-- The truck's mirrors. Two flank cameras, drawn as feeds. They only
+       exist while you are sitting in the driver's seat. -->
+  <div class="mirror mirror-l" id="mirror-l" aria-hidden="true">
+    <canvas id="mirror-l-canvas"></canvas>
+  </div>
+  <div class="mirror mirror-r" id="mirror-r" aria-hidden="true">
+    <canvas id="mirror-r-canvas"></canvas>
+  </div>
 
   <!-- Room HUD — monitoring-console overlay (room view only) -->
   <div class="room-hud" id="room-hud" aria-hidden="true">
@@ -275,6 +312,19 @@
     <button id="drive-chip" class="hud-chip drive-chip" aria-label="Drive the Cybertruck">
       <span class="hud-chip-glyph" aria-hidden="true">▮</span>
       <span class="hud-chip-label" id="drive-chip-label">DRIVE</span>
+    </button>
+    <!-- The truck's three switches. They appear only while you are driving. -->
+    <button id="cv-chip" class="hud-chip cv-chip" aria-label="Turn the cameras on">
+      <span class="hud-chip-glyph" aria-hidden="true">◉</span>
+      <span class="hud-chip-label">CAMERAS</span>
+    </button>
+    <button id="auto-chip" class="hud-chip auto-chip" aria-label="Hand the wheel to the autopilot">
+      <span class="hud-chip-glyph" aria-hidden="true">◎</span>
+      <span class="hud-chip-label">AUTOPILOT</span>
+    </button>
+    <button id="view-chip" class="hud-chip view-chip" aria-label="Switch between the driver's seat and the chase view">
+      <span class="hud-chip-glyph" aria-hidden="true">▣</span>
+      <span class="hud-chip-label">SEAT</span>
     </button>
     <!-- Appears only when you are holding a ball. -->
     <button id="shoot-chip" class="hud-chip shoot-chip" aria-label="Shoot the ball">
@@ -545,11 +595,11 @@
     </section>
 
     <button class="plan-section-label os-signals-label" id="os-signals-toggle" type="button"
-            aria-expanded="true" aria-controls="plan-brief">
+            aria-expanded="false" aria-controls="plan-brief">
       <span data-i18n="os_signals">SIGNALS · MARKETS + WEATHER</span>
-      <span class="os-fold" aria-hidden="true">−</span>
+      <span class="os-fold" aria-hidden="true">+</span>
     </button>
-    <section class="plan-brief" id="plan-brief">
+    <section class="plan-brief folded" id="plan-brief">
       <div class="brief-cell" id="brief-fx"><span class="lbl">USD / THB</span><span class="val" id="brief-fx-val">—</span><span class="sub" id="brief-fx-sub">sgd —</span></div>
       <div class="brief-cell" id="brief-sgd"><span class="lbl">SGD / THB</span><span class="val" id="brief-sgd-val">—</span><span class="sub" id="brief-sgd-sub">eur — · gbp —</span></div>
       <div class="brief-cell" id="brief-btc"><span class="lbl">BTC / USD</span><span class="val" id="brief-btc-val">—</span><span class="sub" id="brief-btc-sub">— %</span></div>
@@ -620,11 +670,12 @@
     <div class="pomo-hint">hold ✕ for 3 seconds to exit · timer keeps running</div>
   </div>
 
-  <!-- WebGL fallback — shown when browser has no WebGL support -->
-  <div class="webgl-fallback" id="webgl-fallback">
-    <div class="mark">N<span class="boot-o">O</span>N</div>
-    <div class="msg">Your browser doesn't support WebGL, which powers the 3D room.<br/><br/>No problem — the plan view has everything.</div>
-    <button class="action" id="fallback-btn" aria-label="Continue to plan view">CONTINUE TO PLAN VIEW</button>
+  <!-- No WebGL: there is no pavilion to walk into, so the OS is the site.
+       A notice in the corner, not a curtain over the whole page — the
+       reader gets the desk, and one line saying why. -->
+  <div class="webgl-fallback" id="webgl-fallback" role="status">
+    <span class="msg">NO WEBGL — SHOWING THE OS INSTEAD</span>
+    <button class="action" id="fallback-btn" type="button" aria-label="Dismiss this notice">DISMISS</button>
   </div>
 
   <!-- Offboard ritual — surfaces after every focus block ends.
@@ -645,28 +696,38 @@
     </div>
   </div>
 
-  <!-- Door — first-visit entry choice between host and guest mode.
+  <!-- The door — the first-visit question. It is NOT a curtain: the
+       pavilion is already rendering behind this panel, and the panel is
+       sized to its own content instead of being a phone-width column
+       floating in a black field. The room's own furniture is withheld
+       until the question is answered, so the first screen is the room
+       plus one sign.
        localStorage nonarkara.mode = 'host' | 'guest' remembers the pick.
        ?door query clears and re-asks. ?host / ?guest force a mode.
        Host → NON OS (all-day). Guest → Pavilion (discovery room). -->
   <div id="door" aria-label="Choose how you arrived">
-    <div class="door-mark">N<span class="door-o">O</span>N</div>
-    <div class="door-tag">how did you arrive</div>
-    <div class="door-list">
-      <button class="door-btn" id="door-host" type="button">
-        <span class="eyebrow">this is my device</span>
-        <span class="title">NON OS</span>
-        <span class="sub">time · fleet · signals · keep it open all day</span>
-      </button>
-      <div class="door-divider">— or —</div>
-      <button class="door-btn" id="door-guest" type="button">
-        <span class="eyebrow">you arrived by link</span>
-        <span class="title">enter the pavilion</span>
-        <span class="sub">walk the room · find who Non is · Easter eggs</span>
-      </button>
+    <div class="door-panel">
+      <div class="door-mark">N<span class="door-o">O</span>N</div>
+      <div class="door-sub" data-i18n="palace">the pavilion</div>
+      <div class="door-rule" aria-hidden="true"></div>
+      <div class="door-tag" data-i18n="door_q">how did you arrive</div>
+      <div class="door-list">
+        <button class="door-btn" id="door-host" type="button">
+          <span class="eyebrow" data-i18n="door_host_eyebrow">this is my device</span>
+          <span class="title" data-i18n="door_host_title">NON OS</span>
+          <span class="sub" data-i18n="door_host_sub">time · fleet · signals · keep it open all day</span>
+        </button>
+        <div class="door-divider" aria-hidden="true">— or —</div>
+        <button class="door-btn" id="door-guest" type="button">
+          <span class="eyebrow" data-i18n="door_guest_eyebrow">you arrived by link</span>
+          <span class="title" data-i18n="door_guest_title">enter the pavilion</span>
+          <span class="sub" data-i18n="door_guest_sub">walk the room · find who Non is · Easter eggs</span>
+        </button>
+      </div>
+      <div class="door-rule" aria-hidden="true"></div>
+      <a class="door-reading" href="reading.html" data-i18n="door_reading">Read biography &amp; selected work →</a>
+      <div class="door-foot" data-i18n="door_foot">no login · this choice stays on this device · ?door to choose again</div>
     </div>
-    <a class="door-reading" href="reading.html">Read biography &amp; selected work →</a>
-    <div class="door-foot">no login · this choice stays on this device · ?door to choose again</div>
   </div>
 
   <!-- Main app module -->

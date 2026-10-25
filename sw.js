@@ -6,7 +6,7 @@
  * for same-origin, so a stale version means users keep the old shell.
  */
 
-const CACHE_VERSION = 'non-2026-10-18-v4.43.3';
+const CACHE_VERSION = 'non-2026-10-25-v4.48';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 // The app's own code. These are always revalidated when online so a
@@ -14,10 +14,25 @@ const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const CODE = new Set([
   '/', '/index.html', '/mixtape.html',
   '/styles.css', '/app.js', '/discover.js', '/sky.js', '/ground.js',
+  '/entrance.css',                    // the door's own type and colour — it is not in styles.css
+  '/starcat.js',                      // 5,022 real stars, fetched on the first look up
   '/render-quality.js',
+  '/world-lighting.js',
   '/pavilion.js', '/glasshouse.js', '/savoye.js', '/farnsworth.js', '/fallingwater.js',
   '/walk.js', '/daylight.js', '/astronomy.js', '/world.js', '/poems.js', '/starlore.js', '/look.js', '/pool.js', '/interiors.js',
   '/yard.js', '/drive.js', '/arcade.js', '/exhibit.js', '/balls.js',
+  // The truck's brain (23 Oct 2026). These MUST be here: a module that the
+  // service worker does not know about is a module it answers 404 for,
+  // and app.js imports all of them at once — so one missing entry here
+  // is a site that does not boot at all.
+  '/vision.js',                      // the detector: closed vocabulary, confidence
+  '/autopilot.js',                   // the Intelligent Driver Model, driving itself
+  '/cv-overlay.js',                  // the boxes, the names, the percentages
+  '/side-cam.js',                    // the two flank cameras
+  '/props.js',                       // the things the cameras can see
+  '/rng.js',                         // seedable noise, for both of the above
+  '/ioc.js',                         // the IOC wall
+  '/crt.js',                         // the signal on the wall
   // Must be network-first or the staleness check reads a stale answer
   // about staleness, which is a very good way to never fix anything.
   '/version.json',
@@ -31,10 +46,13 @@ const SHELL = [
   '/index.html',
   '/mixtape.html',
   '/styles.css',                    // v2: extracted from inline
+  '/entrance.css',                  // the door's own type and colour
   '/app.js',                        // v2: extracted from inline
   '/render-quality.js',             // adaptive DPR + frame pacing
+  '/world-lighting.js',              // real sun position + adaptive soft shadows
   '/discover.js',                   // pavilion discovery counter
   '/sky.js',                        // the planetarium — must work offline
+  '/starcat.js',                    // 5,022 real stars — the sky, offline
   '/pavilion.js',                   // the Barcelona plan
   '/glasshouse.js',                 // New Canaan, 1949
   '/savoye.js',                     // Poissy, 1931
@@ -52,6 +70,14 @@ const SHELL = [
   '/yard.js',                       // paths, pitch, court, the shooting games
   '/balls.js',                      // the ball you carry, and the shootout
   '/drive.js',                      // the Cybertruck, and the driving of it
+  '/vision.js',                     // the detector: closed vocabulary, confidence
+  '/autopilot.js',                  // the Intelligent Driver Model, driving itself
+  '/cv-overlay.js',                 // the boxes, the names, the percentages
+  '/side-cam.js',                   // the two flank cameras
+  '/props.js',                      // the things the cameras can see
+  '/rng.js',                        // seedable noise
+  '/ioc.js',                        // the IOC wall
+  '/crt.js',                        // the signal on the wall
   '/arcade.js',                     // kiosks in the Glass House
   '/exhibit.js',                    // the Bangkok Room on Savoye's living floor
   '/ground.js',                     // the satellite floor (tiles need network)

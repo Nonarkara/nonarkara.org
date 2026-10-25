@@ -116,7 +116,13 @@
       .hint { bottom: calc(50px + var(--sab)); }
     }
 
-    .meta {
+    /* The room's link row. SCOPED to the overlay on purpose: the class name
+       was reused by the plan for its date and its council status, and the
+       overlay's absolute positioning dragged both of them out of their own
+       containers and pinned them to the top-left corner of the desk. A
+       class that means "floating label" and is used for "text in a row" is
+       a class that will do this again. */
+    .overlay .meta {
       position: absolute; bottom: calc(28px + var(--sab)); right: calc(32px + var(--sar));
       display: flex; gap: 24px;
       font-size: 9px; letter-spacing: 0.16em;
@@ -124,9 +130,9 @@
       opacity: 0; transition: opacity 2.5s ease 2.5s;
       pointer-events: auto;
     }
-    .meta.in { opacity: 0.6; }
-    .meta a { color: inherit; text-decoration: none; }
-    .meta a:hover { color: var(--white); }
+    .overlay .meta.in { opacity: 0.6; }
+    .overlay .meta a { color: inherit; text-decoration: none; }
+    .overlay .meta a:hover { color: var(--white); }
 
     /* ── Trilingual toggle (top-right) ── */
     .lang {
@@ -1228,7 +1234,16 @@
       pointer-events: none !important;
       transition-delay: 0s !important;
     }
-    body[data-view="room"] #plan { display: none; }
+    /* The desk is CLOSED until the app opens it.
+       The Pavilion is the site's first screen. The app decides which view
+       it is in only after it has built the scene — which on a slow phone
+       is a second or more — and until that moment the desk used to be
+       simply visible, so a reader watched the NON OS dashboard flash past
+       behind the boot screen. It also stayed mounted behind the IOC wall.
+       Every view but the desk now hides it, and the desk shows only when
+       the app says so. */
+    #plan { display: none; }
+    body[data-view="plan"] #plan { display: block; }
 
     #plan {
       position: fixed; inset: 0; z-index: 5;
@@ -1509,15 +1524,25 @@
     }
     .brief-cell .sub .up   { color: var(--amber); }
     .brief-cell .sub .down { color: #c44; }
-    /* Weather cell spans the full row underneath */
-    .plan-brief .brief-wx { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 12px; }
+    /* Weather cell spans the full row underneath.
+       It is a ROW — label, temperature, detail strip on one line — only when
+       that line actually fits: 156px of label + 113px of temperature +
+       342px of detail + the gaps needs 663px of cell, which is 731px of
+       viewport. Below 900px it stacks like its thirteen siblings, because
+       a row that breaks leaves the detail strip alone on the last line and
+       a lone line is an accident. */
+    .plan-brief .brief-wx { grid-column: 1 / -1; }
     .plan-brief .brief-wx .val { font-size: 26px; }
+    @media (min-width: 900px) {
+      .plan-brief .brief-wx {
+        flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 12px;
+      }
+    }
     /* AQI spans full row too — it's Bangkok-context, like weather */
     .plan-brief .brief-aqi { grid-column: 1 / -1; }
     .plan-brief .brief-aqi .val { font-size: 26px; transition: color 0.3s ease; }
     @media (min-width: 480px) {
       .plan-brief { grid-template-columns: 1fr 1fr 1fr 1fr; }
-      .plan-brief .brief-wx { grid-column: 1 / -1; }
     }
 
     .plan-section { margin-bottom: 26px; }
@@ -1685,6 +1710,163 @@
     .view-toggle.in { opacity: 0.85; pointer-events: auto; }
     .view-toggle:hover { color: var(--amber); border-color: var(--amber); }
     body[data-view="plan"] .view-toggle { display: none; }   /* in plan, the footer button takes over */
+
+    /* The IOC wall sits above PLAN in the right rail — one column, one
+       row each, so nothing lands on top of anything else. */
+    .ioc-toggle { bottom: calc(134px + var(--sab)); }
+    body[data-view="ioc"] .view-toggle,
+    body[data-view="ioc"] .ioc-toggle { display: none; }
+
+    /* The wall is a view. The world's chrome leaves with the world — a
+       caption, a key legend or a MENU button printed on top of twenty
+       systems is furniture from another room, and it covers the bottom
+       row of the wall. Same rule as the plan view. */
+    body[data-view="ioc"] .room-hud,
+    body[data-view="ioc"] .discover-toast,
+    body[data-view="ioc"] .tilt-hint,
+    body[data-view="ioc"] .intent-line,
+    body[data-view="ioc"] .shortcut-hints,
+    body[data-view="ioc"] .walk-stick,
+    body[data-view="ioc"] .nav-pad,
+    body[data-view="ioc"] .sky-hud,
+    body[data-view="ioc"] .sky-hint,
+    body[data-view="ioc"] .ground-hint,
+    body[data-view="ioc"] .overlay,
+    body[data-view="ioc"] .menu-btn,
+    body[data-view="ioc"] .tip,
+    body[data-view="ioc"] .mirror {
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+
+    /* ── THE IOC WALL ──────────────────────────────────────
+       One screen, and inside it the systems. A wall of monitors is a
+       single object, so the wall is a single object: one bezel, one
+       grid, no card per system. The photographs are the content; the
+       signal on top of them is the fault, and it moves. */
+    #ioc {
+      position: fixed; inset: 0; z-index: 20;
+      display: none;
+      background: #05070a;
+      padding: 18px;
+      flex-direction: column;
+      gap: 14px;
+    }
+    body[data-view="ioc"] #ioc { display: flex; }
+    .ioc-head {
+      display: flex; align-items: baseline; gap: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; letter-spacing: 0.32em; text-transform: uppercase;
+      color: #e8eef4;
+      flex: 0 0 auto;
+    }
+    .ioc-title { color: var(--amber); }
+    .ioc-sub { color: #6d7c8c; }
+    .ioc-close {
+      margin-left: auto;
+      background: none; border: 1px solid #2a3440; color: #9fb3c8;
+      font-family: inherit; font-size: 10px; letter-spacing: 0.28em;
+      padding: 8px 14px; cursor: pointer; min-height: 36px;
+    }
+    .ioc-close:hover { color: var(--amber); border-color: var(--amber); }
+
+    /* The bezel. One inset rule, no glow, no radius. */
+    .crt-screen {
+      position: relative;
+      flex: 1 1 auto; min-height: 0;
+      border: 1px solid #1c242e;
+      background: #04060a;
+      overflow: hidden;
+    }
+    .ioc-grid {
+      position: absolute; inset: 0;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-auto-rows: 1fr;
+      gap: 1px;
+      background: #1c242e;         /* the hairline between cells is the gap */
+    }
+    .ioc-cell {
+      position: relative;
+      display: flex; flex-direction: column;
+      min-width: 0; min-height: 0;
+      background: #04060a;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .ioc-cell img {
+      flex: 1 1 auto; min-height: 0;
+      width: 100%; display: block;
+      object-fit: cover;
+      filter: grayscale(0.55) contrast(1.06) brightness(0.82);
+      transition: filter 0.2s ease;
+    }
+    .ioc-cell:hover img { filter: grayscale(0) contrast(1.02) brightness(1); }
+    .ioc-cell figcaption {
+      flex: 0 0 auto;
+      display: flex; align-items: baseline; gap: 8px;
+      padding: 6px 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
+      background: #04060a;
+      border-top: 1px solid #141b23;
+    }
+    .ioc-code { color: var(--amber); }
+    .ioc-name {
+      color: #8d9daf;
+      /* The name has to be allowed to shrink, or on a narrow cell it
+         runs over the code it sits next to. */
+      min-width: 0; flex: 1 1 auto;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    /* The signal. Above everything, and it does not take clicks. */
+    .crt-fx {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+    }
+    @media (max-width: 900px) { .ioc-grid { grid-template-columns: repeat(2, 1fr); } }
+    /* A narrow cell cannot carry a code and a name side by side — the
+       name loses half its letters to an ellipsis. It goes underneath.
+       Above 900px the wall is four across, so a cell is as narrow as
+       225px just above the switch and as wide as 360px at 1440. The name
+       goes under the code whenever the cell cannot hold it — which is the
+       four-across band below 1040px. */
+    @media (max-width: 640px) {
+      .ioc-cell figcaption { flex-direction: column; align-items: flex-start; gap: 2px; padding: 5px 7px; }
+    }
+    @media (min-width: 901px) and (max-width: 1040px) {
+      .ioc-cell figcaption { flex-direction: column; align-items: flex-start; gap: 2px; padding: 5px 7px; }
+    }
+    @media (max-width: 600px) {
+      #ioc { padding: 10px; gap: 10px; }
+      .ioc-head { font-size: 10px; letter-spacing: 0.22em; }
+    }
+
+    /* ── THE TRUCK'S MIRRORS ───────────────────────────────
+       Two flank cameras, hung where a driver's eyes would find them:
+       hard left and hard right, just inside the glass. */
+    .mirror {
+      position: fixed;
+      top: 50%;
+      width: 178px; height: 122px;
+      transform: translateY(-50%);
+      z-index: 13;
+      display: none;
+      border: 1px solid #2a3440;
+      background: #05070a;
+      overflow: hidden;
+    }
+    .mirror-l { left: calc(18px + var(--sal)); }
+    .mirror-r { right: calc(18px + var(--sar)); }
+    body.driving.cv-on.seat-view .mirror { display: block; }
+    .mirror canvas { width: 100%; height: 100%; display: block; }
+    @media (max-width: 900px) {
+      .mirror { width: 116px; height: 80px; }
+      .mirror-l { left: calc(8px + var(--sal)); }
+      .mirror-r { right: calc(8px + var(--sar)); }
+    }
     @media (max-width: 600px) {
       .view-toggle {
         right: calc(14px + var(--sar));
@@ -1769,6 +1951,52 @@
     .hud-chip:hover { color: var(--amber); border-color: var(--amber); }
     .hud-chip:active { background: rgba(245, 158, 11, 0.06); }
     .hud-chip-glyph { font-size: 11px; color: var(--amber); }
+
+    /* ── The truck's switches ────────────────────────────────
+       Three chips, shown only while you are in the truck. They are the
+       whole lesson — the cameras, the autopilot, the view — so they are
+       real chips with their own label, not icons you have to guess. */
+    .cv-chip, .auto-chip, .view-chip { display: none; }
+    body.driving .cv-chip,
+    body.driving .auto-chip,
+    body.driving .view-chip {
+      display: inline-flex;
+      top: auto;
+      right: calc(18px + var(--sar));
+      left: auto;
+      bottom: calc(86px + var(--sab));
+    }
+    body.driving .auto-chip { bottom: calc(132px + var(--sab)); }
+    body.driving .view-chip { bottom: calc(40px + var(--sab)); }
+
+    /* Driving is its own world. The room's furniture leaves with it: the
+       wall and the plan are places you cannot go from the driver's seat,
+       the key legend repeats what the toast already says, and the MENU
+       button was landing on the truck's own switches in the same corner. */
+    body.driving .view-toggle,
+    body.driving .ioc-toggle,
+    body.driving .menu-btn,
+    body.driving .shortcut-hints,
+    body.driving .hint,
+    body.driving .intent-line,
+    body.driving .discover-chip,
+    body.driving .walk-btn {
+      display: none !important;
+    }
+    /* On, a chip says so in colour as well as in words. */
+    .hud-chip.on { color: var(--amber); border-color: var(--amber); }
+
+    /* ── The camera overlay ────────────────────────────────
+       A 2D canvas over the 3D scene: the truck's cameras, drawn over
+       what the cameras can see. Hidden until you ask for it. */
+    .cv-overlay {
+      position: fixed; inset: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 12;
+      display: none;
+    }
+    body.cv-on .cv-overlay { display: block; }
 
     /* Compass — bottom right, opposite the thumbstick, so a right thumb
        reaches it without crossing the look-drag area. It names the
@@ -1969,6 +2197,13 @@
     }
     body[data-view="room"] .intent-line { opacity: 0.85; pointer-events: auto; }
     body[data-view="plan"] .intent-line { pointer-events: none; }
+    /* The intent line belongs to the room. Before the app has said which
+       view it is in — the scene is still building — it used to sit at the
+       top of the screen, laid out over the room's own HUD and over the sky
+       panel's hidden clock, because only the desk and the wall had rules
+       to hide it. Furniture that is not in its room is not furniture; it
+       is something lying on top of the work. */
+    body:not([data-view="room"]) .intent-line { display: none !important; }
     .intent-line:hover { color: var(--amber); }
     .intent-eyebrow { opacity: 0.6; }
     .intent-sep     { opacity: 0.35; }
@@ -2023,6 +2258,22 @@
       mix-blend-mode: difference;
     }
     body[data-view="room"] .shortcut-hints { opacity: 0.55; }
+
+    /* The bottom band had four things in it — a welcome line, a key
+       legend, three links and three buttons — and the links were landing
+       on the MENU button. The links belong with the identity, not in the
+       traffic: under the wordmark, where the room already introduces
+       itself. On a phone the buttons move to the left thumb and the
+       links stay in the bottom-right corner, where they have room. */
+    @media (min-width: 601px) {
+      .overlay .meta {
+        right: auto;
+        left: calc(32px + var(--sal));
+        top: calc(112px + var(--sat));
+        bottom: auto;
+        gap: 20px;
+      }
+    }
     .shortcut-hints kbd {
       font-family: inherit;
       background: var(--bg);
@@ -2045,7 +2296,11 @@
       .caption { font-size: 8px; top: calc(42px + var(--sat)); left: calc(20px + var(--sal)); }
       /* Change copy + move so it doesn't crowd the menu button */
       .hint    { font-size: 7px; bottom: calc(84px + var(--sab)); left: calc(20px + var(--sal)); letter-spacing: 0.16em; max-width: 60vw; }
-      .meta    { right: auto; left: calc(20px + var(--sal)); bottom: calc(20px + var(--sab)); gap: 14px; font-size: 8px; }
+      /* The room's buttons live on the left on a phone (the right thumb
+         owns the stick), so the links go to the right, above the stick's
+         ring. Left-aligned, "Biography & selected work" sat behind the
+         MENU button. */
+      .overlay .meta    { right: calc(20px + var(--sar)); left: auto; bottom: calc(18px + var(--sab)); gap: 14px; font-size: 8px; }
       .lang    { top: calc(18px + var(--sat)); right: calc(20px + var(--sar)); gap: 0; }
       .lang button { padding: 4px 6px; font-size: 10px; min-width: 36px; min-height: 32px; }
 
@@ -2262,52 +2517,51 @@
   cursor: wait;
 }
 
-/* ── WebGL fallback message ───────────────────────────────── */
+/* ── No-WebGL notice ──────────────────────────────────────────────────
+   A browser without WebGL cannot walk into the pavilion, so the OS is the
+   site — and it is told so by one line in the corner. It used to be a
+   full-screen black curtain with a centred column and a button: a wall on
+   first load, and the same shape as every other wall this site has had to
+   give up. Docked, sized to its content, dismissible. */
 .webgl-fallback {
   position: fixed;
-  inset: 0;
+  right: calc(20px + var(--sar));
+  bottom: calc(20px + var(--sab));
   z-index: 1000;
   display: none;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  background: var(--black);
-  color: var(--fg);
+  gap: 14px;
+  max-width: min(92vw, 360px);
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--dim);
   font-family: 'JetBrains Mono', monospace;
-  text-align: center;
-  padding: 40px;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
 }
 .webgl-fallback.in {
   display: flex;
 }
-.webgl-fallback .mark {
-  font-family: 'Josefin Sans', sans-serif;
-  font-weight: 700;
-  font-size: 48px;
-  letter-spacing: 0.08em;
-  margin-bottom: 24px;
-}
 .webgl-fallback .msg {
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--dim);
-  max-width: 400px;
-  margin-bottom: 32px;
+  line-height: 1.5;
 }
 .webgl-fallback .action {
-  padding: 14px 30px;
-  background: var(--white);
-  color: var(--black);
-  border: none;
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--line);
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  letter-spacing: 0.32em;
+  font-size: 9px;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   cursor: pointer;
   transition: opacity 0.15s;
 }
 .webgl-fallback .action:hover {
-  opacity: 0.85;
+  opacity: 0.7;
 }
 
 /* ── Keyboard shortcut hints (plan view) ──────────────────── */
@@ -2398,86 +2652,158 @@ body[data-theme="light"] .offboard-btn:focus-visible { border-color: rgba(26,26,
 }
 
 /* ═══════════════════════════════════════════════════════════
-   DOOR — FIRST-VISIT ENTRY CHOICE
-   Host (Non) vs guest mode. z 9000 — under boot (9999).
-   No opacity transition — Chrome timeline-freeze bug.
-   Boot acts as reveal curtain; door appears as boot clears.
+   THE DOOR — the first-visit question, NOT a wall.
+
+   It used to be a full-screen black curtain with a 420px column
+   centred in it: a phone column on a desktop, in a dead field, on
+   top of the one thing worth showing. Now the pavilion is the first
+   screen and the question is a sign docked in the identity corner,
+   sized to its own content. The room's furniture is withheld while
+   the sign is up — one object on the first screen, not two bands
+   saying the same thing.
    ═══════════════════════════════════════════════════════════ */
 #door {
   position: fixed; inset: 0; z-index: 9000;
-  background: var(--bg);
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  padding:
-    calc(var(--sat) + 24px)
-    calc(var(--sar) + 20px)
-    calc(var(--sab) + 24px)
-    calc(var(--sal) + 20px);
-  opacity: 1;
+  background: transparent;
+  display: block;
+  pointer-events: none;
 }
 #door.skip { display: none; }
+.door-panel {
+  pointer-events: auto;
+  position: absolute;
+  top: calc(var(--sat) + 18px);
+  left: calc(var(--sal) + 18px);
+  width: min(360px, calc(100vw - var(--sal) - var(--sar) - 36px));
+  background: #0a0b0c;
+  border: 1px solid rgba(245, 245, 240, 0.22);
+  padding: 18px 18px 16px;
+}
 .door-mark {
   font-family: 'Josefin Sans', sans-serif;
   font-weight: 700; font-size: 22px;
-  letter-spacing: 0.06em; color: var(--fg);
-  margin-bottom: 8px;
+  letter-spacing: 0.06em; color: #f5f5f0;
+  margin-bottom: 4px;
 }
 .door-o {
   color: transparent;
   -webkit-text-stroke: 1.5px var(--amber);
   text-stroke: 1.5px var(--amber);
 }
+.door-sub {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
+  color: rgba(245, 245, 240, 0.55);
+}
+.door-rule {
+  height: 1px; margin: 11px 0;
+  background: rgba(245, 245, 240, 0.16);
+}
 .door-tag {
   font-family: 'JetBrains Mono', monospace;
   font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
-  color: var(--dim); margin-bottom: 36px;
+  color: rgba(245, 245, 240, 0.55); margin-bottom: 12px;
 }
 .door-list {
   display: flex; flex-direction: column;
-  width: min(420px, calc(100% - 24px));
 }
 .door-btn {
   display: block; width: 100%;
   background: transparent;
-  border: 1px solid var(--line);
-  color: var(--fg); padding: 22px 22px;
+  border: 1px solid rgba(245, 245, 240, 0.28);
+  color: #f5f5f0; padding: 14px 14px;
   text-align: left; cursor: pointer;
   font-family: inherit;
   -webkit-tap-highlight-color: transparent;
   transition: background 0.18s ease, border-color 0.18s ease;
-  min-height: 96px;
+  min-height: 44px;
 }
 .door-btn + .door-btn { margin-top: -1px; }
 .door-btn:hover, .door-btn:focus-visible {
-  background: rgba(245, 245, 240, 0.05);
-  border-color: var(--fg); outline: none; position: relative; z-index: 1;
+  background: rgba(245, 245, 240, 0.06);
+  border-color: #f5f5f0; outline: none; position: relative; z-index: 1;
 }
-body[data-theme="light"] .door-btn:hover,
-body[data-theme="light"] .door-btn:focus-visible { background: rgba(0,0,0,0.04); }
 .door-btn .eyebrow {
   display: block; font-family: 'JetBrains Mono', monospace;
   font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
-  color: var(--dim); margin-bottom: 10px;
+  color: rgba(245, 245, 240, 0.55); margin-bottom: 8px;
 }
 .door-btn .title {
   display: block; font-family: 'Josefin Sans', sans-serif;
-  font-weight: 700; font-size: 17px; letter-spacing: 0.04em;
-  margin-bottom: 6px; color: var(--fg);
+  font-weight: 700; font-size: 15px; letter-spacing: 0.04em;
+  margin-bottom: 4px; color: #f5f5f0;
 }
 .door-btn .sub {
   display: block; font-family: 'JetBrains Mono', monospace;
-  font-size: 11px; line-height: 1.55; color: var(--dim);
+  font-size: 10px; line-height: 1.55; color: rgba(245, 245, 240, 0.55);
 }
 .door-divider {
   font-family: 'JetBrains Mono', monospace;
   font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
-  color: var(--dim); padding: 14px 0; text-align: center;
+  color: rgba(245, 245, 240, 0.35); padding: 8px 0; text-align: center;
 }
 .door-foot {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 9px; letter-spacing: 0.28em; text-transform: uppercase;
-  color: var(--dim); text-align: center;
-  margin-top: 32px; max-width: 320px; line-height: 1.7;
+  font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: rgba(245, 245, 240, 0.4);
+  margin-top: 8px; line-height: 1.7;
+}
+
+/* While the question is up, the room's own furniture is withheld. The
+   first screen is the pavilion and one sign — not the pavilion with a
+   second layer of instruments printed over it. */
+body[data-door="open"] .room-hud,
+body[data-door="open"] .intent-line,
+body[data-door="open"] .menu-btn,
+body[data-door="open"] .view-toggle,
+body[data-door="open"] .sky-hint,
+body[data-door="open"] .ground-hint,
+body[data-door="open"] .tilt-hint,
+body[data-door="open"] .shortcut-hints,
+body[data-door="open"] .overlay .brand,
+body[data-door="open"] .overlay .caption,
+body[data-door="open"] .overlay .hint,
+body[data-door="open"] .overlay .meta {
+  display: none !important;
+}
+
+/* The language switcher is the one control left on the first screen, and
+   the question it changes is written in the language it sets. It gets a
+   plate to sit on — white type on a bright sky is not legible. */
+body[data-door="open"] .lang {
+  opacity: 1;
+  transition: none;
+  background: rgba(10, 11, 12, 0.82);
+  border: 1px solid rgba(245, 245, 240, 0.18);
+  padding: 3px 6px;
+}
+body[data-door="open"] .lang button { opacity: 0.9; }
+body[data-door="open"] .lang button.on { opacity: 1; }
+body[data-door="open"] .lang .sep { color: rgba(245, 245, 240, 0.5); }
+
+/* On a phone the sign is a sheet at the foot of the screen: the room
+   keeps the top of the screen, the question keeps the bottom. The rule
+   is that the pavilion still owns the first screen — so the sheet is
+   trimmed until the room is more than half of what the visitor sees. */
+@media (max-width: 640px) {
+  .door-panel {
+    top: auto;
+    bottom: calc(var(--sab) + 12px);
+    left: calc(var(--sal) + 12px);
+    right: calc(var(--sar) + 12px);
+    width: auto;
+    padding: 14px 14px 12px;
+  }
+  /* The pavilion is the thing behind the sheet. It does not need to be
+     named twice. */
+  .door-sub { display: none; }
+  /* Two bordered buttons already read as two ways in. */
+  .door-divider { display: none; }
+  .door-rule { margin: 10px 0; }
+  .door-btn { padding: 12px 12px; }
+  .door-btn .eyebrow { margin-bottom: 6px; }
+  .door-btn .title { margin-bottom: 3px; }
+  .door-foot { margin-top: 10px; font-size: 8px; letter-spacing: 0.14em; }
 }
 
 /* Guest mode — hide host-only surfaces. A guest gets the parts that are
@@ -2492,8 +2818,10 @@ body[data-mode="guest"] .os-today,
 body[data-mode="guest"] #plan-council {
   display: none !important;
 }
-/* Guests keep the discovery counter — that is their game. */
-body[data-mode="guest"] #discover-chip { display: inline-flex !important; }
+/* Guests keep the discovery counter — that is their game. Not while
+   driving: from the driver's seat you cannot tap a secret open, and the
+   counter was sitting in the middle of the cockpit. */
+body[data-mode="guest"]:not(.driving) #discover-chip { display: inline-flex !important; }
 
 /* Guest-only contact card — see index.html #plan-guest-card */
 .plan-card-guest { display: none; }
@@ -2640,7 +2968,7 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
        orphan cell wherever the count went odd. */
     .os-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       background: var(--bg);
       border-top: 1px solid var(--line);
       border-left: 1px solid var(--line);
@@ -2671,6 +2999,26 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
     }
     /* The one amber on this grid. Deep work is what the OS is for. */
     #hud-focus .g { color: var(--amber); opacity: 1; }
+    body:not([data-mode="guest"]) #hud-focus {
+      grid-column: 1 / -1;
+      min-height: 112px;
+      padding: 22px 20px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      justify-items: start;
+      gap: 16px;
+      text-align: left;
+    }
+    body:not([data-mode="guest"]) #hud-focus .g { font-size: 32px; }
+    body:not([data-mode="guest"]) #hud-focus .t {
+      font-size: 14px;
+      letter-spacing: 0.38em;
+    }
+    body:not([data-mode="guest"]) #hud-focus .r {
+      font-size: 11px;
+      color: var(--amber);
+    }
     .os-tile .t {
       font-size: 10px; letter-spacing: 0.32em; text-transform: uppercase;
     }
@@ -2717,7 +3065,14 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
     .plan-clock.os-folly .meta { margin-top: 10px; }
 
     @media (min-width: 600px) {
-      .os-grid { grid-template-columns: repeat(4, 1fr); }
+      /* The grid takes its column count from the number of tiles it holds.
+         The host's desk has ten; a guest's has six, because four of the
+         ten are the host's tools. Ten in five columns is two full rows;
+         six in three is two full rows. One rule for both — four columns —
+         left a half-empty row on every desk, which is a hole, not a grid.
+         (The phone's two columns divide both counts already.) */
+      body:not([data-mode="guest"]) .os-grid { grid-template-columns: repeat(3, 1fr); }
+      body[data-mode="guest"] .os-grid { grid-template-columns: repeat(3, 1fr); }
       .os-tile { min-height: 96px; }
     }
 
@@ -2772,6 +3127,25 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
       font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
       color: var(--dim); font-variant-numeric: tabular-nums;
       display: flex; align-items: baseline; gap: 6px;
+    }
+    /* The fleet head is one line on a desktop: LABEL · count · timings. On a
+       phone the timings strip does not fit beside the count — the label is
+       99px, the count 94px, the strip 205px, and the row is 320px wide — so
+       the row breaks and leaves the strip alone on the last line, floating
+       to the right under nothing. A lone strip is an accident, not a
+       layout. Below 600px the head is a deliberate two-row grid: the label
+       and the count on the first line, the strip on the second, aligned
+       under the label instead of drifting to the right. */
+    @media (max-width: 600px) {
+      .fleet-head {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 6px 12px;
+        align-items: baseline;
+      }
+      .fleet-lbl { grid-column: 1; grid-row: 1; }
+      .fleet-sum { grid-column: 2; grid-row: 1; justify-self: start; }
+      .fleet-meta { grid-column: 1 / -1; grid-row: 2; margin-left: 0; }
     }
     .fleet-meta .sep { opacity: 0.5; }
 
@@ -2892,6 +3266,24 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
     }
     .fleet-foot .status { color: var(--fg); }
     .fleet-foot .spacer { flex: 1; }
+    /* Below 720px the council footer does not fit on one line — the build
+       stamp broke away and sat alone on a second row. It is two rows by
+       design instead: the council on the first, its meta and the build
+       stamp on the second, so the last row always carries two things. */
+    @media (max-width: 720px) {
+      .fleet-foot {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 6px 10px;
+        align-items: baseline;
+      }
+      .fleet-foot .dot { grid-column: 1; grid-row: 1; align-self: center; }
+      .fleet-foot .label { grid-column: 2; grid-row: 1; }
+      .fleet-foot .status { grid-column: 3; grid-row: 1; justify-self: end; }
+      .fleet-foot .meta { grid-column: 1 / 3; grid-row: 2; }
+      .fleet-foot .build { grid-column: 3; grid-row: 2; justify-self: end; }
+      .fleet-foot .spacer { display: none; }
+    }
     .fleet-foot[data-status="healthy"] .dot { background: var(--fg); }
     .fleet-foot[data-status="degraded"] .dot,
     .fleet-foot[data-status="down"] .dot { background: var(--amber); }
@@ -2977,6 +3369,29 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
     }
     .sky-exit:hover { color: var(--amber); }
 
+    /* The ask for your location. It sits directly under the place name
+       because that is the claim it qualifies: "SKY OVER BANGKOK" is true
+       until you say where you are, and the sky above you is Bangkok's
+       until you do. */
+    .place-ask {
+      position: absolute;
+      left: calc(18px + var(--sal));
+      top: calc(38px + var(--sat));
+      pointer-events: auto;
+      background: transparent;
+      border: 0;
+      padding: 6px 0;
+      color: var(--dim);
+      font-family: inherit;
+      font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: color 0.2s ease, opacity 0.2s ease;
+    }
+    .place-ask:hover { color: var(--amber); }
+    .place-ask:disabled { cursor: default; }
+    .place-ask.done { color: var(--fg); opacity: 0.55; }
+
     /* The sky is always the night sky, in either theme. A planetarium on
        warm paper is not a planetarium — this is the one place the theme
        system is deliberately overruled. */
@@ -3006,8 +3421,24 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
       color: var(--dim);
       padding: 0 16px;
     }
+    /* On a phone the caption wraps to two lines and reaches the link row
+       in the bottom-right corner. It steps up above it. */
+    @media (max-width: 640px) {
+      .ground-cap { bottom: calc(46px + var(--sab)); }
+    }
     /* Keep the ground caption clear of the room's floating FOCUS button */
     .ground-hud .sky-top { padding-right: 150px; }
+
+    /* On a narrow screen the place row wraps: the place name and the
+       time end up stacked at the left, and the absolutely-positioned
+       ask was landing on the time. The row becomes a column and the ask
+       joins the flow underneath it, so nothing has to guess where the
+       other one is. */
+    @media (max-width: 640px) {
+      .sky-top { flex-direction: column; align-items: flex-start; gap: 2px; }
+      .ground-hud .sky-top { padding-right: 0; }
+      .place-ask { position: static; margin-top: 8px; padding: 4px 0; }
+    }
 
     /* ════════════════════════════════════════════════════════
        THE MORNING BRIEF
@@ -3112,15 +3543,25 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
       max-height: 300px; overflow-y: auto;
     }
 
-    .brief-archive { display: flex; flex-wrap: wrap; gap: 0; }
+    /* Seven dates, seven columns. The strip is a week, so it never breaks
+       and leaves a date alone on a second row — which is what it did at
+       480px, where six fitted and the seventh was stranded. On a narrow
+       cell the date stacks over itself, day above month. */
+    .brief-archive {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 0;
+      max-width: 620px;
+    }
     .brief-archive .brief-day {
-      min-height: 44px; padding: 8px 12px;
+      min-height: 44px; padding: 8px 6px;
       background: transparent;
       border: 1px solid var(--line);
       border-right: 0;
       color: var(--dim);
       font-family: inherit;
       font-size: 9px; letter-spacing: 0.18em;
+      line-height: 1.45;
       cursor: pointer;
       -webkit-tap-highlight-color: transparent;
     }
@@ -3423,6 +3864,11 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
     body[data-room-light="1"] .lang button.on,
     body[data-room-light="1"] .hud-chip.on,
     body[data-room-light="1"] .hud-chip.on * { color: var(--amber); }
+    /* The discovery chip is a dark chip in both themes — it carries its
+       own ground — so daylight's ink flip does not apply to it. Dark ink
+       on a near-black chip is how "0 / 14" disappeared from the screen. */
+    body[data-room-light="1"] #discover-chip,
+    body[data-room-light="1"] #discover-chip * { color: var(--amber); }
     /* The build stamp is amber on dark; on cream it needs the deeper
        amber or it disappears into the travertine. */
     body[data-room-light="1"] .hud-build { color: #b45309; }
@@ -3474,6 +3920,46 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
     body[data-ground="on"] .ground-hud * { color: #e6edf3; }
     body[data-sky="on"] .sky-exit,
     body[data-ground="on"] .sky-exit { border-color: rgba(230, 237, 243, 0.3); }
+
+    /* ── The sky and the ground are their own worlds ───────────────
+       The room's chrome stands down in both: a key legend and a MENU
+       button printed across the map are furniture from another room,
+       and the sky's own BACK DOWN button was landing on the F key. */
+    body[data-sky="on"] .shortcut-hints,
+    body[data-ground="on"] .shortcut-hints,
+    body[data-sky="on"] .ioc-toggle,
+    body[data-ground="on"] .ioc-toggle,
+    body[data-sky="on"] .view-toggle,
+    body[data-ground="on"] .view-toggle,
+    body[data-sky="on"] .menu-btn,
+    body[data-ground="on"] .menu-btn {
+      display: none !important;
+    }
+
+    /* The ground is a bright daytime raster, so the sky's light ink is
+       unreadable on it. The ground uses dark ink, and the caption
+       carries a light halo so it survives over dark parkland as well
+       as over white streets. */
+    body[data-ground="on"] .ground-hud,
+    body[data-ground="on"] .ground-hud * {
+      color: #12181f;
+      /* The map is busy: white streets, green parks, yellow arterials.
+         Dark ink with a light halo stays readable on all of them. */
+      text-shadow:
+        0 0 8px rgba(255, 255, 255, 0.95),
+        0 0 3px rgba(255, 255, 255, 0.95),
+        0 1px 0 rgba(255, 255, 255, 0.8);
+    }
+    body[data-ground="on"] .ground-hud .sky-place { color: #12181f; opacity: 0.85; }
+    body[data-ground="on"] .ground-hud .sky-exit { border-color: rgba(18, 24, 31, 0.4); }
+    body[data-ground="on"] .ground-hud .place-ask { color: rgba(18, 24, 31, 0.8); }
+    body[data-ground="on"] .ground-cap {
+      color: #12181f;
+      text-shadow:
+        0 0 8px rgba(255, 255, 255, 0.95),
+        0 0 3px rgba(255, 255, 255, 0.95),
+        0 1px 0 rgba(255, 255, 255, 0.8);
+    }
 
     /* ── Star lore ────────────────────────────────────────────────
        Reading matter, so it gets a readable measure and real leading —

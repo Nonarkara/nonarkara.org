@@ -1,7 +1,9 @@
 // Every drawn constellation must be able to teach.
 import assert from 'node:assert';
 import { LORE, STARLORE, loreFor, starNote } from './starlore.js';
-import { FIGURES, STARS, figureOfStar } from './sky.js';
+import { FIGURES, figureOfStar, loadCatalog } from './sky.js';
+
+const CAT = await loadCatalog();
 
 // ── No figure is drawn on the dome without something to say ───
 for (const fig of Object.keys(FIGURES)) {
@@ -21,7 +23,7 @@ for (const fig of Object.keys(LORE)) {
 }
 
 // ── Star notes point at stars that exist in the catalogue ─────
-const names = new Set(STARS.map(s => s[3]));
+const names = new Set(CAT.NAME.filter(Boolean));
 for (const n of Object.keys(STARLORE)) {
   assert(names.has(n), `${n} has a note but is not in the star catalogue`);
   const s = starNote(n);
