@@ -13,7 +13,7 @@
  *   node test-door.mjs
  */
 
-import { chromium } from '/Users/nonarkara/Projects/carbon/node_modules/playwright/index.mjs';
+import { loadChromium } from './scripts/msh/playwright.mjs';
 import { ownPort } from './scripts/msh/own-port.mjs';
 
 // The gate owns its port and proves the bytes are ours. Other projects on
@@ -39,6 +39,7 @@ const ok = (cond, msg) => {
 
 // ── a server that keeps the connection alive (python http.server resets
 //    module fetches and the app never boots).
+const chromium = await loadChromium();
 const browser = await chromium.launch({
   args: ['--use-gl=angle', '--enable-webgl', '--ignore-gpu-blocklist'],
 });

@@ -3,6 +3,7 @@ name: Deploy to Cloudflare Pages
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -34,6 +35,16 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
+      # The door and overlap gates launch Chromium. They resolve Playwright
+      # from the package when it is installed, and only then from a developer
+      # machine. Install it in the parent directory: this repo already has a
+      # node_modules (vendored three), and Node keeps walking parents until
+      # it finds the package. The browser stays outside the deploy rsync.
+      - name: Install Playwright for the browser gates
+        run: |
+          npm install --prefix "$GITHUB_WORKSPACE/.." --no-fund --no-audit playwright@1.64.1
+          "$GITHUB_WORKSPACE/../node_modules/.bin/playwright" install --with-deps chromium
+
       - name: Run world and Worker regression suites
         run: |
           node --check app.js
@@ -48,7 +59,11 @@ jobs:
           echo "--- staged files ---"
           find dist -type f | wc -l
 
+      # Pull requests run the same regression step and stop before upload.
+      # A fork has no Cloudflare secrets, and this job must not publish
+      # a PR branch over the live site.
       - name: Deploy to Cloudflare Pages
+        if: github.event_name != 'pull_request'
         uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}

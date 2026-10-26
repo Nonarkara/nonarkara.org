@@ -41,6 +41,11 @@ for (const token of [
   'startsWith("application/json")',
 ]) assert(worker.includes(token), `capture boundary missing: ${token}`);
 
+for (const file of ['./test-door.mjs', './test-overlap.mjs', './scripts/msh/overlap.mjs']) {
+  assert(!/from\s+['"]\/Users\//.test(read(file)),
+    `${file} must not static-import a path from a developer machine`);
+}
+
 for (const file of ['./.github/workflows/cloudflare-pages.yml', './.github/workflows/security.yml']) {
   const workflow = read(file);
   for (const use of workflow.matchAll(/uses:\s*[^@\s]+@([^\s#]+)/g)) {

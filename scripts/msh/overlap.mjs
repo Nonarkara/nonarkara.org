@@ -17,7 +17,7 @@
  *   node scripts/msh/overlap.mjs --url ... --all --json
  */
 
-import { chromium } from '/Users/nonarkara/Projects/carbon/node_modules/playwright/index.mjs';
+import { loadChromium } from './playwright.mjs';
 
 const argv = process.argv.slice(2);
 const arg = (n, d) => { const i = argv.indexOf('--' + n); return i === -1 ? d : argv[i + 1]; };
@@ -30,6 +30,7 @@ const WIDTHS = ALL
   ? [{ w: 390, h: 844, name: 'phone' }, { w: 1024, h: 768, name: 'tablet' }, { w: 1440, h: 900, name: 'desktop' }]
   : [{ w: +arg('w', 1440), h: +arg('h', 900), name: 'one' }];
 
+const chromium = await loadChromium();
 const browser = await chromium.launch({
   args: ['--use-gl=angle', '--enable-webgl', '--ignore-gpu-blocklist'],
 });
@@ -56,10 +57,30 @@ for (const vp of WIDTHS) {
   await page.evaluate(() => document.getElementById('door-guest')?.click());
   await page.waitForTimeout(2600);
 
+  // Room chrome fades out when the sky or the ground opens (up to 2.8s,
+  // including the delay). Measuring in the middle of that fade reports
+  // the room's labels on top of the sky's, which is the transition, not
+  // the settled screen. Wait until those labels have actually left.
+  const roomChromeGone = () => page.waitForFunction(() => {
+    const gone = (id) => {
+      const el = document.getElementById(id);
+      return !!el && parseFloat(getComputedStyle(el).opacity) === 0;
+    };
+    return gone('room-hud') && gone('brand');
+  }, { timeout: 8000 });
+
   const SURFACES = {
     room: async () => {},
-    sky: async () => { await page.evaluate(() => document.getElementById('sky-hint')?.click()); await page.waitForTimeout(3200); },
-    ground: async () => { await page.evaluate(() => document.getElementById('ground-hint')?.click()); await page.waitForTimeout(4200); },
+    sky: async () => {
+      await page.evaluate(() => document.getElementById('sky-hint')?.click());
+      await page.waitForTimeout(3200);
+      await roomChromeGone();
+    },
+    ground: async () => {
+      await page.evaluate(() => document.getElementById('ground-hint')?.click());
+      await page.waitForTimeout(4200);
+      await roomChromeGone();
+    },
     ioc: async () => { await page.evaluate(() => document.getElementById('ioc-toggle')?.click()); await page.waitForTimeout(2600); },
   };
 
