@@ -2272,8 +2272,9 @@
       /* The room's buttons live on the left on a phone (the right thumb
          owns the stick), so the links go to the right, above the stick's
          ring. Left-aligned, "Biography & selected work" sat behind the
-         MENU button. */
-      .overlay .meta    { right: calc(20px + var(--sar)); left: auto; bottom: calc(18px + var(--sab)); gap: 14px; font-size: 8px; }
+         MENU button. A 14px gap still let that link cross the button by
+         a few pixels at 390; 8px holds it clear. */
+      .overlay .meta    { right: calc(20px + var(--sar)); left: auto; bottom: calc(18px + var(--sab)); gap: 8px; font-size: 8px; }
       .lang    { top: calc(18px + var(--sat)); right: calc(20px + var(--sar)); gap: 0; }
       .lang button { padding: 4px 6px; font-size: 10px; min-width: 36px; min-height: 32px; }
 
