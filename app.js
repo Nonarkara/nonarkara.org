@@ -442,7 +442,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.48';
+const NON_VERSION = '4.49';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -456,6 +456,27 @@ window.NON_BUILD = NON_BUILD;
 try {
   const _hb = document.getElementById('hud-build');
   if (_hb) _hb.textContent = 'v' + NON_VERSION;
+} catch (_) {}
+
+// ── A desk named in the URL opens NOW ──────────────────────────
+//
+// The desk is a document. It does not need the pavilion's 3D world to be
+// built before it can be read, and the world takes seconds to assemble.
+// Without this, a reader who asked for /?view=plan stares at the sign
+// until the whole room has been constructed — and any instrument that
+// measures the page in the first few seconds measures the sign rather
+// than the desk. The sign is hidden for the same reason: a question is
+// only asked when there is something to choose between.
+//
+// The door module below reaches the same conclusion later, from the same
+// URL, and sets the view again. This is the same decision taken early.
+try {
+  const _v = new URLSearchParams(location.search).get('view');
+  if (_v === 'plan' || _v === 'ioc') {
+    document.body.dataset.view = _v;
+    const _door = document.getElementById('door');
+    if (_door) _door.classList.add('skip');
+  }
 } catch (_) {}
 
 // Discovery layer — wired once the HUD nodes exist (see boot below).
@@ -488,14 +509,10 @@ if (!WEBGL_OK) {
   if (btn) btn.addEventListener('click', () => {
     if (fb) fb.style.display = 'none';
   });
-  // Boot fades, then we're done — skip all Three.js setup
-  const bootEl = document.getElementById('boot');
-  if (bootEl) {
-    setTimeout(() => {
-      bootEl.classList.add('gone');
-      setTimeout(() => { bootEl.style.display = 'none'; }, 900);
-    }, 1200);
-  }
+  // No Three.js on this machine: there is no room to fade in, so the
+  // scene is live by definition and the canvas rule has nothing to wait
+  // for. Skip all Three.js setup.
+  document.body.classList.add('scene-live');
 }
 
 
@@ -6112,15 +6129,11 @@ window.addEventListener('keydown', (e) => {
 // ════════════════════════════════════════════════════════
 // Reveal + render loop
 // ════════════════════════════════════════════════════════
-// ── Boot screen ─────────────────────────────────────────────
-// Fade out after 1.2s (the CSS transition handles the 0.8s fade).
-const bootEl = document.getElementById('boot');
-if (bootEl) {
-  setTimeout(() => {
-    bootEl.classList.add('gone');
-    setTimeout(() => { bootEl.style.display = 'none'; }, 900);
-  }, 1200);
-}
+// ── The room fades in on its first rendered frame ─────────────
+// There is no boot curtain to dismiss: the canvas starts transparent
+// and is revealed once the world has actually been drawn (see the
+// render loop below), so the reader never sees a wall where the room
+// will be, and never sees a half-built one either.
 
 // ── Plan ↔ Room smooth transition ───────────────────────────
 // Wrap setView so it crossfades instead of snapping.
@@ -6133,9 +6146,13 @@ window.setView = function(v) {
   } else {
     _origSetView(v);
   }
+  // The board is measured in the desk, so it is fitted when the desk
+  // arrives — not only when it is painted.
+  if (v === 'plan') requestAnimationFrame(fitFleetColumns);
 };
 const startTime = performance.now();
 let lastFrameTime = startTime;
+let sceneLive = false;   // the room's first frame has been drawn
 document.querySelector('.veil').classList.add('gone');
 setTimeout(() => {
   document.querySelector('.brand').classList.add('in');
@@ -6748,6 +6765,9 @@ function animate() {
   updateDolly();
 
   renderer.render(scene, camera);
+  // The room is on the screen now — reveal the canvas. Done once: the
+  // class stays for the life of the page.
+  if (!sceneLive) { sceneLive = true; document.body.classList.add('scene-live'); }
   RENDER_QUALITY.sample(rawFrameMs);
 }
 // Do not execute the render loop while this module is still initializing.
@@ -7327,7 +7347,61 @@ function _paintFleetBody(data) {
   paintHealthGlance(active.length, up, (data.pipeline || []).length);
   paintFleetDetail(data);
   paintIncidents();
+  fitFleetColumns();
 }
+
+// ── Fleet board geometry ───────────────────────────────────────
+// The number of stops is live — systems come up and go down between one
+// refresh and the next — so the column count cannot be a constant written
+// down here. It is worked out from the count and the width of the board:
+//   · a line short enough to sit in one row stays in one row, sized to
+//     its stops, rather than being stretched across the whole board;
+//   · a longer line takes the column count that leaves the fullest last
+//     row, and never leaves exactly one stop alone on it.
+// The stop width stays the same in every row of a line, so the rhythm of
+// the transit diagram does not change to fill a gap.
+const FLEET_SLOT = 110;       // the pitch a stop wants: enough for the longest code
+const FLEET_SLOT_MIN = 84;
+const FLEET_SLOT_MAX = 140;
+
+function fleetColumns(n, w) {
+  if (!n || !w) return { cols: Math.max(1, n), slot: '1fr' };
+  if (n * FLEET_SLOT <= w) {
+    return { cols: n, slot: Math.min(FLEET_SLOT, w / n) + 'px' };
+  }
+  const cMin = Math.max(2, Math.ceil(w / FLEET_SLOT_MAX));
+  const cMax = Math.max(cMin, Math.floor(w / FLEET_SLOT_MIN));
+  let best = null;
+  for (let c = cMin; c <= cMax; c++) {
+    const left = n % c;
+    if (left === 1) continue;                     // one stop alone on the last row
+    const fill = left === 0 ? 1 : left / c;
+    if (!best || fill > best.fill) best = { cols: c, slot: '1fr', fill };
+  }
+  return best || { cols: cMax, slot: '1fr' };
+}
+
+function fitFleetColumns() {
+  const host = document.getElementById('fleet-lines');
+  if (!host) return;
+  host.querySelectorAll('.fleet-stns').forEach(row => {
+    const n = row.children.length;
+    const w = row.clientWidth;
+    if (!n || !w) return;                         // not laid out yet
+    const { cols, slot } = fleetColumns(n, w);
+    row.style.setProperty('--cols', String(cols));
+    row.style.setProperty('--slot', slot);
+  });
+}
+
+// The board is laid out in the desk, which is only measured when it is
+// on screen. Fit the columns whenever it appears and whenever the
+// window changes width.
+let _fleetFitTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(_fleetFitTimer);
+  _fleetFitTimer = setTimeout(fitFleetColumns, 120);
+}, { passive: true });
 
 /**
  * The health line: one sentence, readable at arm's length, answering

@@ -133,15 +133,10 @@
   <!-- Skip-to-content for keyboard users — visible only on :focus -->
   <a class="skip-to-content" href="#plan">skip to content</a>
 
-  <!-- Boot screen -->
-  <div id="boot" aria-hidden="true">
-    <div class="boot-logo">
-      <span class="boot-n">N</span><span class="boot-o">O</span><span class="boot-n2">N</span>
-    </div>
-    <div class="boot-sub">a window to the mind</div>
-  </div>
-
-  <!-- 3D room canvas -->
+  <!-- 3D room canvas. There is no boot curtain in front of it: the wall of
+       black that used to cover the whole first screen was a flat region
+       with a decorative letter on it, and it hid a site that was already
+       alive. The room fades in when its first frame is on the screen. -->
   <div id="canvas-root"></div>
 
   <!-- Overlay UI (room view) -->
@@ -446,6 +441,9 @@
           <span class="sep" aria-hidden="true">·</span>
           <button data-l="zh" aria-label="中文" lang="zh" aria-pressed="false">中文</button>
         </div>
+        <!-- The room is the one action this desk is for, so it sits in the
+             bar rather than at the end of a 3,800px scroll. -->
+        <button id="plan-room" class="head-room" aria-label="Enter 3D room" data-i18n="plan_room">▦  ENTER ROOM</button>
       </div>
     </header>
 
@@ -633,9 +631,6 @@
       <p data-i18n="philo_p3">Find him on LinkedIn or tap the contact card in the personal section above.</p>
     </section>
 
-    <footer class="plan-foot">
-      <button id="plan-room" class="room" aria-label="Enter 3D room" data-i18n="plan_room">▦  ENTER ROOM</button>
-    </footer>
   </div>
 
   <!-- Drawer — slides up from bottom, populated by JS -->

@@ -868,41 +868,18 @@
       .frame-caption .title { font-size: 14px; }
     }
 
-    /* ── Boot screen ──────────────────────────────────────────
-       NON wordmark on full-black for 1.2s then fades. Makes the
-       PWA feel like a native app on launch, not a website refresh. */
-    #boot {
-      position: fixed; inset: 0; z-index: 9999;
-      background: #000;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: 18px;
-      pointer-events: none;
-      transition: opacity 0.8s ease 1.2s;
+    /* ── The room's own entrance ─────────────────────────────────
+       The boot curtain was a full-screen black wall with a 120px
+       letter on it: a flat region over the whole first screen, and
+       it hid a site that was already alive behind it. It is gone.
+       The room now fades in when its first frame has been rendered
+       — the world is assembled before that frame, so nothing
+       half-built is ever shown. */
+    #canvas-root {
+      opacity: 0;
+      transition: opacity 0.7s ease;
     }
-    #boot.gone { opacity: 0; }
-    .boot-logo {
-      font-family: 'Josefin Sans', sans-serif;
-      font-weight: 700;
-      font-size: clamp(72px, 22vw, 120px);
-      letter-spacing: 0.08em;
-      color: #f5f5f0;
-      display: flex; align-items: baseline; gap: 2px;
-      line-height: 1;
-    }
-    .boot-o {
-      /* Hollow amber O — same gimmick as the wordmark */
-      font-size: inherit;
-      color: transparent;
-      -webkit-text-stroke: 3px #f59e0b;
-      text-stroke: 3px #f59e0b;
-    }
-    .boot-sub {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 10px; letter-spacing: 0.42em;
-      text-transform: uppercase;
-      color: rgba(245, 245, 240, 0.45);
-    }
+    body.scene-live #canvas-root { opacity: 1; }
 
     /* ── Plan ↔ Room transition ────────────────────────────────
        Smooth crossfade so switching views feels like navigation
@@ -1651,43 +1628,39 @@
       line-height: 1.55;
       color: var(--fg);
       letter-spacing: 0.01em;
+      /* A measure a reader can actually finish: 65ch. On a 1,400px desk
+         the old full-width measure ran to ~176 characters — three times
+         the eye's comfortable span. The margin on the right is the
+         point of it, not empty space. */
+      max-width: 65ch;
     }
     .plan-philo p + p { margin-top: 12px; }
     .plan-philo .accent { color: var(--amber); }
     body[data-lang="th"] .plan-philo p { font-family: 'IBM Plex Sans Thai', sans-serif; line-height: 1.7; }
     body[data-lang="zh"] .plan-philo p { font-family: 'Noto Sans SC', sans-serif; line-height: 1.7; }
 
-    .plan-foot {
-      margin-top: 14px;
-      padding-top: 22px;
-      border-top: 1px solid var(--line);
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1px;
-      background: var(--line);
-      border-bottom: 1px solid var(--line);
-    }
-    .plan-foot button {
-      background: var(--bg);
-      border: 0;
-      color: var(--fg);
-      cursor: pointer;
-      min-height: 56px;
-      padding: 0 10px;
+    /* The desk's one strong action, in the bar where actions live.
+       It used to be the last thing in a footer built for four CTAs —
+       one button in a four-column grid, the other three cells painted
+       as a 1,000px slab of nothing. It is in the bar now: the room is
+       one tap away whatever the desk's length, and the bar has no
+       empty cells to invent space with. */
+    .head-room {
+      display: inline-flex; align-items: center; gap: 8px;
+      min-height: 44px; padding: 0 14px;
+      background: var(--fg);
+      color: var(--bg);
+      border: 0; border-radius: 0;
       font-family: inherit;
-      font-size: 11px; letter-spacing: 0.28em;
+      font-size: 10px; letter-spacing: 0.28em;
       text-transform: uppercase;
+      white-space: nowrap;
+      cursor: pointer;
       -webkit-tap-highlight-color: transparent;
-      transition: color 0.12s, background 0.12s;
-      display: inline-flex; align-items: center; justify-content: center;
+      transition: background 0.12s, color 0.12s;
     }
-    .plan-foot button:hover { color: var(--amber); }
-    .plan-foot button:active { background: rgba(245, 158, 11, 0.06); }
-    .plan-foot .focus,
-    .plan-foot .room { color: var(--amber); }      /* the two CTAs */
-    @media (min-width: 480px) {
-      .plan-foot { grid-template-columns: 1fr 1fr 1fr 1fr; }
-    }
+    .head-room:hover { background: var(--amber); color: var(--bg); }
+    .head-room:active { background: var(--amber); color: var(--bg); }
 
     /* Floating ROOM/PLAN toggle — visible in room view, sits next to MENU */
     .view-toggle {
@@ -2888,8 +2861,12 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
        ════════════════════════════════════════════════════════ */
 
     .os-bar { align-items: flex-start; }
+    /* The bar's controls are a row, not a stack. A stack made the right
+       column taller than the brand block beside it and left a hole under
+       the brand; a row of controls keeps the bar one band tall. */
     .os-bar-right {
-      display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+      display: flex; flex-direction: row; align-items: center;
+      justify-content: flex-end; gap: 10px;
     }
     .plan-head .brand-mark .os-word {
       font-family: 'JetBrains Mono', monospace;
@@ -2902,7 +2879,8 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
 
     /* Connection state. Offline is a mode this thing was built for,
        not an error — so it is stated, and it is the one thing on the
-       bar allowed to take the amber. */
+       bar that takes the amber to say so. (The room button takes it
+       only on hover, where it means "press me now".) */
     .os-conn {
       display: inline-flex; align-items: center; gap: 8px;
       min-height: 44px; padding: 5px 12px;
@@ -3078,13 +3056,25 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
 
     /* Phone: the brand needs the full width, so the system controls drop
        to their own row rather than squeezing the role line into three. */
-    @media (max-width: 560px) {
+    /* Narrow bar: the brand takes its own row and the controls sit under
+       it, left-aligned with the text they belong to. */
+    @media (max-width: 760px) {
       .os-bar { flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
       .os-bar .brand-blk { flex: 1 0 100%; }
+      .os-bar-right { flex: 1 0 100%; justify-content: flex-start; }
+    }
+    @media (max-width: 560px) {
       .os-bar-right {
-        flex: 1 0 100%;
-        flex-direction: row; align-items: center;
         justify-content: space-between;
+        flex-wrap: wrap;
+      }
+      /* One phone column: the primary action gets its own row, full width.
+         The status and the language stay on the row under it. */
+      .head-room {
+        order: -1;
+        flex: 1 0 100%;
+        justify-content: center;
+        margin-bottom: 4px;
       }
       .os-today { flex-wrap: nowrap; }
       .os-intent-t { font-size: 12px; }
@@ -3154,9 +3144,19 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
       font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
       color: var(--dim); margin-bottom: 10px;
     }
-    .fleet-stns { display: flex; flex-wrap: wrap; }
+    /* The board is a grid of fixed columns, not a wrapping row of
+       flexible stops. A wrapping row let the last row stretch: one
+       station alone on a 1,400px line, or four stations on the
+       pipeline each 350px wide around a 60px label. The column count
+       is worked out from the live number of stops (see fitFleetColumns
+       in app.js) so the last row is never a single stranded stop, and
+       every stop keeps the same width in every row of its line. */
+    .fleet-stns {
+      display: grid;
+      grid-template-columns: repeat(var(--cols, 4), var(--slot, 1fr));
+      justify-content: start;
+    }
     .fleet-stn {
-      flex: 1 1 84px;
       display: flex; flex-direction: column; align-items: flex-start;
       gap: 6px;
       min-height: 46px;

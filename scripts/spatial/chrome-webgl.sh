@@ -12,9 +12,32 @@
 # curtain's CONTINUE TO PLAN VIEW button.)
 #
 # This wrapper adds SwiftShader's ANGLE backend, which renders WebGL in
-# software. The gate's own flags are untouched and the instrument stays
-# byte-identical — only the browser's rendering backend changes, so the
-# gate finally measures the site a reader actually gets.
+# software. The instrument stays byte-identical — only the browser's
+# rendering backend changes, so the gate finally measures the site a reader
+# actually gets.
+#
+# WHY `--disable-gpu` IS DROPPED
+# ------------------------------
+# The gate's settle deadline is five seconds: after that it measures
+# whatever is on the screen and says so. On macOS, `--disable-gpu` forces
+# the whole compositor into software on top of SwiftShader, and the app's
+# boot takes twice as long for it. Measured on this machine, same flags
+# otherwise: the app is alive at 3s without the flag and at 5s with it —
+# and at 5s the gate is measuring the page BEFORE the app has drawn, which
+# is a receipt for the shell rather than for the site. The gate passes that
+# way, which is the worst possible way to pass.
+#
+# WebGL does not need the flag: SwiftShader's ANGLE backend provides it.
+#
+# WHY THE THROTTLING FLAGS ARE ADDED
+# ----------------------------------
+# The gate measures the site inside an iframe in a harness page. Chrome
+# treats a page it cannot see as a background page and slows it down:
+# timers are throttled, and the animation frames the app's boot depends on
+# stop coming. The app then has not drawn when the settle deadline arrives,
+# and the gate measures the page before the app ran. These three flags turn
+# that throttling off. They change how fast the browser gets to the drawing,
+# not what it draws.
 #
 # Usage:
 #   CHROME_PATH="$PWD/scripts/spatial/chrome-webgl.sh" \
@@ -41,6 +64,18 @@ if [ -z "$CHROME" ]; then
   exit 1
 fi
 
-exec "$CHROME" "$@" \
+# Drop the flag the gate passes; keep every other argument exactly as given.
+ARGS=()
+for a in "$@"; do
+  case "$a" in
+    --disable-gpu) ;;
+    *) ARGS+=("$a") ;;
+  esac
+done
+
+exec "$CHROME" "${ARGS[@]}" \
   --use-angle=swiftshader \
-  --enable-unsafe-swiftshader
+  --enable-unsafe-swiftshader \
+  --disable-background-timer-throttling \
+  --disable-backgrounding-occluded-windows \
+  --disable-renderer-backgrounding
