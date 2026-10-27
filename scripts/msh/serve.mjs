@@ -37,6 +37,18 @@ const MIME = {
   '.webmanifest': 'application/manifest+json',
 };
 
+// The gate loads this site ninety-three times — once per route, per width —
+// and every load used to re-download the whole module graph, because this
+// server said `no-store`. On a loaded machine that is the difference between
+// a desk that paints inside the instrument's five-second budget and one that
+// does not, which is the difference between a receipt and a shell.
+//
+// So: revalidation instead of amnesia. The browser keeps the bytes and asks
+// whether they are still true; the answer is a 304 with no body when they
+// are. Nothing stale is ever served (the ETag changes the moment a file
+// does), and nothing is re-downloaded for nothing.
+const etagFor = (s) => `W/"${s.size.toString(16)}-${s.mtimeMs.toString(16)}"`;
+
 createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
@@ -46,11 +58,18 @@ createServer(async (req, res) => {
     if (!file.startsWith(ROOT)) { res.writeHead(403).end('no'); return; }
     const s = await stat(file);
     if (s.isDirectory()) { res.writeHead(302, { Location: rel + '/' }).end(); return; }
+    const etag = etagFor(s);
+    const type = MIME[path.extname(file).toLowerCase()] || 'application/octet-stream';
+    if (req.headers['if-none-match'] === etag) {
+      res.writeHead(304, { ETag: etag, 'Cache-Control': 'no-cache' }).end();
+      return;
+    }
     const body = await readFile(file);
     res.writeHead(200, {
-      'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream',
+      'Content-Type': type,
       'Content-Length': body.length,
-      'Cache-Control': 'no-store',
+      'Cache-Control': 'no-cache',
+      ETag: etag,
     });
     res.end(body);
   } catch (_) {

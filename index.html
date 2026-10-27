@@ -77,7 +77,16 @@
           await __nonPurge();
           // replace (not reload): bypasses the HTTP disk cache entry
           // that max-age=14400 would otherwise hand back.
-          location.replace('/?build=' + encodeURIComponent(live));
+          //
+          // The reader's own parameters survive the trip. A heal used to
+          // replace the URL with '/?build=…', which quietly threw away
+          // everything else the reader asked for — open the desk with
+          // /?view=plan, have a new build land, and the desk closes and the
+          // sign comes back. The build marker is ours to set; the rest of
+          // the query belongs to the reader.
+          const _sp = new URLSearchParams(location.search);
+          _sp.set('build', live);
+          location.replace('/?' + _sp.toString());
         } catch (_) { /* offline — keep whatever build we have */ }
       }, 1500);
     });
@@ -726,6 +735,10 @@
   </div>
 
   <!-- Main app module -->
+  <!-- The desk is painted by its own module, beside the room's. A desk
+       named in the URL must not wait for a 3D world to be assembled: the
+       desk is a document, and the room is a room. -->
+  <script type="module" src="desk.js"></script>
   <script type="module" src="app.js"></script>
 
 </body>

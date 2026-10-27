@@ -2,6 +2,12 @@ import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 
 const app = readFileSync(new URL('./app.js', import.meta.url), 'utf8');
+// The project registry and the words it is written in live in common.js
+// (shared with the desk); the plan's markup lives in desk.js. The room
+// imports both. A test that reads the wrong file is a test that cannot
+// see the thing it is guarding.
+const common = readFileSync(new URL('./common.js', import.meta.url), 'utf8');
+const desk = readFileSync(new URL('./desk.js', import.meta.url), 'utf8');
 
 // Public project destinations presented on axiom.nonarkara.org as of
 // 2026-10-07. This catches the quiet failure where the portfolio site
@@ -74,11 +80,11 @@ const AXIOM_LINKS = [
   'https://superleague-xxd.pages.dev/#/lobby',
 ];
 
-for (const url of AXIOM_LINKS) assert(app.includes(url), `missing Axiom project: ${url}`);
-assert(app.includes('<span class="title">${p.title}</span>'), 'plan must show project titles');
-assert(app.includes("url: 'https://blog.nonarkara.org/'"), 'canonical Dr Non archive belongs in the work index');
-assert(app.includes("url: 'https://sabaisabai-airdnd.pages.dev/'"), 'Sabai Sabai belongs in the all-projects index');
-const projectBlock = app.match(/const PROJECTS = \[([\s\S]*?)\n\];/)?.[1] || '';
+for (const url of AXIOM_LINKS) assert(common.includes(url), `missing Axiom project: ${url}`);
+assert(desk.includes('<span class="title">${p.title}</span>'), 'plan must show project titles');
+assert(common.includes("url: 'https://blog.nonarkara.org/'"), 'canonical Dr Non archive belongs in the work index');
+assert(common.includes("url: 'https://sabaisabai-airdnd.pages.dev/'"), 'Sabai Sabai belongs in the all-projects index');
+const projectBlock = common.match(/const PROJECTS = \[([\s\S]*?)\n\];/)?.[1] || '';
 assert.equal((projectBlock.match(/\{ code:/g) || []).length, 82,
   'the complete project registry stays intact');
 assert.equal((app.match(/makeSabaiCup\(/g) || []).length, 4,

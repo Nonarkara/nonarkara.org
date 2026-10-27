@@ -7,6 +7,9 @@ import { readFileSync } from 'node:fs';
 const app = readFileSync(new URL('./app.js', import.meta.url), 'utf8');
 const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
 const css = readFileSync(new URL('./styles.css', import.meta.url), 'utf8');
+// The theme decision, the words and the data live in common.js: the desk
+// and the room share them, so the desk can be painted without the room.
+const common = readFileSync(new URL('./common.js', import.meta.url), 'utf8');
 
 // Boot must yield once before the render loop can touch world bindings that
 // are initialized farther down the module.
@@ -42,7 +45,7 @@ assert(/#hud-focus[\s\S]*?grid-column:\s*1\s*\/\s*-1/.test(css),
 assert(html.includes('class="plan-brief folded"') &&
   html.includes('id="os-signals-toggle"') && html.includes('aria-expanded="false"'),
   'market signals must begin folded');
-assert(app.includes("SAVED_THEME || (LOCAL_HOUR >= 18 || LOCAL_HOUR < 6 ? 'dark' : 'light')"),
+assert(common.includes("SAVED_THEME || (LOCAL_HOUR >= 18 || LOCAL_HOUR < 6 ? 'dark' : 'light')"),
   'first-run theme must be light by day and dark only at night');
 
 console.log('plan: phone boot deferred · controls wired · focus-first · quiet signals · solar theme');

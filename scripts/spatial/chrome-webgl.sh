@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Chrome with a software WebGL backend, for the spatial gate.
+# Chrome with a WebGL backend the gate can measure, for the spatial gate.
 #
 # WHY THIS EXISTS
 # ---------------
@@ -11,23 +11,36 @@
 # wrong surface. (The tell was a first action of 523px, which is the
 # curtain's CONTINUE TO PLAN VIEW button.)
 #
-# This wrapper adds SwiftShader's ANGLE backend, which renders WebGL in
-# software. The instrument stays byte-identical — only the browser's
-# rendering backend changes, so the gate finally measures the site a reader
-# actually gets.
+# This wrapper gives the browser a WebGL backend, so the gate measures the
+# site a reader actually gets. The instrument stays byte-identical — only the
+# browser's rendering backend changes.
 #
-# WHY `--disable-gpu` IS DROPPED
-# ------------------------------
-# The gate's settle deadline is five seconds: after that it measures
-# whatever is on the screen and says so. On macOS, `--disable-gpu` forces
-# the whole compositor into software on top of SwiftShader, and the app's
-# boot takes twice as long for it. Measured on this machine, same flags
-# otherwise: the app is alive at 3s without the flag and at 5s with it —
-# and at 5s the gate is measuring the page BEFORE the app has drawn, which
-# is a receipt for the shell rather than for the site. The gate passes that
-# way, which is the worst possible way to pass.
+# WHY THE GPU IS NOT TURNED OFF, AND WHY SWIFTSHADER IS NOT FORCED
+# ---------------------------------------------------------------
+# The gate's settle deadline is five seconds: after that it measures whatever
+# is on the screen and says so. The app assembles a 3D world before the desk
+# is painted, so the backend decides whether the desk is reachable at all.
 #
-# WebGL does not need the flag: SwiftShader's ANGLE backend provides it.
+# Measured on this machine, same flags otherwise, desk painted at:
+#
+#   --disable-gpu (no WebGL at all)                1.5s   — but the app takes
+#                                                            its no-WebGL path and
+#                                                            shows the OS instead
+#                                                            of the pavilion, so the
+#                                                            landing route is measured
+#                                                            as the desk: the wrong
+#                                                            surface
+#   --use-angle=swiftshader (software rendering)  44–125s — the world is built in
+#                                                            software, and the gate
+#                                                            has long since measured
+#                                                            the shell
+#   ANGLE on the real GPU (Metal)                  1.5s   — WebGL works, the
+#                                                            world builds at speed, and
+#                                                            the desk is the desk
+#
+# So: keep the GPU, and let ANGLE use it. `--enable-unsafe-swiftshader` stays
+# as the fallback for a machine with no GPU that Chrome can still fall back
+# to; the wrapper only stops FORCING software rendering.
 #
 # WHY THE THROTTLING FLAGS ARE ADDED
 # ----------------------------------
@@ -74,7 +87,6 @@ for a in "$@"; do
 done
 
 exec "$CHROME" "${ARGS[@]}" \
-  --use-angle=swiftshader \
   --enable-unsafe-swiftshader \
   --disable-background-timer-throttling \
   --disable-backgrounding-occluded-windows \

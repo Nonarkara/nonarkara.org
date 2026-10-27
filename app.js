@@ -30,6 +30,17 @@ import { poemForDate } from './poems.js';
 import * as STARLORE_MOD from './starlore.js';
 import { AdaptiveResolution, preferredPixelRatio } from './render-quality.js';
 import { buildWorldLighting } from './world-lighting.js';
+// The desk and the words it is written in live in their own modules, so
+// the desk can be painted without the room's megabyte of 3D code. The
+// room imports the same words and the same data — one source of truth.
+import {
+  I18N, LANG, setLang, t, PROJECTS, CITIES, OK_CODE,
+  THEMES, CURRENT_THEME, setTheme, themeColors,
+} from './common.js';
+import {
+  planEl, renderPlan, tickPlanClock, paintPlanStatus, paintBrief,
+  renderWorldMap, paintCouncil,
+} from './desk.js';
 
 // ════════════════════════════════════════════════════════
 // WebGL fallback — detect support before building scene
@@ -442,7 +453,7 @@ const WEBGL2_OK = hasWebGL2();
 //   2.0 (2026-05-12) v2 refactor by Kimi: split monolith → app.js + styles.css;
 //                    added particles, command palette, camera dolly
 //   1.x              see git log for v1 history (worktree branch)
-const NON_VERSION = '4.49';
+const NON_VERSION = '4.50';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -458,34 +469,25 @@ try {
   if (_hb) _hb.textContent = 'v' + NON_VERSION;
 } catch (_) {}
 
-// ── A desk named in the URL opens NOW ──────────────────────────
-//
-// The desk is a document. It does not need the pavilion's 3D world to be
-// built before it can be read, and the world takes seconds to assemble.
-// Without this, a reader who asked for /?view=plan stares at the sign
-// until the whole room has been constructed — and any instrument that
-// measures the page in the first few seconds measures the sign rather
-// than the desk. The sign is hidden for the same reason: a question is
-// only asked when there is something to choose between.
-//
-// The door module below reaches the same conclusion later, from the same
-// URL, and sets the view again. This is the same decision taken early.
-try {
-  const _v = new URLSearchParams(location.search).get('view');
-  if (_v === 'plan' || _v === 'ioc') {
-    document.body.dataset.view = _v;
-    const _door = document.getElementById('door');
-    if (_door) _door.classList.add('skip');
-  }
-} catch (_) {}
 
+// ── Theme system ─────────────────────────────────────────
+// A desk used all day opens light in daylight and dark after nightfall.
+// An explicit choice always wins; the clock is only the first-run default.
+//
+// The theme is decided HERE, at the top of the module, and put on the body
+// before anything is painted. It used to be applied at the END of the
+// module — after the whole 3D world had been built — which meant every
+// reader watched the site paint in the wrong colours and then watch it
+// flip. The flip was also the one moment when a cell's background and the
+// surface behind it were briefly different colours, which is exactly what
+// the spatial instrument reads as "loud". A theme that is decided late is
+// a theme that is seen late.
 // Discovery layer — wired once the HUD nodes exist (see boot below).
 let DISCOVERY = null;
 window.__discover = (id) => { try { return DISCOVERY?.mark(id); } catch (_) { return false; } };
 
 // A host is up if it answers at all in the 2xx/3xx range. The old check
 // enumerated 200/301/302 only, so every 307 (tkc, war-room) painted red.
-const OK_CODE = c => c >= 200 && c < 400;
 
 // Wire the no-WebGL path — the OS is the site, and one line in the corner
 // says why. Without this guard, THREE.WebGLRenderer() throws a silent
@@ -519,324 +521,6 @@ if (!WEBGL_OK) {
 // ════════════════════════════════════════════════════════
 // i18n
 // ════════════════════════════════════════════════════════
-const I18N = {
-  en: {
-    palace:  'the pavilion',
-    hint:    'tap to discover · drag to look around · ◎ counts what you find',
-    contact: 'contact',
-    door_q:             'how did you arrive',
-    door_host_eyebrow:  'this is my device',
-    door_host_title:    'NON OS',
-    door_host_sub:      'time · fleet · signals · keep it open all day',
-    door_guest_eyebrow: 'you arrived by link',
-    door_guest_title:   'enter the pavilion',
-    door_guest_sub:     'walk the room · find who Non is · Easter eggs',
-    door_reading:       'Read biography & selected work →',
-    door_foot:          'no login · this choice stays on this device · ?door to choose again',
-    cv_eyebrow:      'CV',
-    cv_title:        'Curriculum Vitae',
-    cv_cap:          'scan to download · or tap to open',
-    cv_meta:         'cv.pdf · 3 pages · march 2026',
-    li_eyebrow:      'LINKEDIN',
-    li_title:        'Professional Network',
-    li_cap:          'scan to view · or tap to open',
-    contact_eyebrow: 'CONTACT',
-    contact_title:   'Dr Non Arkara',
-    contact_cap:     'scan to add to your contacts',
-    contact_role:    'Senior Expert · Smart City Promotion',
-    contact_org:     'Digital Economy Promotion Agency',
-    password:        'password',
-    music_eyebrow:   'NONSUNO · MUSIC',
-    music_title:     'made on suno.ai',
-    music_now:       'NOW PLAYING',
-    music_count:     '10 tracks · made with suno',
-    plan_status:     'fleet status',
-    os_today:        'today',
-    os_focus:        'focus',
-    os_music:        'music',
-    os_note:         'note',
-    os_gallery:      'gallery',
-    os_steps:        'steps',
-    os_mixtape:      'mixtape',
-    os_fleet:        'fleet',
-    os_theme:        'theme',
-    os_signals:      'signals · markets + weather',
-    ground_hint:     'look down',
-    ground_exit:     'back up',
-    ground_label:    'the ground',
-    sky_hint:        'look up',
-    sky_exit:        'back down',
-    sky_over:        'sky over',
-    sky_here:        'here',
-    sky_mag:         'mag',
-    sky_folly:       'the one overhead',
-    place_ask:          'use my location',
-    place_ask_asking:   'finding you',
-    place_ask_refused:  'location refused · showing bangkok',
-    place_ask_unavailable: 'no location · showing bangkok',
-    place_ask_done:     'your location',
-    fleet_pipeline:  'in the pipeline',
-    health_systems:  'systems',
-    health_allgood:  'all running',
-    health_problem:  'needs you',
-    health_problems: 'need you',
-    health_pipeline: 'building',
-    sky_ly:          'light years',
-    nav_walk:        'hold',
-    walk:            'walk',
-    os_brain:        'brain',
-    brain_asleep:    'asleep',
-    os_brief:        'brief',
-    brief_label:     'morning brief',
-    brief_waiting:   'no episode yet',
-    brief_transcript: 'transcript',
-    fleet_checked:   'checked',
-    fleet_pages:     'pages line',
-    fleet_ext:       'external line',
-    fleet_parked:    'parked · dns retained',
-    fleet_incidents: 'recent incidents',
-    fleet_no_incidents: 'no incidents on record',
-    fleet_last_incident: 'last incident',
-    fleet_resolved:  'resolved',
-    fleet_ongoing:   'ongoing',
-    fleet_peak:      'peak',
-    os_online:       'online',
-    os_offline:      'offline',
-    os_offline_title: 'what still works',
-    os_offline_body: 'Music, focus sessions, the gallery, notes and your step log all live on this device. Notes sync the moment you are back. Markets, weather and the fleet board need the network — everything else does not.',
-    intent_placeholder: 'set your intent',
-    intent_prompt:   'What are you working on today?',
-    plan_projects:   'projects',
-    plan_personal:   'personal',
-    plan_world:      'world · time',
-    plan_room:       '▦  enter room',
-    plan_theme:      'theme',
-    cv_title_short:  'curriculum vitae',
-    li_title_short:  'professional network',
-    co_title_short:  'contact · vCard',
-    music_short:     'suno music · 10 tracks',
-    pomo_short:      'pomodoro · 25 / 5',
-    sabai_short:     'sabai sabai · easter egg',
-    role:            'architect · anthropologist · smart cities',
-    palace_sub:      'tap for contact · a window to the mind',
-    philo_label:     'how this works',
-    philo_p1:        'Most of the dashboards above refresh on a five-minute cron. To a person looking at one, that is indistinguishable from real-time, and it costs roughly nothing to run.',
-    philo_p2_html:   'The ones that <span class="accent">charge for true real-time</span> charge for what real-time costs — cloud CPU, instrumented pipelines, on-call engineering. The space between the two tiers is where most engineering wastes itself.',
-    philo_p3:        'If you want to talk about a city, a region, or a question, the contact card is in the personal section above. Tap it.',
-  },
-  th: {
-    palace:  'ศาลา',
-    hint:    'แตะเพื่อค้นพบ · ลากเพื่อมองรอบ · ◎ นับสิ่งที่เจอ',
-    contact: 'ติดต่อ',
-    door_q:             'คุณมาถึงอย่างไร',
-    door_host_eyebrow:  'เครื่องนี้ของฉันเอง',
-    door_host_title:    'NON OS',
-    door_host_sub:      'เวลา · ยานพาหนะ · สัญญาณ · เปิดค้างทั้งวัน',
-    door_guest_eyebrow: 'คุณมาจากลิงก์',
-    door_guest_title:   'เข้าไปในศาลา',
-    door_guest_sub:     'เดินดูห้อง · หาว่านนคือใคร · ไข่อีสเตอร์',
-    door_reading:       'อ่านประวัติและผลงานที่คัดสรร →',
-    door_foot:          'ไม่ต้องล็อกอิน · ตัวเลือกนี้อยู่บนเครื่องนี้ · ?door เพื่อเลือกใหม่',
-    cv_eyebrow:      'ประวัติ',
-    cv_title:        'ประวัติย่อ',
-    cv_cap:          'สแกนเพื่อดาวน์โหลด · หรือแตะเพื่อเปิด',
-    cv_meta:         'cv.pdf · 3 หน้า · มีนาคม 2569',
-    li_eyebrow:      'ลิงก์อิน',
-    li_title:        'เครือข่ายวิชาชีพ',
-    li_cap:          'สแกนเพื่อดูโปรไฟล์',
-    contact_eyebrow: 'ติดต่อ',
-    contact_title:   'ดร.นน อัครประเสริฐกุล',
-    contact_cap:     'สแกนเพื่อเพิ่มในรายชื่อ',
-    contact_role:    'ผู้เชี่ยวชาญอาวุโส · การส่งเสริมเมืองอัจฉริยะ',
-    contact_org:     'สำนักงานส่งเสริมเศรษฐกิจดิจิทัล',
-    password:        'รหัสผ่าน',
-    music_eyebrow:   'นนซูโน่ · เพลง',
-    music_title:     'แต่งบน suno.ai',
-    music_now:       'กำลังเล่น',
-    music_count:     '10 เพลง · แต่งด้วย suno',
-    plan_status:     'สถานะระบบ',
-    os_today:        'วันนี้',
-    os_focus:        'โฟกัส',
-    os_music:        'เพลง',
-    os_note:         'บันทึก',
-    os_gallery:      'หอศิลป์',
-    os_steps:        'ก้าวเดิน',
-    os_mixtape:      'มิกซ์เทป',
-    os_fleet:        'ระบบ',
-    os_theme:        'ธีม',
-    os_signals:      'สัญญาณ · ตลาด + อากาศ',
-    ground_hint:     'ก้มดูพื้น',
-    ground_exit:     'กลับขึ้นมา',
-    ground_label:    'พื้นดิน',
-    sky_hint:        'แหงนดูฟ้า',
-    sky_exit:        'กลับลงมา',
-    sky_over:        'ฟ้าเหนือ',
-    sky_here:        'ตรงนี้',
-    sky_mag:         'ความสว่าง',
-    sky_folly:       'ดวงที่อยู่เหนือหัว',
-    place_ask:          'ใช้ตำแหน่งของฉัน',
-    place_ask_asking:   'กำลังหาคุณ',
-    place_ask_refused:  'ปฏิเสธตำแหน่ง · กำลังแสดงกรุงเทพ',
-    place_ask_unavailable: 'ไม่พบตำแหน่ง · กำลังแสดงกรุงเทพ',
-    place_ask_done:     'ตำแหน่งของคุณ',
-    fleet_pipeline:  'กำลังพัฒนา',
-    health_systems:  'ระบบ',
-    health_allgood:  'ทำงานปกติ',
-    health_problem:  'ต้องดูแล',
-    health_problems: 'ต้องดูแล',
-    health_pipeline: 'กำลังสร้าง',
-    sky_ly:          'ปีแสง',
-    nav_walk:        'กดค้าง',
-    walk:            'เดิน',
-    os_brain:        'สมอง',
-    brain_asleep:    'หลับอยู่',
-    os_brief:        'สรุปเช้า',
-    brief_label:     'สรุปข่าวเช้า',
-    brief_waiting:   'ยังไม่มีตอน',
-    brief_transcript: 'บทพูด',
-    fleet_checked:   'ตรวจเมื่อ',
-    fleet_pages:     'สายหลัก',
-    fleet_ext:       'สายภายนอก',
-    fleet_parked:    'สายพัก · คง dns ไว้',
-    fleet_incidents: 'เหตุขัดข้องล่าสุด',
-    fleet_no_incidents: 'ยังไม่มีเหตุขัดข้อง',
-    fleet_last_incident: 'ขัดข้องครั้งล่าสุด',
-    fleet_resolved:  'แก้แล้ว',
-    fleet_ongoing:   'ยังขัดข้อง',
-    fleet_peak:      'สูงสุด',
-    os_online:       'ออนไลน์',
-    os_offline:      'ออฟไลน์',
-    os_offline_title: 'สิ่งที่ยังใช้ได้',
-    os_offline_body: 'เพลง ช่วงโฟกัส หอศิลป์ บันทึก และจำนวนก้าวเดิน อยู่ในเครื่องนี้ทั้งหมด บันทึกจะซิงก์ทันทีที่กลับมาออนไลน์ ส่วนตลาด อากาศ และกระดานระบบ ต้องใช้เครือข่าย — นอกนั้นไม่ต้อง',
-    intent_placeholder: 'ตั้งเจตนาของวันนี้',
-    intent_prompt:   'วันนี้ทำอะไรอยู่',
-    plan_projects:   'โครงการ',
-    plan_personal:   'ส่วนตัว',
-    plan_world:      'เวลาโลก',
-    plan_room:       '▦  เข้าห้อง',
-    plan_theme:      'ธีม',
-    cv_title_short:  'ประวัติย่อ',
-    li_title_short:  'เครือข่ายวิชาชีพ',
-    co_title_short:  'นามบัตร',
-    music_short:     'เพลง suno · 10 เพลง',
-    pomo_short:      'โพโมโดโร · 25 / 5',
-    sabai_short:     'สบายๆ · อีสเตอร์เอ้ก',
-    role:            'สถาปนิก · นักมานุษยวิทยา · เมืองอัจฉริยะ',
-    palace_sub:      'แตะเพื่อติดต่อ · หน้าต่างสู่ความคิด',
-    philo_label:     'แนวคิดเบื้องหลัง',
-    philo_p1:        'แดชบอร์ดส่วนใหญ่ข้างต้นอัปเดตทุกห้านาทีผ่าน cron ในมุมมองของผู้ใช้ มันแยกไม่ออกจากระบบเรียลไทม์ และต้นทุนแทบเป็นศูนย์',
-    philo_p2_html:   'ผมเรียกค่าใช้จ่ายเฉพาะกับ <span class="accent">งานเรียลไทม์จริง</span> เพราะต้องจ่ายค่า cloud CPU, ระบบ pipeline, และทีมวิศวกร ช่องว่างระหว่างสองระดับนี้คือจุดที่งานวิศวกรรมส่วนใหญ่สูญเปล่า',
-    philo_p3:        'หากต้องการคุยเรื่องเมือง พื้นที่ หรือคำถามใด ๆ นามบัตรของผมอยู่ในส่วน "ส่วนตัว" ด้านบน แตะได้เลย',
-  },
-  zh: {
-    palace:  '亭',
-    hint:    '点按去发现 · 拖动环视 · ◎ 计数',
-    contact: '联系',
-    door_q:             '你是怎么来的',
-    door_host_eyebrow:  '这是我的设备',
-    door_host_title:    'NON OS',
-    door_host_sub:      '时间 · 车队 · 信号 · 全天开着',
-    door_guest_eyebrow: '你从链接而来',
-    door_guest_title:   '进入亭子',
-    door_guest_sub:     '走进房间 · 认识 Non · 彩蛋',
-    door_reading:       '阅读传记与精选作品 →',
-    door_foot:          '无需登录 · 这个选择留在这台设备 · ?door 重新选择',
-    cv_eyebrow:      '简历',
-    cv_title:        '个人履历',
-    cv_cap:          '扫码下载 · 或点击打开',
-    cv_meta:         'cv.pdf · 三页 · 2026年三月',
-    li_eyebrow:      '领英',
-    li_title:        '职业网络',
-    li_cap:          '扫码查看 · 或点击打开',
-    contact_eyebrow: '联系方式',
-    contact_title:   '阿卡拉博士',
-    contact_cap:     '扫码添加到通讯录',
-    contact_role:    '高级专家 · 智慧城市推广',
-    contact_org:     '数字经济促进局',
-    password:        '密码',
-    music_eyebrow:   '诺·音乐',
-    music_title:     'suno.ai 作品',
-    music_now:       '正在播放',
-    music_count:     '10 首 · suno 作曲',
-    plan_status:     '系统状态',
-    os_today:        '今日',
-    os_focus:        '专注',
-    os_music:        '音乐',
-    os_note:         '笔记',
-    os_gallery:      '画廊',
-    os_steps:        '步数',
-    os_mixtape:      '混音带',
-    os_fleet:        '机群',
-    os_theme:        '主题',
-    os_signals:      '信号 · 市场与天气',
-    ground_hint:     '低头看',
-    ground_exit:     '回到室内',
-    ground_label:    '地面',
-    sky_hint:        '抬头看',
-    sky_exit:        '回到室内',
-    sky_over:        '天空 ·',
-    sky_here:        '此处',
-    sky_mag:         '星等',
-    sky_folly:       '正上方的那一颗',
-    place_ask:          '使用我的位置',
-    place_ask_asking:   '正在定位',
-    place_ask_refused:  '拒绝定位 · 显示曼谷',
-    place_ask_unavailable: '无法定位 · 显示曼谷',
-    place_ask_done:     '你的位置',
-    fleet_pipeline:  '开发中',
-    health_systems:  '系统',
-    health_allgood:  '全部正常',
-    health_problem:  '需要处理',
-    health_problems: '需要处理',
-    health_pipeline: '建设中',
-    sky_ly:          '光年',
-    nav_walk:        '按住',
-    walk:            '漫步',
-    os_brain:        '大脑',
-    brain_asleep:    '沉睡中',
-    os_brief:        '简报',
-    brief_label:     '晨间简报',
-    brief_waiting:   '还没有节目',
-    brief_transcript: '文稿',
-    fleet_checked:   '检查于',
-    fleet_pages:     '主线',
-    fleet_ext:       '外部线',
-    fleet_parked:    '停用线 · 保留域名',
-    fleet_incidents: '近期故障',
-    fleet_no_incidents: '暂无故障记录',
-    fleet_last_incident: '最近一次故障',
-    fleet_resolved:  '已恢复',
-    fleet_ongoing:   '进行中',
-    fleet_peak:      '峰值',
-    os_online:       '在线',
-    os_offline:      '离线',
-    os_offline_title: '仍然可用的部分',
-    os_offline_body: '音乐、专注时段、画廊、笔记与步数记录都存在这台设备上。恢复联网后笔记会自动同步。只有市场、天气和机群面板需要网络，其余都不需要。',
-    intent_placeholder: '设定今日意图',
-    intent_prompt:   '今天在做什么',
-    plan_projects:   '项目',
-    plan_personal:   '个人',
-    plan_world:      '世界时间',
-    plan_room:       '▦  进入房间',
-    plan_theme:      '主题',
-    cv_title_short:  '个人履历',
-    li_title_short:  '职业网络',
-    co_title_short:  '联系方式',
-    music_short:     'suno 音乐 · 10 首',
-    pomo_short:      '番茄钟 · 25 / 5',
-    sabai_short:     'sabai · 彩蛋',
-    role:            '建筑师 · 人类学者 · 智慧城市',
-    palace_sub:      '点按联系 · 思维之窗',
-    philo_label:     '运作原理',
-    philo_p1:        '上方的仪表盘大多每五分钟通过 cron 刷新一次。对人眼而言，这与实时无异，运行成本几乎为零。',
-    philo_p2_html:   '只有<span class="accent">真正实时</span>的项目才按实时成本计费——云 CPU、可观测管道、值班工程。两档之间的空间，正是大多数工程浪费自身的地方。',
-    philo_p3:        '若希望就城市、区域或某个问题展开对话，名片就在上方"个人"栏里。点开即可。',
-  },
-};
-
-let LANG = localStorage.getItem('nonarkara.lang') || 'en';
-if (!I18N[LANG]) LANG = 'en';
-const t = (k) => (I18N[LANG][k] || I18N.en[k] || k);
 
 // ── Theme-redraw hook registry (hoisted) ────────────────
 // Several scene-setup blocks below push canvas-redraw functions onto
@@ -874,7 +558,7 @@ function applyLang() {
 }
 document.querySelectorAll('#lang button').forEach(b => {
   b.addEventListener('click', () => {
-    LANG = b.dataset.l;
+    setLang(b.dataset.l);
     localStorage.setItem('nonarkara.lang', LANG);
     applyLang();
   });
@@ -884,131 +568,6 @@ applyLang();
 // ════════════════════════════════════════════════════════
 // Project + city + furniture data
 // ════════════════════════════════════════════════════════
-const PROJECTS = [
-  { code: 'NINJA',    title: 'Ninja Innovation',                  url: 'https://ninja.nonarkara.org',                       img: 'screenshots/ninja.jpg',     dom: 'ninja.nonarkara.org' },
-  { code: 'AXIOM',    title: 'Axiom Consultancy',                 url: 'https://axiom.nonarkara.org',                       img: 'screenshots/axiom.jpg',     dom: 'axiom.nonarkara.org' },
-  { code: 'SLIC',     title: 'SLIC Index v3',                     url: 'https://slic.nonarkara.org',                        img: 'screenshots/slic.jpg',      dom: 'slic.nonarkara.org' },
-  { code: 'SCITI',    title: 'Smart City Thailand Index',         url: 'https://sciti.nonarkara.org',                       img: 'screenshots/sciti.jpg',     dom: 'sciti.nonarkara.org' },
-  { code: 'TOMASITY', title: 'Muang Thong Thani · MTT view',      url: 'https://mtt-super-dashboard-v2.pages.dev/',          img: 'screenshots/monitor.jpg',   dom: 'mtt-super-dashboard-v2.pages.dev' },
-  { code: 'BANGKOK',  title: 'Bangkok IOC · BKK view',             url: 'https://bangkok-ioc.pages.dev/',                    img: 'screenshots/monitor.jpg',   dom: 'bangkok-ioc.pages.dev' },
-  { code: 'CDP v2',   title: 'CD Data Platform',                  url: 'https://cdp.nonarkara.org',                         img: 'screenshots/cdp.jpg',       dom: 'cdp.nonarkara.org' },
-  { code: 'CONFLICT', title: 'World Console',                     url: 'https://global.nonarkara.org/',                     img: 'screenshots/conflict.jpg',  dom: 'global.nonarkara.org' },
-  { code: 'MEM',      title: 'Middle East Monitor',               url: 'https://mem.nonarkara.org/',                        img: 'screenshots/mem.jpg',       dom: 'mem.nonarkara.org' },
-  { code: 'MEM LEGACY', title: 'Conflict Monitor · Archive',      url: 'https://conflict.nonarkara.org/',                   img: 'screenshots/mem.jpg',       dom: 'conflict.nonarkara.org' },
-  { code: 'GEO',      title: 'Thailand Geopolitical Watch',       url: 'https://geo.nonarkara.org',                         img: 'screenshots/geo.jpg',       dom: 'geo.nonarkara.org' },
-  { code: 'PHUKET',   title: 'Phuket Ops · War Room',             url: 'https://phuket.nonarkara.org/war-room',             img: 'screenshots/phuket.jpg',    dom: 'phuket.nonarkara.org' },
-  { code: 'BUS',      title: 'Phuket Smart Bus',                  url: 'https://bus.nonarkara.org',                         img: 'screenshots/bus.jpg',       dom: 'bus.nonarkara.org' },
-  { code: 'VIABUS',   title: 'Tech Hunt · Mobility · Viabus',     url: 'https://nonarkara.github.io/techhuntthailand/?id=mobility-cohort-001-viabus', img: 'screenshots/bus.jpg' },
-  { code: 'MEAN',     title: 'MEAN · Smart Money',                url: 'https://mean.nonarkara.org',                        img: 'screenshots/cdp.jpg',       dom: 'mean.nonarkara.org' },
-  { code: 'ATLAS',    title: 'BKKx 3D Atlas',                     url: 'https://atlas.nonarkara.org/',                      img: 'screenshots/cdp.jpg',       dom: 'atlas.nonarkara.org' },
-  { code: 'AGENTIC',  title: 'Agentic AI Research · @peterthien', url: 'https://github.com/agentic-ai-research',            img: 'screenshots/academic.jpg' },
-  { code: 'COUNCIL',  title: 'Dr Non’s AI Council',               url: 'https://github.com/agentic-ai-research/dr-non-diy-ai-council', img: 'screenshots/academic.jpg' },
-  { code: 'COUNCIL+', title: 'AI Council · v2 · 9-bot taskforce', url: 'https://github.com/Nonarkara/dr-non-agentic-ai-council', img: 'screenshots/academic.jpg' },
-  { code: 'KUCHING',  title: 'Greater Kuching IOC',               url: 'https://kuching.nonarkara.org',                     img: 'screenshots/kuching.jpg',   dom: 'kuching.nonarkara.org' },
-  { code: 'SOLOMON',  title: 'Solomon Islands · UN DESA',         url: 'https://solomon.nonarkara.org',                     img: 'screenshots/solomon.jpg',   dom: 'solomon.nonarkara.org' },
-  // Canonical fallback when ascn.depa.or.th / depa.or.th is down.
-  { code: 'ASCN',     title: 'ASCN Performance Review',           url: 'https://ascn-smart-cities-network.pages.dev/',      img: 'screenshots/ascn.jpg',      dom: 'ascn-smart-cities-network.pages.dev' },
-  { code: 'SLOWDOWN', title: 'The Things You Can See',            url: 'https://slowdown.nonarkara.org',                    img: 'screenshots/slowdown.jpg', dom: 'slowdown.nonarkara.org' },
-  { code: 'NOVELS',   title: 'Substack · Novels',                 url: 'https://substack.com/@nonarkara',                   img: 'screenshots/substack.jpg' },
-  { code: 'ESSAYS',   title: 'Medium · Essays',                   url: 'https://nonsmartcity.medium.com/',                  img: 'screenshots/medium.jpg' },
-  { code: 'BLOG',     title: 'Dr Non · The Archive',              url: 'https://blog.nonarkara.org/',                       img: 'screenshots/medium.jpg',    dom: 'blog.nonarkara.org' },
-  { code: 'SOLITUDE', title: '100 Days of Solitude',              url: 'https://solitude.nonarkara.org',                    img: 'screenshots/solitude.jpg',  dom: 'solitude.nonarkara.org' },
-  { code: 'YOUTUBE',  title: 'YouTube · @nonarkara',              url: 'https://www.youtube.com/@nonarkara',                img: 'screenshots/youtube.jpg' },
-  { code: 'ACADEMIC', title: 'Academic Profile',                  url: 'https://arkaraprasertkul.socialpsychology.org/',    img: 'screenshots/academic.jpg' },
-  { code: 'DAO',      title: 'Dao De Jing · 道德經',                url: 'https://dao.nonarkara.org/',                        img: 'screenshots/academic.jpg',  dom: 'dao.nonarkara.org' },
-  { code: 'RESEARCH', title: 'ResearchGate · Profile',             url: 'https://www.researchgate.net/profile/Non-Arkaraprasertkul', img: 'screenshots/academic.jpg' },
-  { code: 'NSP',      title: 'NSP · National Streaming Platform', url: 'https://nsp.nonarkara.org/',                         img: 'screenshots/academic.jpg',  dom: 'nsp.nonarkara.org' },
-  // Public systems currently presented by Axiom. They live in this
-  // single index so PLAN, MENU and command search cannot drift apart.
-  { code: 'FLOOD',      title: 'FloodDash · Thailand Flood Watch', url: 'https://flood-ami.pages.dev/',                      img: 'screenshots/cdp.jpg',       dom: 'flood-ami.pages.dev' },
-  { code: 'SIKHIO',     title: 'Sikhio Town Operations',           url: 'https://sikhio.nonarkara.org/',                     img: 'screenshots/sciti.jpg',     dom: 'sikhio.nonarkara.org' },
-  { code: 'LCB',        title: 'Laem Chabang Operations',          url: 'https://lcbcity.pages.dev/dashboard',               img: 'screenshots/sciti.jpg',     dom: 'lcbcity.pages.dev' },
-  { code: 'HCMC',       title: 'HCMCx Super Dashboard',            url: 'https://hcmc.nonarkara.org',                        img: 'screenshots/monitor.jpg',   dom: 'hcmc.nonarkara.org' },
-  { code: 'CHULA',      title: 'Chula Control Tower',              url: 'https://chula.nonarkara.org/',                      img: 'screenshots/sciti.jpg',     dom: 'chula.nonarkara.org' },
-  { code: 'CHONBURI',   title: 'Chonburi Control Tower',           url: 'https://chonburi-control-tower.pages.dev',          img: 'screenshots/sciti.jpg',     dom: 'chonburi-control-tower.pages.dev' },
-  { code: 'KMITL',      title: 'KMITL Control Tower',              url: 'https://kmitl-control-tower.pages.dev/',            img: 'screenshots/sciti.jpg',     dom: 'kmitl-control-tower.pages.dev' },
-  { code: 'YALA',       title: 'Yala Control Tower',               url: 'https://yala-control-tower.pages.dev/',             img: 'screenshots/sciti.jpg',     dom: 'yala-control-tower.pages.dev' },
-  { code: 'CITY HUB',   title: 'City Hub',                         url: 'https://city-hub.pages.dev/',                       img: 'screenshots/cdp.jpg',       dom: 'city-hub.pages.dev' },
-  { code: 'AIRDASH',    title: 'AirDash · Thailand Air Quality',   url: 'https://air.nonarkara.org/',                       img: 'screenshots/sciti.jpg',     dom: 'air.nonarkara.org' },
-  { code: 'SABAI',      title: 'Sabai Sabai · Air D&D',            url: 'https://sabaisabai-airdnd.pages.dev/',              img: 'screenshots/sciti.jpg',     dom: 'sabaisabai-airdnd.pages.dev' },
-  { code: 'DAYTRADERS', title: 'DayTraders · Siam Markets',        url: 'https://siam-markets.pages.dev/',                   img: 'screenshots/cdp.jpg',       dom: 'siam-markets.pages.dev' },
-  { code: 'SECOND BRAIN', title: 'Second Brain OS',                url: 'https://github.com/agentic-ai-research/second-brain-os', img: 'screenshots/academic.jpg' },
-  { code: 'HORIZON 45', title: 'Horizon 45 · Capability Lab',      url: 'https://horizon-field-lab.pages.dev/',              img: 'screenshots/academic.jpg',  dom: 'horizon-field-lab.pages.dev' },
-  { code: 'IKIGAI',     title: 'Ikigai Finance Engine',            url: 'https://github.com/nonarkara/ikigai-finance-engine', img: 'screenshots/academic.jpg' },
-  { code: 'FLOOD BP',   title: 'FloodDash Blueprint',              url: 'https://github.com/Nonarkara/FloodDash-Blueprint',  img: 'screenshots/academic.jpg' },
-  { code: 'EKKASARN',   title: 'Ekkasarn AI',                      url: 'https://ekkasarn-ai.pages.dev/',                    img: 'screenshots/academic.jpg',  dom: 'ekkasarn-ai.pages.dev' },
-  { code: 'NONWRITER',  title: 'The Non-Writer',                   url: 'https://nonwriter.nonarkara.org/',                  img: 'screenshots/academic.jpg',  dom: 'nonwriter.nonarkara.org' },
-  { code: 'DIGESTS',    title: 'Dr Non’s Digests',                 url: 'https://news.nonarkara.org/',                       img: 'screenshots/academic.jpg',  dom: 'news.nonarkara.org' },
-  { code: 'NONSCRAPE',  title: 'Non-Scrape',                       url: 'https://nonscrape.nonarkara.org/',                  img: 'screenshots/academic.jpg',  dom: 'nonscrape.nonarkara.org' },
-  { code: 'TIME POP',   title: 'Time Pop',                         url: 'https://watch-1de.pages.dev/',                      img: 'screenshots/academic.jpg',  dom: 'watch-1de.pages.dev' },
-  { code: 'LUMA/HOUSE', title: 'Luma/house',                       url: 'https://luma-house.pages.dev/',                     img: 'screenshots/academic.jpg',  dom: 'luma-house.pages.dev' },
-  { code: 'SCL',        title: 'Smart City Lighthouse',            url: 'https://scl.nonarkara.org/',                        img: 'screenshots/sciti.jpg',     dom: 'scl.nonarkara.org' },
-  { code: 'DEPA-USDOT', title: 'depa × U.S. DOT',                  url: 'https://depa-usdot.nonarkara.org/',                 img: 'screenshots/sciti.jpg',     dom: 'depa-usdot.nonarkara.org' },
-  // Newly published Axiom systems. Keeping them here—not in view-specific
-  // markup—means PLAN, MENU, command search and all future project surfaces
-  // receive the same complete set.
-  { code: 'FLOOD COMMUNITY', title: 'FloodDash Community',         url: 'https://bit.ly/flooddashthai',                      img: 'screenshots/cdp.jpg' },
-  { code: 'NST-01',      title: 'NST-01 · Nakhon Si Thammarat',    url: 'https://nst.nonarkara.org/',                        img: 'screenshots/sciti.jpg',     dom: 'nst.nonarkara.org' },
-  { code: 'LOPBURI',     title: 'Lopburi Operations',              url: 'https://lopburi.nonarkara.org/lopburi',             img: 'screenshots/sciti.jpg',     dom: 'lopburi.nonarkara.org' },
-  { code: 'MALAYSIA',    title: 'Malaysia · God Mode',              url: 'https://malaysia.nonarkara.org/',                   img: 'screenshots/monitor.jpg',   dom: 'malaysia.nonarkara.org' },
-  { code: 'BKK CULTURE', title: 'BKKx Culture · Heritage Atlas',    url: 'https://bkk.nonarkara.org/',                        img: 'screenshots/cdp.jpg',       dom: 'bkk.nonarkara.org' },
-  { code: 'GLOBAL',      title: 'Global Monitor',                   url: 'https://globalmonitor.nonarkara.org/',              img: 'screenshots/conflict.jpg',  dom: 'globalmonitor.nonarkara.org' },
-  { code: 'ASIA',        title: 'Asia Political Dashboard',        url: 'https://asia.nonarkara.org/',                       img: 'screenshots/conflict.jpg',  dom: 'asia.nonarkara.org' },
-  { code: 'DAY 2',       title: 'DAY 2 · Working Instrument',       url: 'https://day2.nonarkara.org/',                       img: 'screenshots/cdp.jpg',       dom: 'day2.nonarkara.org' },
-  { code: 'CARBON',      title: 'Forest Carbon Thailand',          url: 'https://carbon.nonarkara.org/?lang=th',             img: 'screenshots/sciti.jpg',     dom: 'carbon.nonarkara.org' },
-  { code: '20 MIN',      title: '20 Minutes with Dr Non',          url: 'https://open.spotify.com/show/0342w6de0LJk5wXCSNCqa3?si=jGar41OPTHak-43L2ltq9w', img: 'screenshots/youtube.jpg' },
-  { code: 'ARCADE',      title: 'OmniArcade',                      url: 'https://games.nonarkara.org/',                      img: 'screenshots/academic.jpg',  dom: 'games.nonarkara.org' },
-  { code: 'OPENCLAW',    title: 'OpenClaw Set-Up',                 url: 'https://github.com/Nonarkara/dr-non-openclaw-setup', img: 'screenshots/academic.jpg' },
-  { code: 'SHOPHOUSE',   title: 'Shophouse Metropolis',            url: 'https://shophouses.nonarkara.org/',                 img: 'screenshots/academic.jpg',  dom: 'shophouses.nonarkara.org' },
-  { code: 'SHANGHAI',    title: 'Locating Shanghai',               url: 'https://shanghai.nonarkara.org/',                   img: 'screenshots/academic.jpg',  dom: 'shanghai.nonarkara.org' },
-  { code: 'RAG',         title: 'RAG.NONARKARA',                   url: 'https://rag.nonarkara.org/',                        img: 'screenshots/academic.jpg',  dom: 'rag.nonarkara.org' },
-  { code: 'CHAMPION',    title: 'CHAOS XI · Champion',             url: 'https://champion.nonarkara.org/',                   img: 'screenshots/academic.jpg',  dom: 'champion.nonarkara.org' },
-  { code: 'SOCCER',      title: 'Soccer · NSP',                    url: 'https://soccer.nonarkara.org/',                     img: 'screenshots/academic.jpg',  dom: 'soccer.nonarkara.org' },
-  { code: 'VISION',      title: 'Vision · Computer-Vision Classroom', url: 'https://vision.nonarkara.org/',                  img: 'screenshots/academic.jpg',  dom: 'vision.nonarkara.org' },
-  { code: 'EACH',        title: 'EACH · Business Operations',      url: 'https://each.nonarkara.org/',                       img: 'screenshots/cdp.jpg',       dom: 'each.nonarkara.org' },
-  { code: 'PALETTE',     title: 'Palette · Colour Exhibition',     url: 'https://colors.nonarkara.org/',                     img: 'screenshots/academic.jpg',  dom: 'colors.nonarkara.org' },
-  { code: 'AXIOM CORE',  title: 'Axiom Design Core',               url: 'https://github.com/Nonarkara/Axiom-Design-Core',    img: 'screenshots/academic.jpg' },
-  { code: 'RAMS × NYCTA', title: 'Rams × NYCTA Design Core',       url: 'https://github.com/Nonarkara/Rams-NYCTA-Design-Core', img: 'screenshots/academic.jpg' },
-  { code: 'LUGGAGE TAG', title: 'Luggage Tag Aesthetic',           url: 'https://github.com/Nonarkara/dr-non-luggage-tag-aesthetic', img: 'screenshots/academic.jpg' },
-  { code: 'MOMA',        title: 'MoMA Rules',                      url: 'https://github.com/Nonarkara/moma-rules',           img: 'screenshots/academic.jpg' },
-  { code: 'O3',          title: 'O3 · Power of the Third',         url: 'https://otop.pages.dev/',                           img: 'screenshots/cdp.jpg',       dom: 'otop.pages.dev' },
-  { code: 'SUPER LEAGUE', title: 'Super League',                   url: 'https://superleague-xxd.pages.dev/#/lobby',         img: 'screenshots/academic.jpg',  dom: 'superleague-xxd.pages.dev' },
-  // (LINKEDIN dropped from PROJECTS — it's identity, not project
-  //  work; the row in PERSONAL already covers it. Norman mapping:
-  //  one label, one action.)
-];
-
-// Cities for the world map table — places that mean something to him
-const CITIES = [
-  // SE Asia home base
-  { name: 'Bangkok',      lat: 13.75,  lon: 100.50, tz: 'Asia/Bangkok',         home: true,  memory: 'home base · ผม' },
-  { name: 'Chiang Mai',   lat: 18.79,  lon:  98.98, tz: 'Asia/Bangkok',                      memory: 'good coffee · slower pace' },
-  { name: 'Phuket',       lat:  7.88,  lon:  98.39, tz: 'Asia/Bangkok',                      memory: 'governor demo' },
-  { name: 'Singapore',    lat:  1.35,  lon: 103.81, tz: 'Asia/Singapore',                    memory: 'tunnel to ASEAN' },
-  { name: 'Kuching',      lat:  1.55,  lon: 110.36, tz: 'Asia/Kuching',                      memory: 'Greater Kuching IOC' },
-  { name: 'Manila',       lat: 14.60,  lon: 120.98, tz: 'Asia/Manila',                       memory: 'Philippines · ASEAN corridor' },
-  // East Asia
-  { name: 'Seoul',        lat: 37.57,  lon: 126.98, tz: 'Asia/Seoul',                        memory: 'Korea · smart city benchmark' },
-  { name: 'Tokyo',        lat: 35.68,  lon: 139.69, tz: 'Asia/Tokyo',                        memory: 'east' },
-  { name: 'Shanghai',     lat: 31.23,  lon: 121.47, tz: 'Asia/Shanghai',                     memory: 'NYU · Yangpu · IDEO' },
-  { name: 'Honiara',      lat: -9.43,  lon: 159.95, tz: 'Pacific/Guadalcanal',               memory: 'UN DESA · Solomon Islands' },
-  { name: 'Sydney',       lat: -33.87, lon: 151.21, tz: 'Australia/Sydney',                  memory: 'Sydney Uni · honorary lecturer' },
-  // Middle East
-  { name: 'Dubai',        lat: 25.20,  lon:  55.27, tz: 'Asia/Dubai',                        memory: 'GITEX' },
-  // Europe
-  { name: 'Moscow',       lat: 55.75,  lon:  37.62, tz: 'Europe/Moscow',                     memory: 'GMT+3' },
-  { name: 'Istanbul',     lat: 41.01,  lon:  28.97, tz: 'Europe/Istanbul',                   memory: 'bridge city' },
-  { name: 'Amsterdam',    lat: 52.37,  lon:   4.90, tz: 'Europe/Amsterdam',                  memory: 'IABR · architecture' },
-  { name: 'Paris',        lat: 48.86,  lon:   2.35, tz: 'Europe/Paris',                      memory: 'good coffee · good question' },
-  { name: 'Krakow',       lat: 50.06,  lon:  19.93, tz: 'Europe/Warsaw',                     memory: 'Jagiellonian · visiting professor' },
-  { name: 'Oxford',       lat: 51.75,  lon:  -1.25, tz: 'Europe/London',                     memory: 'PhD years' },
-  { name: 'London',       lat: 51.51,  lon:  -0.13, tz: 'Europe/London',                     memory: 'global hub' },
-  // Americas
-  { name: 'New York',     lat: 40.71,  lon: -74.00, tz: 'America/New_York',                  memory: 'NYU global postdoc' },
-  { name: 'Boston',       lat: 42.36,  lon: -71.06, tz: 'America/New_York',                  memory: 'Harvard · MIT' },
-  { name: 'Chicago',      lat: 41.88,  lon: -87.63, tz: 'America/Chicago',                   memory: 'US Central · architecture' },
-  { name: 'Los Angeles',  lat: 34.05,  lon: -118.24, tz: 'America/Los_Angeles',              memory: 'US West Coast' },
-];
 
 const VCARD = [
   'BEGIN:VCARD',
@@ -1026,6 +585,41 @@ const VCARD = [
   'ADR;type=WORK:;;234/431 Building A\\, Ladprao Lane.10\\, Lat Phrao Rd;Chom Phon\\, Chatuchak;Bangkok;10900;Thailand',
   'END:VCARD'
 ].join('\n');
+
+// ════════════════════════════════════════════════════════
+// THE DESK IS BUILT FIRST
+// ════════════════════════════════════════════════════════
+//
+// The pavilion is a 3D world: it is assembled from thousands of objects
+// and, on a machine without a GPU, in software — which can take a minute.
+// The desk is a document. It has nothing to do with the room, and a reader
+// who asked for /?view=plan was asking for a document, not for a world to
+// be built before a document could be read.
+//
+// So the desk's nodes are looked up, and the desk's content is painted,
+// HERE — before the scene exists. Everything below this line is the room.
+//
+// This is not only a kindness to the reader. The spatial instrument gives
+// the page five seconds to settle and then measures whatever is on screen.
+// While the world was being built, the page was a SIGN — a sign the reader
+// had already dismissed by asking for the desk. Every number the receipt
+// took was a number about the sign.
+//
+// The paint calls are the same ones the module ends with; running them
+// early and again later is harmless — they rebuild the same markup.
+
+
+
+// The desk is a document and the room is a world. The desk says what was
+// tapped; the room knows how to open it. One event, one listener.
+document.addEventListener('desk:open', (e) => {
+  const d = e.detail || {};
+  try {
+    if (d.kind === 'url')       openUrlModal(d.code, d.title, d.url);
+    else if (d.kind === 'furniture') openFurnitureModal(d.id);
+    else if (d.kind === 'portraits')  openPortraitGallery();
+  } catch (err) { console.error('[desk:open]', err); }
+});
 
 // ════════════════════════════════════════════════════════
 // Three.js scene
@@ -1173,18 +767,6 @@ function activatePulses() {
   });
 }
 
-
-// ── Theme system ─────────────────────────────────────────
-// A desk used all day opens light in daylight and dark after nightfall.
-// An explicit choice always wins; the clock is only the first-run default.
-const SAVED_THEME = localStorage.getItem('nonarkara.theme');
-const LOCAL_HOUR = new Date().getHours();
-let CURRENT_THEME = SAVED_THEME || (LOCAL_HOUR >= 18 || LOCAL_HOUR < 6 ? 'dark' : 'light');
-const THEMES = {
-  dark:  { bg: 0x000000, line: 0xf5f5f0, accent: 0xf59e0b, bgCss: '#000000', fgCss: '#f5f5f0', accentCss: '#f59e0b' },
-  light: { bg: 0xf5f5f0, line: 0x1a1a1a, accent: 0xb85c28, bgCss: '#f5f5f0', fgCss: '#1a1a1a', accentCss: '#b85c28' },
-};
-const themeColors = () => THEMES[CURRENT_THEME];
 
 // ── Wireframe materials (start at opacity 0, fade in) ────
 const _initLineHex = THEMES[CURRENT_THEME].line;
@@ -1875,35 +1457,10 @@ window.__nearTruck = nearTruck;
 // losing its lock. The grid is built once — twenty systems, four columns,
 // five rows — and the signal is drawn over it every frame while the view
 // is open.
-const iocGrid = document.getElementById('ioc-grid');
-const iocCount = document.getElementById('ioc-count');
-if (iocGrid) {
-  const frag = document.createDocumentFragment();
-  for (const s of IOC) {
-    const a = document.createElement('a');
-    a.className = 'ioc-cell';
-    a.href = s.url;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    const img = document.createElement('img');
-    img.src = s.shot;
-    img.alt = s.title;
-    img.loading = 'lazy';
-    img.decoding = 'async';
-    const cap = document.createElement('figcaption');
-    const code = document.createElement('span');
-    code.className = 'ioc-code';
-    code.textContent = s.code;
-    const name = document.createElement('span');
-    name.className = 'ioc-name';
-    name.textContent = s.title;
-    cap.append(code, name);
-    a.append(img, cap);
-    frag.appendChild(a);
-  }
-  iocGrid.appendChild(frag);
-  if (iocCount) iocCount.textContent = `${IOC_COUNT} SYSTEMS`;
-}
+//
+// The grid itself is built at the TOP of the module, with the desk: it is
+// a grid of links in the document, and a reader who asked for /?view=ioc
+// should not wait for a 3D room to be assembled to see twenty systems.
 const CRT = new Crt(document.getElementById('crt-fx'), { seed: 20261023 });
 
 /** Size the signal canvas to its screen and draw one frame of the fault. */
@@ -3848,8 +3405,8 @@ async function refreshStatus() {
   OPS.lastUpdate = Date.now();
   drawOpsPanel();
   // Feed the plan view, if the plan-status painter is wired up yet
-  if (typeof paintPlanStatus === 'function') {
-    try { paintPlanStatus(data); } catch (_) {}
+  if (typeof paintPlanStatusInRoom === 'function') {
+    try { paintPlanStatusInRoom(data); } catch (_) {}
   }
 }
 refreshStatus();
@@ -4865,7 +4422,7 @@ function showHaiku() {
 //  declaration must live above them, not down here.)
 // ════════════════════════════════════════════════════════
 function applyTheme(t) {
-  CURRENT_THEME = t;
+  setTheme(t);
   const c = THEMES[t];
   // Three.js scene
   scene.background = new THREE.Color(c.bg);
@@ -4999,13 +4556,11 @@ window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && drawerEl.c
 // throws on localStorage; matchMedia is fine in modern WebKit but
 // we still guard.
 // ════════════════════════════════════════════════════════
-const planEl  = document.getElementById('plan');
-const planProjEl = document.getElementById('plan-projects');
-const planPersEl = document.getElementById('plan-personal');
-const planPrivEl = document.getElementById('plan-private');
-const planCityEl = document.getElementById('plan-cities');
-const planTimeEl = document.getElementById('plan-time');
-const planDateEl = document.getElementById('plan-date');
+// ════════════════════════════════════════════════════════
+// The desk's nodes and the clock's formats are looked up at the TOP of the
+// module, and the desk is painted there — before the room is built. See
+// "THE DESK IS BUILT FIRST".
+// ════════════════════════════════════════════════════════
 
 function lsGet(key) { try { return localStorage.getItem(key); } catch (_) { return null; } }
 function lsSet(key, v) { try { localStorage.setItem(key, v); } catch (_) {} }
@@ -5058,111 +4613,24 @@ function setView(v) {
   }
 }
 try {
-  document.body.dataset.view = chooseDefaultView();
+  // A desk named in the URL wins over the default. It used to lose: the
+  // early block at the top of this module opened /?view=plan, and then this
+  // line — which runs after the 3D world has been built — replaced it with
+  // the default view. The reader asked for the desk, watched it open, and
+  // watched it close again seconds later, and the door module then opened
+  // it a third time. The door module (further down) has always honoured
+  // the URL; this line has to agree with it.
+  const _named = new URLSearchParams(location.search).get('view');
+  const _wanted = (_named === 'plan' || _named === 'room' || _named === 'ioc') ? _named : chooseDefaultView();
+  document.body.dataset.view = _wanted;
   if (planEl) planEl.setAttribute('aria-hidden', document.body.dataset.view === 'plan' ? 'false' : 'true');
   document.getElementById('room-hud')?.setAttribute('aria-hidden', document.body.dataset.view === 'room' ? 'false' : 'true');
 } catch (_) {
   document.body.dataset.view = 'room';
 }
 
-function renderPlan() { try { _renderPlanBody(); } catch (e) { /* don't cascade */ } }
-function _renderPlanBody() {
-  if (!planProjEl || !planPersEl) return;
-
-  // Append live counts to section labels — only on render, so language
-  // toggles refresh them too.
-  const labelWithCount = (sel, key, n) => {
-    const el = document.querySelector(sel);
-    if (!el) return;
-    el.textContent = `${t(key)} · ${n}`;
-  };
-  labelWithCount('[data-i18n="plan_projects"]', 'plan_projects', PROJECTS.length);
-  labelWithCount('[data-i18n="plan_world"]',    'plan_world',    CITIES.length);
-
-  // Projects → tap target grid
-  planProjEl.innerHTML = PROJECTS.map(p => `
-    <button class="plan-cell" data-code="${p.code}" aria-label="Open ${p.code} · ${p.title}">
-      <span class="dot"></span>
-      <span class="code">${p.code}</span>
-      <span class="title">${p.title}</span>
-    </button>
-  `).join('');
-  planProjEl.querySelectorAll('.plan-cell').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const p = PROJECTS.find(x => x.code === btn.dataset.code);
-      if (p) openUrlModal(p.code, p.title, p.url);
-    });
-  });
-
-  // Personal — identity surfaces + portrait gallery.
-  const personal = [
-    { glyph: '▢',  key: 'bookshelf',  title: t('cv_title_short'),  meta: 'CV',         click: () => openFurnitureModal('bookshelf') },
-    { glyph: '◯',  key: 'pedestal',   title: t('li_title_short'),  meta: 'LINKEDIN',   click: () => openFurnitureModal('pedestal') },
-    { glyph: '☕', key: 'coffee',     title: t('co_title_short'),  meta: 'CONTACT',    click: () => openFurnitureModal('coffee') },
-    { glyph: '◈',  key: 'portraits',  title: 'portraits · share hi-res', meta: 'PHOTOS', click: () => { try { openPortraitGallery(); } catch (_) {} } },
-    { glyph: '·',  key: 'cup',        title: t('sabai_short'),     meta: '· · ·',      click: () => openFurnitureModal('cup') },
-  ];
-  planPersEl.innerHTML = personal.map((row, i) => `
-    <button class="plan-row" data-i="${i}">
-      <span class="glyph">${row.glyph}</span>
-      <span class="title">${row.title}</span>
-      <span class="meta">${row.meta}</span>
-    </button>
-  `).join('');
-  planPersEl.querySelectorAll('.plan-row').forEach((btn, i) => {
-    btn.addEventListener('click', personal[i].click);
-  });
-
-  // (PRIVATE/TKC section removed — was leaking the password publicly.)
-  // (WORLD · TIME list replaced by SVG world map — see renderWorldMap)
-
-  // Status dots (paint from cached data if present, else dim)
-  paintPlanStatus(window.__lastStatusData || null);
-}
 
 // Live clock — always running, painted on both views
-function tickPlanClock() { try { _tickPlanClockBody(); } catch (_) {} }
-// Intl.DateTimeFormat is expensive to construct; the clock built three
-// of them every second, forever. Build each shape once.
-const PLAN_TIME_FMT = new Intl.DateTimeFormat('en-GB', {
-  timeZone: 'Asia/Bangkok', hour12: false,
-  hour: '2-digit', minute: '2-digit', second: '2-digit',
-});
-const PLAN_DATE_FMT = new Intl.DateTimeFormat('en-GB', {
-  timeZone: 'Asia/Bangkok',
-  weekday: 'short', day: '2-digit', month: 'short', year: 'numeric',
-});
-const CITY_FMT = new Map();
-function cityFmt(tz) {
-  let f = CITY_FMT.get(tz);
-  if (!f) {
-    f = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour12: false, hour: '2-digit', minute: '2-digit' });
-    CITY_FMT.set(tz, f);
-  }
-  return f;
-}
-function _tickPlanClockBody() {
-  if (!planTimeEl) return;
-  const now = new Date();
-  const fmt = PLAN_TIME_FMT.format(now);
-  const dfmt = PLAN_DATE_FMT.format(now).toUpperCase();
-  if (planTimeEl) planTimeEl.textContent = fmt;
-  if (planDateEl) planDateEl.textContent = `${dfmt} · BANGKOK · GMT+7`;
-  // World map labeled cities — refresh local time text below each
-  // labeled dot once a minute (the SVG label text content swap is
-  // cheap, runs every tick).
-  const svg = document.getElementById('plan-worldmap');
-  if (svg) {
-    svg.querySelectorAll('text.city-time').forEach(t => {
-      const tz = t.dataset.tz;
-      if (!tz) return;
-      try {
-        t.textContent = cityFmt(tz).format(now);
-      } catch { /* bad tz */ }
-    });
-  }
-}
-setInterval(() => { if (!document.hidden) tickPlanClock(); }, 1000);
 
 // SIGNALS fold — remembered per device. Nothing is deleted; the markets
 // board is one tap away instead of always in the eye line.
@@ -5189,101 +4657,6 @@ setInterval(() => { if (!document.hidden) tickPlanClock(); }, 1000);
 // Daily brief — pulls from window.__brief, set by the room's
 // existing fetchers. Painted here whenever new data lands or the
 // language flips. Cells: USD/THB · SGD/THB · BTC · SET · weather.
-function paintBrief() {
-  try {
-    const b = window.__brief || {};
-    if (b.fx) {
-      const fx = b.fx;
-      const fxV = document.getElementById('brief-fx-val');
-      const fxS = document.getElementById('brief-fx-sub');
-      if (fxV) fxV.textContent = fx.thb;
-      if (fxS) fxS.textContent = `sgd ${fx.sgdThb || '—'}`;
-      const sgV = document.getElementById('brief-sgd-val');
-      const sgS = document.getElementById('brief-sgd-sub');
-      if (sgV) sgV.textContent = fx.sgdThb || '—';
-      if (sgS) sgS.textContent = `eur ${fx.eurThb} · gbp ${fx.gbpThb}`;
-    }
-    const c = b.crypto && b.crypto.btc;
-    if (c) {
-      const v = document.getElementById('brief-btc-val');
-      const s = document.getElementById('brief-btc-sub');
-      if (v) v.textContent = c.usd >= 1000
-        ? c.usd.toLocaleString('en-US', { maximumFractionDigits: 0 })
-        : c.usd.toFixed(2);
-      if (s) {
-        const up = c.change >= 0;
-        s.innerHTML = `<span class="${up ? 'up' : 'down'}">${up ? '▲' : '▼'} ${Math.abs(c.change).toFixed(2)} %</span>`;
-      }
-    }
-    if (b.set) {
-      const v = document.getElementById('brief-set-val');
-      const s = document.getElementById('brief-set-sub');
-      if (v) v.textContent = b.set.price.toLocaleString('en-US', { maximumFractionDigits: 2 });
-      if (s) {
-        const up = b.set.change >= 0;
-        s.innerHTML = `<span class="${up ? 'up' : 'down'}">${up ? '▲' : '▼'} ${Math.abs(b.set.change).toFixed(2)} %</span>`;
-      }
-    }
-    if (b.wx) {
-      const w = b.wx;
-      const v = document.getElementById('brief-wx-temp');
-      const s = document.getElementById('brief-wx-sub');
-      if (v) v.textContent = `${w.temp} °C`;
-      if (s) s.textContent = `${w.desc} · humidity ${w.humidity} % · wind ${w.wind} km/h`;
-    }
-    // Stock market cells — Dow, NASDAQ, NVDA, TSLA, GOOGL
-    if (b.stocks) {
-      const fmtStock = (key, valId, subId) => {
-        const s = b.stocks[key];
-        if (!s) return;
-        const v = document.getElementById(valId);
-        const sub = document.getElementById(subId);
-        const price = s.price >= 1000
-          ? s.price.toLocaleString('en-US', { maximumFractionDigits: 0 })
-          : s.price.toFixed(2);
-        if (v) v.textContent = price;
-        if (sub) {
-          const up = s.change >= 0;
-          sub.innerHTML = `<span class="${up ? 'up' : 'down'}">${up ? '▲' : '▼'} ${Math.abs(s.change).toFixed(2)} %</span>`;
-        }
-      };
-      fmtStock('dji',    'brief-dji-val',    'brief-dji-sub');
-      fmtStock('nasdaq', 'brief-nasdaq-val',  'brief-nasdaq-sub');
-      fmtStock('nvda',   'brief-nvda-val',    'brief-nvda-sub');
-      fmtStock('tsla',   'brief-tsla-val',    'brief-tsla-sub');
-      fmtStock('googl',  'brief-googl-val',   'brief-googl-sub');
-      fmtStock('gold',   'brief-gold-val',    'brief-gold-sub');
-      fmtStock('brent',  'brief-brent-val',   'brief-brent-sub');
-      fmtStock('ptt',    'brief-ptt-val',     'brief-ptt-sub');
-    }
-    if (b.aqi) {
-      const a = b.aqi;
-      const v = document.getElementById('brief-aqi-val');
-      const s = document.getElementById('brief-aqi-sub');
-      const cell = document.getElementById('brief-aqi-cell');
-      if (v) v.textContent = a.aqi ?? (a.pm25 != null ? a.pm25.toFixed(1) : '—');
-      if (s) {
-        const bkkStr = a.pm25 != null ? `bkk ${a.pm25.toFixed(1)} µg/m³` : '';
-        const phuketStr = a.pm25_phuket != null ? ` · phuket ${a.pm25_phuket.toFixed(1)}` : '';
-        s.textContent = a.pm25 != null
-          ? `${a.level} · ${bkkStr}${phuketStr}`
-          : a.level;
-      }
-      // Colour-code the AQI value by level — uses CSS custom property
-      // so it respects light/dark theme automatically.
-      if (v && cell) {
-        const color = a.aqi == null ? ''
-          : a.aqi <= 50  ? 'var(--fg)'           // good — neutral
-          : a.aqi <= 100 ? 'var(--amber)'         // moderate — amber
-          : a.aqi <= 150 ? 'var(--amber)'         // sensitive
-          : '#c44';                               // unhealthy+
-        v.style.color = color;
-        if (a.aqi > 150) cell.style.borderColor = 'rgba(204,68,68,0.4)';
-        else cell.style.borderColor = '';
-      }
-    }
-  } catch (_) {}
-}
 window.paintBrief = paintBrief;        // expose so room fetchers can call
 
 // ─── AI COUNCIL paint ─────────────────────────────────────
@@ -5292,37 +4665,6 @@ window.paintBrief = paintBrief;        // expose so room fetchers can call
 //   0      → HEALTHY  (live amber pulse)
 //   1-2    → DEGRADED (one or two strikes; recoverable)
 //   3+     → DOWN     (Telegram alert threshold; M3 likely off)
-function paintCouncil() {
-  try {
-    const data = (window.__brief && window.__brief.council) || null;
-    const row = document.getElementById('plan-council');
-    if (!row) return;
-    if (!data) {
-      row.dataset.status = 'unknown';
-      document.getElementById('council-status').textContent = '— ';
-      document.getElementById('council-meta').textContent = 'checking';
-      return;
-    }
-    const s = data.status || 'unknown';
-    row.dataset.status = s;
-    const statusEl = document.getElementById('council-status');
-    const metaEl = document.getElementById('council-meta');
-    statusEl.textContent =
-      s === 'healthy'  ? 'HEALTHY' :
-      s === 'degraded' ? `DEGRADED · ${data.count}` :
-      s === 'down'     ? `DOWN · ${data.count} STRIKES` :
-                         '—';
-    if (data.ts) {
-      const age = Math.max(0, Math.floor((Date.now() - new Date(data.ts).getTime()) / 60000));
-      const ago = age < 1 ? 'just now'
-                : age < 60 ? age + 'm ago'
-                : Math.floor(age / 60) + 'h ago';
-      metaEl.textContent = 'last check ' + ago;
-    } else {
-      metaEl.textContent = '';
-    }
-  } catch (_) {}
-}
 window.paintCouncil = paintCouncil;
 
 // ─── NOTE pad — Second Brain quick capture ─────────────────
@@ -5662,122 +5004,7 @@ window.addEventListener('keydown', (e) => {
 // Continents drawn as simplified polylines (purposely abstract,
 // not literal — Casio data-bank watch aesthetic). City dots
 // populated from CITIES, Bangkok highlighted in amber.
-function renderWorldMap() {
-  const svg = document.getElementById('plan-worldmap');
-  if (!svg) return;
-  // Braun "GMT WELTZEIT" travel-clock face, after Dieter Rams.
-  // No continent decoration — pure timezone grid: 24 hairline
-  // meridians at 15° each, equator + tropic references, hour
-  // offsets across the top, cities placed by lat/lon as small
-  // dots with their abbreviated names. Bangkok = home in amber.
 
-  // 25 vertical lines (-12h … +12h), every 15° of longitude
-  const meridians = [];
-  for (let h = -12; h <= 12; h++) {
-    const x = h * 15;
-    const cls = (h === 0) ? 'meridian prime' : 'meridian';
-    meridians.push(`<line class="${cls}" x1="${x}" y1="-72" x2="${x}" y2="72"/>`);
-  }
-
-  // Equator + soft tropic reference lines
-  const guides = `
-    <line class="equator"   x1="-180" y1="0"   x2="180" y2="0"/>
-    <line class="reference" x1="-180" y1="-23" x2="180" y2="-23"/>
-    <line class="reference" x1="-180" y1="23"  x2="180" y2="23"/>
-  `;
-
-  // Hour offset numbers across the top edge — every 3h, plus the meridian
-  const hourLabels = [];
-  for (let h = -12; h <= 12; h += 3) {
-    if (h === 0) { hourLabels.push(`<text class="tz-label gmt" x="0" y="-78" text-anchor="middle">GMT</text>`); continue; }
-    const x = h * 15;
-    const lbl = h > 0 ? `+${h}` : `${h}`;
-    hourLabels.push(`<text class="tz-label" x="${x}" y="-78" text-anchor="middle">${lbl}</text>`);
-  }
-
-  // Cities — dot + label + live time. Per-city offsets nudge labels
-  // out of overlap zones (Tokyo/Shanghai/Bangkok/Sydney/Honiara all
-  // crowd the eastern hemisphere; offsets give each one breathing
-  // room without lying about their actual lat/lon dot positions).
-  const labeled = ['Bangkok','London','Tokyo','New York','Sydney','Honiara','Shanghai','Dubai'];
-  const offsets = {
-    // name → { dx, dy, anchor }   in viewBox units
-    'Bangkok':  { dx:  3, dy:  2, anchor: 'start' },     // east-down so it doesn't crash into Shanghai
-    'London':   { dx:  0, dy: -4, anchor: 'middle' },    // straight up at GMT
-    'Tokyo':    { dx:  3, dy: -4, anchor: 'start' },     // up-east
-    'Shanghai': { dx: -3, dy: -4, anchor: 'end' },       // up-west of dot
-    'New York': { dx:  3, dy: -4, anchor: 'start' },     // up-east
-    'Sydney':   { dx:  3, dy:  9, anchor: 'start' },     // below
-    'Honiara':  { dx: -3, dy:  9, anchor: 'end' },       // below-west
-    'Dubai':    { dx: -3, dy: -4, anchor: 'end' },       // up-west
-  };
-  const dotSvg = CITIES.map(c => {
-    const x = c.lon, y = -c.lat;
-    const home = c.home ? ' home' : '';
-    const r = c.home ? 2.2 : 1.4;
-    const showLabel = c.home || labeled.includes(c.name);
-    const o = offsets[c.name] || { dx: 3, dy: -4, anchor: 'start' };
-    const labelEls = showLabel ? `
-      <text class="city-label${home}" x="${x + o.dx}" y="${y + o.dy}" text-anchor="${o.anchor}">${c.name.toLowerCase()}</text>
-      <text class="city-label city-time" data-tz="${c.tz}" x="${x + o.dx}" y="${y + o.dy + 7}" text-anchor="${o.anchor}">--:--</text>
-    ` : '';
-    return `
-      <g class="city-grp" data-name="${c.name}">
-        <circle class="city${home}" cx="${x}" cy="${y}" r="${r}"/>
-        ${labelEls}
-      </g>
-    `;
-  }).join('');
-
-  // Bottom strip — Braun homage caption
-  const homage = `<text class="tz-label gmt" x="-178" y="83" text-anchor="start">GMT · WELTZEIT</text>
-                  <text class="tz-label" x="178" y="83" text-anchor="end">15° per hour</text>`;
-
-  svg.innerHTML = guides + meridians.join('') + hourLabels.join('') + dotSvg + homage;
-
-  svg.querySelectorAll('.city-grp').forEach(g => {
-    g.style.cursor = 'pointer';
-    g.addEventListener('click', () => {
-      const c = CITIES.find(x => x.name === g.dataset.name);
-      if (c) openCityModal(c);
-    });
-  });
-}
-
-function paintPlanStatus(data) { try { _paintPlanStatusBody(data); } catch (_) {} }
-function _paintPlanStatusBody(data) {
-  if (!planProjEl) return;
-  // Telemetry ribbon stats — derived from the snapshot.
-  const ribLast   = document.getElementById('ribbon-last');
-  const ribMs     = document.getElementById('ribbon-ms');
-  if (data?.ts && ribLast) {
-    const age = Math.max(0, Math.floor((Date.now() - new Date(data.ts).getTime()) / 1000));
-    ribLast.textContent = age < 60 ? age + 's' : Math.floor(age / 60) + 'm';
-  }
-  if (data?.sites && ribMs) {
-    const ms = Object.values(data.sites).map(s => s.ms).filter(Number.isFinite).sort((a, b) => a - b);
-    const median = ms.length ? ms[Math.floor(ms.length / 2)] : 0;
-    ribMs.textContent = `${median} ms`;
-  }
-  let okCount = 0, total = 0;
-  planProjEl.querySelectorAll('.plan-cell').forEach(cell => {
-    const code = cell.dataset.code;
-    const p = PROJECTS.find(x => x.code === code);
-    if (!p) return;
-    const entry = data?.sites?.[p.dom];
-    if (!entry) {
-      cell.removeAttribute('data-status');
-      return;
-    }
-    total++;
-    const ok = OK_CODE(entry.code);
-    cell.dataset.status = ok ? 'ok' : 'fail';
-    if (ok) okCount++;
-  });
-  // The summary line and the 30-day uptime belong to the fleet console —
-  // it knows which stations are parked, and counting a closed platform as
-  // a failure would make the board lie.
-}
 
 // Hydrate from the cached snapshot so the dots paint INSTANTLY on
 // first load, before the network round-trip lands. Stale data beats
@@ -5789,11 +5016,11 @@ try {
     const data = JSON.parse(cached);
     if (data && data.sites) {
       window.__lastStatusData = data;
-      paintPlanStatus(data);
+      paintPlanStatusInRoom(data);
     }
   }
 } catch (_) {}
-if (window.__lastStatusData) paintPlanStatus(window.__lastStatusData);
+if (window.__lastStatusData) paintPlanStatusInRoom(window.__lastStatusData);
 
 // Wire toggle buttons — defensive: missing DOM nodes must not crash init
 const viewToggleBtn = document.getElementById('view-toggle');
@@ -6026,14 +5253,17 @@ if (planBrandBtn) planBrandBtn.addEventListener('click', () => {
 
 document.querySelectorAll('#plan-lang button').forEach(b => {
   b.addEventListener('click', () => {
-    LANG = b.dataset.l;
+    setLang(b.dataset.l);
     lsSet('nonarkara.lang', LANG);
     try { applyLang(); } catch (_) {}
     renderPlan();
   });
 });
 
-// Initial paint + reveal-in pulse for the floating ROOM/PLAN toggle
+// Initial paint + reveal-in pulse for the floating ROOM/PLAN toggle.
+// The desk was already painted at the top of the module — this second pass
+// is what puts the live data (the brief's numbers, the council's health,
+// the fleet's dots) on a desk that was already standing.
 try { renderPlan(); } catch (_) {}
 try { tickPlanClock(); } catch (_) {}
 try { paintBrief(); } catch (_) {}
@@ -7242,8 +6472,16 @@ const _afterPaint = (orig) => function () { const r = orig.apply(this, arguments
 renderFocusToday = _afterPaint(renderFocusToday);
 paintSteps       = _afterPaint(paintSteps);
 renderNoteList   = _afterPaint(renderNoteList);
-paintPlanStatus  = _afterPaint(paintPlanStatus);
 applyTheme       = _afterPaint(applyTheme);
+
+// The desk's painter is imported, and an import cannot be reassigned — so
+// the room keeps its own copy and adds its own work to it: the OS tiles
+// and the fleet board hang off the same repaint.
+function paintPlanStatusInRoom(data) {
+  try { paintPlanStatus(data); } catch (_) {}
+  try { paintTiles(); } catch (_) {}
+  try { if (data) paintFleet(data); } catch (_) {}
+}
 audio.addEventListener('play', paintTiles);
 audio.addEventListener('pause', paintTiles);
 paintTiles();
@@ -7526,11 +6764,6 @@ fetchFleetExtra();
 setInterval(() => { if (!document.hidden) fetchFleetExtra(); }, 5 * 60_000);
 
 // The 60s status poll already paints the plan; hang the board off it.
-paintPlanStatus = ((orig) => function (data) {
-  const r = orig.apply(this, arguments);
-  if (data) paintFleet(data);
-  return r;
-})(paintPlanStatus);
 if (window.__lastStatusData) paintFleet(window.__lastStatusData);
 
 // ════════════════════════════════════════════════════════

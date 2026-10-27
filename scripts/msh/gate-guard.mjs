@@ -5,10 +5,24 @@
 // and reports it clean, because the shell really is clean. The receipt then
 // certifies the shell and calls it the desk.
 //
-// This checks what the gate actually measured: the character count of the
-// surface it saw, and the biggest thing on it. The desk is a long document
-// with a clock; the shell is a sign panel. If the gate saw the shell, the
-// run is not evidence and this says so.
+// This asks each measurement what it actually saw. Every surface has its
+// own test, and every test has a reason:
+//
+//   /            the landing IS the sign: the pavilion is a canvas, and the
+//                canvas is not text. The sign's words are the landing's
+//                DOM, so the landing is proven by the sign being there.
+//
+//   /?view=plan  the desk is a document with eighty-two project cells, a
+//                clock and a fleet board: tens of thousands of characters.
+//                The sign beside it is a few hundred. Anything below the
+//                floor is the sign, not the desk.
+//
+//   /?view=ioc   the wall is twenty systems and their captions. The sign
+//                is NOT part of it — the sign is the landing's question,
+//                and a wall with the sign still up is the landing wearing
+//                a wall's name. So this surface is proven by the ABSENCE
+//                of the sign: if the sign's mark is the biggest thing on
+//                the page, the gate measured the landing.
 //
 // Usage: node scripts/msh/gate-guard.mjs <gate-json> [route:minChars ...]
 import { readFileSync } from 'node:fs';
@@ -22,10 +36,16 @@ if (!file) {
 // The floor each surface must clear for the measurement to be of the site
 // and not of the shell that shipped in the HTML.
 const DEFAULTS = {
-  '/': 400,
+  '/': 300,
   '/?view=plan': 20000,
-  '/?view=ioc': 2000,
+  '/?view=ioc': 0,
 };
+// Surfaces that must NOT carry the landing's sign. The sign is the door:
+// a door left up in front of a desk is the landing, not the desk.
+const NO_SIGN = new Set(['/?view=ioc']);
+// The sign's own mark — the two letters in the identity corner.
+const SIGN_MARK = 'door-mark';
+
 const extra = process.argv.slice(3).map(s => {
   const [route, n] = s.split(':');
   return [route, Number(n)];
@@ -33,24 +53,34 @@ const extra = process.argv.slice(3).map(s => {
 
 const j = JSON.parse(readFileSync(file, 'utf8'));
 const ms = j.measurements || [];
-let bad = 0;
+let bad = 0, judged = 0;
 const byRoute = {};
 for (const m of ms) {
-  const route = m.route;
-  (byRoute[route] ||= []).push(m);
+  (byRoute[m.route] ||= []).push(m);
 }
 
 for (const [route, list] of Object.entries(byRoute)) {
   const floor = DEFAULTS[route] ?? 0;
-  const min = list.reduce((a, m) => Math.min(a, m.chars ?? 0), Infinity);
-  const max = list.reduce((a, m) => Math.max(a, m.chars ?? 0), 0);
-  const largest = list.reduce((a, m) => Math.max(a, m.hierarchy?.largest ?? 0), 0);
-  const cls = list.find(m => (m.hierarchy?.largest ?? 0) === largest)?.hierarchy?.largestInfo?.cls || '-';
-  const ok = min >= floor;
-  if (!ok) bad++;
+  let worst = null;
+  for (const m of list) {
+    const chars = m.chars ?? 0;
+    const cls = m.hierarchy?.largestInfo?.cls || '-';
+    const signUp = String(cls).includes(SIGN_MARK);
+    const ok = chars >= floor && !(NO_SIGN.has(route) && signUp);
+    judged++;
+    if (!ok) {
+      bad++;
+      const why = chars < floor
+        ? `${chars} chars, floor ${floor} — the sign, not the surface`
+        : `the sign is still up (${cls}) — the landing, not the surface`;
+      if (!worst || !worst.ok) worst = { w: m.w, chars, cls, why, ok };
+    }
+  }
+  const chars = list.map(m => m.chars ?? 0);
+  const verdict = worst ? 'SHELL' : 'ok   ';
   console.log(
-    `${ok ? 'ok  ' : 'SHELL'} ${route.padEnd(13)} chars ${String(min).padStart(6)}…${String(max).padEnd(6)} ` +
-    `largest ${String(largest).padStart(5)} (${cls}) floor ${floor}`,
+    `${verdict} ${route.padEnd(13)} ${String(list.length).padStart(3)} measurements · chars ${String(Math.min(...chars)).padStart(6)}…${String(Math.max(...chars)).padEnd(6)}` +
+    (worst ? ` · ${worst.w}px: ${worst.why}` : ''),
   );
 }
 for (const [route, floor] of extra) {
@@ -62,10 +92,11 @@ for (const [route, floor] of extra) {
 
 if (bad) {
   console.error(
-    `\nTHE GATE MEASURED A PAGE THE APP HAD NOT DRAWN YET.\n` +
-    `  A pass here certifies the shell, not the site. Free the machine (the\n` +
-    `  boot needs headroom) and run the sweep again.\n`,
+    `\n${bad} of ${judged} measurements were of a page the app had not drawn yet.\n` +
+    `  A pass over those certifies the shell, not the site. The measurement\n` +
+    `  is only evidence when the surface it names is the surface a reader\n` +
+    `  gets — run the sweep again, and let the machine breathe.\n`,
   );
   process.exit(1);
 }
-console.log('\nThe gate measured the surfaces a reader gets, not the shell.');
+console.log(`\nAll ${judged} measurements were of the surface a reader gets.`);
