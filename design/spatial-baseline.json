@@ -27,6 +27,9 @@
     719,
     720,
     721,
+    759,
+    760,
+    761,
     768,
     899,
     900,
@@ -52,15 +55,13 @@
     "chromeTopPct": null,
     "allowedSizes": null
   },
-  "reasons": {
-    "wrap|div.fleet-stns": "The fleet board is a transit line, not a grid of cards. The hairline above each stop IS the line, and the stops are flexible — each one stretches to fill whatever row it lands in — so the line runs the full width of the board in every row, the last one included. When the live count leaves a single stop on the last row, that stop is the terminus of the line, the way a transit diagram ends with one stop on the line, and not a stranded card. The number of stops is live: systems come up and go down between one measurement and the next, so no fixed column count could divide it, and a count that does divide is a different board."
-  },
+  "reasons": {},
   "exempt": [],
   "provenance": {
-    "measuredAt": "2026-10-24T06:15:24.983Z",
-    "measurements": 84,
+    "measuredAt": "2026-10-27T11:49:01.749Z",
+    "measurements": 93,
     "routes": 3,
-    "widths": 28,
+    "widths": 31,
     "measuredTogether": true,
     "carriedOver": []
   },
@@ -180,7 +181,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 22,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -276,7 +277,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 22,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -372,7 +373,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 22,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -396,7 +397,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 22,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -468,7 +469,79 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 22,
+          "ratio": null,
+          "peers": 0,
+          "share": 0
+        }
+      },
+      "759": {
+        "findings": [],
+        "firstAction": {
+          "y": null,
+          "sel": null
+        },
+        "chrome": {
+          "vh": 1000,
+          "top": 0,
+          "topPct": 0,
+          "bottom": 0,
+          "bottomPct": 0,
+          "stacked": 1,
+          "topSel": null,
+          "bottomSel": null
+        },
+        "hierarchy": {
+          "h1": 0,
+          "largest": 22,
+          "ratio": null,
+          "peers": 0,
+          "share": 0
+        }
+      },
+      "760": {
+        "findings": [],
+        "firstAction": {
+          "y": null,
+          "sel": null
+        },
+        "chrome": {
+          "vh": 1000,
+          "top": 0,
+          "topPct": 0,
+          "bottom": 0,
+          "bottomPct": 0,
+          "stacked": 1,
+          "topSel": null,
+          "bottomSel": null
+        },
+        "hierarchy": {
+          "h1": 0,
+          "largest": 22,
+          "ratio": null,
+          "peers": 0,
+          "share": 0
+        }
+      },
+      "761": {
+        "findings": [],
+        "firstAction": {
+          "y": null,
+          "sel": null
+        },
+        "chrome": {
+          "vh": 1000,
+          "top": 0,
+          "topPct": 0,
+          "bottom": 0,
+          "bottomPct": 0,
+          "stacked": 1,
+          "topSel": null,
+          "bottomSel": null
+        },
+        "hierarchy": {
+          "h1": 0,
+          "largest": 22,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -564,7 +637,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 22,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -612,7 +685,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 22,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -636,7 +709,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 22,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -660,7 +733,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 22,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -732,7 +805,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 22,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -741,16 +814,9 @@
     },
     "/?view=plan": {
       "360": {
-        "findings": [
-          {
-            "kind": "wrap",
-            "sel": "div.fleet-stns",
-            "metric": 9,
-            "detail": "div.fleet-stns breaks into 9 rows and leaves button.fleet-stn alone on the last one"
-          }
-        ],
+        "findings": [],
         "firstAction": {
-          "y": 7078,
+          "y": 105,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -772,16 +838,9 @@
         }
       },
       "479": {
-        "findings": [
-          {
-            "kind": "wrap",
-            "sel": "div.fleet-stns",
-            "metric": 11,
-            "detail": "div.fleet-stns breaks into 11 rows and leaves button.fleet-stn alone on the last one"
-          }
-        ],
+        "findings": [],
         "firstAction": {
-          "y": 6121,
+          "y": 91,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -796,23 +855,16 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 105.38,
+          "largest": 71.85,
           "ratio": null,
           "peers": 0,
           "share": 0
         }
       },
       "480": {
-        "findings": [
-          {
-            "kind": "wrap",
-            "sel": "div.fleet-stns",
-            "metric": 11,
-            "detail": "div.fleet-stns breaks into 11 rows and leaves button.fleet-stn alone on the last one"
-          }
-        ],
+        "findings": [],
         "firstAction": {
-          "y": 5993,
+          "y": 91,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -834,16 +886,9 @@
         }
       },
       "481": {
-        "findings": [
-          {
-            "kind": "wrap",
-            "sel": "div.fleet-stns",
-            "metric": 11,
-            "detail": "div.fleet-stns breaks into 11 rows and leaves button.fleet-stn alone on the last one"
-          }
-        ],
+        "findings": [],
         "firstAction": {
-          "y": 5923,
+          "y": 91,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -858,23 +903,16 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 105.82,
+          "largest": 72.15,
           "ratio": null,
           "peers": 0,
           "share": 0
         }
       },
       "559": {
-        "findings": [
-          {
-            "kind": "wrap",
-            "sel": "div.fleet-stns",
-            "metric": 5,
-            "detail": "div.fleet-stns breaks into 5 rows and leaves button.fleet-stn alone on the last one"
-          }
-        ],
+        "findings": [],
         "firstAction": {
-          "y": 5882,
+          "y": 91,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -896,16 +934,9 @@
         }
       },
       "560": {
-        "findings": [
-          {
-            "kind": "wrap",
-            "sel": "div.fleet-stns",
-            "metric": 5,
-            "detail": "div.fleet-stns breaks into 5 rows and leaves button.fleet-stn alone on the last one"
-          }
-        ],
+        "findings": [],
         "firstAction": {
-          "y": 5882,
+          "y": 91,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -920,23 +951,16 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 84,
           "ratio": null,
           "peers": 0,
           "share": 0
         }
       },
       "561": {
-        "findings": [
-          {
-            "kind": "wrap",
-            "sel": "div.fleet-stns",
-            "metric": 5,
-            "detail": "div.fleet-stns breaks into 5 rows and leaves button.fleet-stn alone on the last one"
-          }
-        ],
+        "findings": [],
         "firstAction": {
-          "y": 5862,
+          "y": 91,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -960,7 +984,7 @@
       "599": {
         "findings": [],
         "firstAction": {
-          "y": 4679,
+          "y": 91,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -975,7 +999,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 89.85,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -984,7 +1008,7 @@
       "600": {
         "findings": [],
         "firstAction": {
-          "y": 5307,
+          "y": 91,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -999,7 +1023,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 90,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -1008,7 +1032,7 @@
       "601": {
         "findings": [],
         "firstAction": {
-          "y": 5564,
+          "y": 91,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -1023,7 +1047,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 90.15,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -1032,7 +1056,7 @@
       "602": {
         "findings": [],
         "firstAction": {
-          "y": 5481,
+          "y": 91,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -1056,7 +1080,7 @@
       "639": {
         "findings": [],
         "firstAction": {
-          "y": 4414,
+          "y": 91,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -1071,7 +1095,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 95.85,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -1080,8 +1104,8 @@
       "640": {
         "findings": [],
         "firstAction": {
-          "y": null,
-          "sel": null
+          "y": 91,
+          "sel": "button#plan-room"
         },
         "chrome": {
           "vh": 1000,
@@ -1095,7 +1119,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 96,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -1104,7 +1128,7 @@
       "641": {
         "findings": [],
         "firstAction": {
-          "y": 5511,
+          "y": 91,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -1119,7 +1143,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 96.15,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -1128,7 +1152,7 @@
       "719": {
         "findings": [],
         "firstAction": {
-          "y": 5357,
+          "y": 91,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -1143,7 +1167,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 104,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -1152,7 +1176,7 @@
       "720": {
         "findings": [],
         "firstAction": {
-          "y": 4636,
+          "y": 91,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -1176,7 +1200,7 @@
       "721": {
         "findings": [],
         "firstAction": {
-          "y": 4618,
+          "y": 91,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -1191,23 +1215,88 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 104,
+          "ratio": null,
+          "peers": 0,
+          "share": 0
+        }
+      },
+      "759": {
+        "findings": [],
+        "firstAction": {
+          "y": 91,
+          "sel": "button#plan-room"
+        },
+        "chrome": {
+          "vh": 1000,
+          "top": 0,
+          "topPct": 0,
+          "bottom": 0,
+          "bottomPct": 0,
+          "stacked": 1,
+          "topSel": null,
+          "bottomSel": null
+        },
+        "hierarchy": {
+          "h1": 0,
+          "largest": 104,
+          "ratio": null,
+          "peers": 0,
+          "share": 0
+        }
+      },
+      "760": {
+        "findings": [],
+        "firstAction": {
+          "y": 91,
+          "sel": "button#plan-room"
+        },
+        "chrome": {
+          "vh": 1000,
+          "top": 0,
+          "topPct": 0,
+          "bottom": 0,
+          "bottomPct": 0,
+          "stacked": 1,
+          "topSel": null,
+          "bottomSel": null
+        },
+        "hierarchy": {
+          "h1": 0,
+          "largest": 104,
+          "ratio": null,
+          "peers": 0,
+          "share": 0
+        }
+      },
+      "761": {
+        "findings": [],
+        "firstAction": {
+          "y": 21,
+          "sel": "button#plan-room"
+        },
+        "chrome": {
+          "vh": 1000,
+          "top": 0,
+          "topPct": 0,
+          "bottom": 0,
+          "bottomPct": 0,
+          "stacked": 1,
+          "topSel": null,
+          "bottomSel": null
+        },
+        "hierarchy": {
+          "h1": 0,
+          "largest": 104,
           "ratio": null,
           "peers": 0,
           "share": 0
         }
       },
       "768": {
-        "findings": [
-          {
-            "kind": "wrap",
-            "sel": "div.fleet-stns",
-            "metric": 4,
-            "detail": "div.fleet-stns breaks into 4 rows and leaves button.fleet-stn alone on the last one"
-          }
-        ],
+        "findings": [],
         "firstAction": {
-          "y": 4541,
+          "y": 20,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -1222,23 +1311,16 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 104,
           "ratio": null,
           "peers": 0,
           "share": 0
         }
       },
       "899": {
-        "findings": [
-          {
-            "kind": "wrap",
-            "sel": "div.fleet-stns",
-            "metric": 6,
-            "detail": "div.fleet-stns breaks into 6 rows and leaves button.fleet-stn alone on the last one"
-          }
-        ],
+        "findings": [],
         "firstAction": {
-          "y": 4307,
+          "y": 20,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -1253,23 +1335,16 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 104,
           "ratio": null,
           "peers": 0,
           "share": 0
         }
       },
       "900": {
-        "findings": [
-          {
-            "kind": "wrap",
-            "sel": "div.fleet-stns",
-            "metric": 6,
-            "detail": "div.fleet-stns breaks into 6 rows and leaves button.fleet-stn alone on the last one"
-          }
-        ],
+        "findings": [],
         "firstAction": {
-          "y": 4313,
+          "y": 20,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -1291,16 +1366,9 @@
         }
       },
       "901": {
-        "findings": [
-          {
-            "kind": "wrap",
-            "sel": "div.fleet-stns",
-            "metric": 6,
-            "detail": "div.fleet-stns breaks into 6 rows and leaves button.fleet-stn alone on the last one"
-          }
-        ],
+        "findings": [],
         "firstAction": {
-          "y": 4256,
+          "y": 20,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -1315,23 +1383,16 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 104,
           "ratio": null,
           "peers": 0,
           "share": 0
         }
       },
       "902": {
-        "findings": [
-          {
-            "kind": "wrap",
-            "sel": "div.fleet-stns",
-            "metric": 6,
-            "detail": "div.fleet-stns breaks into 6 rows and leaves button.fleet-stn alone on the last one"
-          }
-        ],
+        "findings": [],
         "firstAction": {
-          "y": 4300,
+          "y": 20,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -1355,38 +1416,7 @@
       "1024": {
         "findings": [],
         "firstAction": {
-          "y": null,
-          "sel": null
-        },
-        "chrome": {
-          "vh": 1000,
-          "top": 0,
-          "topPct": 0,
-          "bottom": 0,
-          "bottomPct": 0,
-          "stacked": 1,
-          "topSel": null,
-          "bottomSel": null
-        },
-        "hierarchy": {
-          "h1": 0,
-          "largest": 120,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
-        }
-      },
-      "1039": {
-        "findings": [
-          {
-            "kind": "wrap",
-            "sel": "div.fleet-stns",
-            "metric": 3,
-            "detail": "div.fleet-stns breaks into 3 rows and leaves button.fleet-stn alone on the last one"
-          }
-        ],
-        "firstAction": {
-          "y": 4104,
+          "y": 20,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -1401,23 +1431,40 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 104,
+          "ratio": null,
+          "peers": 0,
+          "share": 0
+        }
+      },
+      "1039": {
+        "findings": [],
+        "firstAction": {
+          "y": 20,
+          "sel": "button#plan-room"
+        },
+        "chrome": {
+          "vh": 1000,
+          "top": 0,
+          "topPct": 0,
+          "bottom": 0,
+          "bottomPct": 0,
+          "stacked": 1,
+          "topSel": null,
+          "bottomSel": null
+        },
+        "hierarchy": {
+          "h1": 0,
+          "largest": 104,
           "ratio": null,
           "peers": 0,
           "share": 0
         }
       },
       "1040": {
-        "findings": [
-          {
-            "kind": "wrap",
-            "sel": "div.fleet-stns",
-            "metric": 3,
-            "detail": "div.fleet-stns breaks into 3 rows and leaves button.fleet-stn alone on the last one"
-          }
-        ],
+        "findings": [],
         "firstAction": {
-          "y": 4148,
+          "y": 20,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -1439,16 +1486,9 @@
         }
       },
       "1041": {
-        "findings": [
-          {
-            "kind": "wrap",
-            "sel": "div.fleet-stns",
-            "metric": 3,
-            "detail": "div.fleet-stns breaks into 3 rows and leaves button.fleet-stn alone on the last one"
-          }
-        ],
+        "findings": [],
         "firstAction": {
-          "y": 4148,
+          "y": 20,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -1463,7 +1503,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 104,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -1472,7 +1512,7 @@
       "1440": {
         "findings": [],
         "firstAction": {
-          "y": 4018,
+          "y": 20,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -1487,7 +1527,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 104,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -1496,7 +1536,7 @@
       "1920": {
         "findings": [],
         "firstAction": {
-          "y": 3902,
+          "y": 20,
           "sel": "button#plan-room"
         },
         "chrome": {
@@ -1511,7 +1551,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 104,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -1537,7 +1577,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 79.2,
+          "largest": 11,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -1585,7 +1625,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 105.6,
+          "largest": 11,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -1657,7 +1697,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 11,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -1681,7 +1721,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 11,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -1705,7 +1745,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 11,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -1729,7 +1769,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 11,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -1801,7 +1841,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 11,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -1825,7 +1865,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 11,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -1849,7 +1889,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 11,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -1873,7 +1913,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 11,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -1897,7 +1937,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 11,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -1921,7 +1961,79 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 11,
+          "ratio": null,
+          "peers": 0,
+          "share": 0
+        }
+      },
+      "759": {
+        "findings": [],
+        "firstAction": {
+          "y": null,
+          "sel": null
+        },
+        "chrome": {
+          "vh": 1000,
+          "top": 0,
+          "topPct": 0,
+          "bottom": 0,
+          "bottomPct": 0,
+          "stacked": 1,
+          "topSel": null,
+          "bottomSel": null
+        },
+        "hierarchy": {
+          "h1": 0,
+          "largest": 11,
+          "ratio": null,
+          "peers": 0,
+          "share": 0
+        }
+      },
+      "760": {
+        "findings": [],
+        "firstAction": {
+          "y": null,
+          "sel": null
+        },
+        "chrome": {
+          "vh": 1000,
+          "top": 0,
+          "topPct": 0,
+          "bottom": 0,
+          "bottomPct": 0,
+          "stacked": 1,
+          "topSel": null,
+          "bottomSel": null
+        },
+        "hierarchy": {
+          "h1": 0,
+          "largest": 11,
+          "ratio": null,
+          "peers": 0,
+          "share": 0
+        }
+      },
+      "761": {
+        "findings": [],
+        "firstAction": {
+          "y": null,
+          "sel": null
+        },
+        "chrome": {
+          "vh": 1000,
+          "top": 0,
+          "topPct": 0,
+          "bottom": 0,
+          "bottomPct": 0,
+          "stacked": 1,
+          "topSel": null,
+          "bottomSel": null
+        },
+        "hierarchy": {
+          "h1": 0,
+          "largest": 11,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -1945,7 +2057,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 11,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -1969,7 +2081,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 11,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -1993,7 +2105,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 11,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -2017,7 +2129,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 11,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -2041,7 +2153,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 11,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -2065,7 +2177,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 11,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -2089,7 +2201,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 11,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -2113,7 +2225,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 11,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -2137,7 +2249,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 11,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -2161,7 +2273,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 11,
           "ratio": null,
           "peers": 0,
           "share": 0
@@ -2185,7 +2297,7 @@
         },
         "hierarchy": {
           "h1": 0,
-          "largest": 120,
+          "largest": 11,
           "ratio": null,
           "peers": 0,
           "share": 0
