@@ -58,7 +58,7 @@
   "reasons": {},
   "exempt": [],
   "provenance": {
-    "measuredAt": "2026-10-27T11:49:01.749Z",
+    "measuredAt": "2026-10-27T21:18:45.902Z",
     "measurements": 93,
     "routes": 3,
     "widths": 31,
@@ -84,11 +84,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "479": {
@@ -108,11 +108,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "480": {
@@ -132,11 +132,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "481": {
@@ -156,11 +156,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "559": {
@@ -180,11 +180,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "560": {
@@ -204,11 +204,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "561": {
@@ -228,11 +228,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "599": {
@@ -252,11 +252,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "600": {
@@ -276,11 +276,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "601": {
@@ -300,11 +300,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "602": {
@@ -324,11 +324,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "639": {
@@ -348,11 +348,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 3,
+          "share": 0.05
         }
       },
       "640": {
@@ -372,11 +372,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "641": {
@@ -396,11 +396,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "719": {
@@ -420,11 +420,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "720": {
@@ -444,11 +444,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "721": {
@@ -468,11 +468,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "759": {
@@ -492,11 +492,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "760": {
@@ -516,11 +516,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "761": {
@@ -540,11 +540,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "768": {
@@ -564,11 +564,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 3,
+          "share": 0.05
         }
       },
       "899": {
@@ -588,11 +588,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "900": {
@@ -612,11 +612,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "901": {
@@ -636,11 +636,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "902": {
@@ -660,11 +660,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "1024": {
@@ -684,11 +684,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "1039": {
@@ -708,11 +708,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "1040": {
@@ -732,11 +732,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "1041": {
@@ -756,11 +756,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "1440": {
@@ -780,11 +780,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       },
       "1920": {
@@ -804,11 +804,11 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 22,
-          "ratio": null,
-          "peers": 0,
-          "share": 0
+          "ratio": 1,
+          "peers": 2,
+          "share": 0.07
         }
       }
     },
@@ -830,9 +830,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 54,
-          "ratio": null,
+          "ratio": 0.41,
           "peers": 0,
           "share": 0
         }
@@ -854,9 +854,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 71.85,
-          "ratio": null,
+          "ratio": 0.31,
           "peers": 0,
           "share": 0
         }
@@ -878,9 +878,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 72,
-          "ratio": null,
+          "ratio": 0.31,
           "peers": 0,
           "share": 0
         }
@@ -902,9 +902,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 72.15,
-          "ratio": null,
+          "ratio": 0.3,
           "peers": 0,
           "share": 0
         }
@@ -926,9 +926,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 83.85,
-          "ratio": null,
+          "ratio": 0.26,
           "peers": 0,
           "share": 0
         }
@@ -950,9 +950,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 84,
-          "ratio": null,
+          "ratio": 0.26,
           "peers": 0,
           "share": 0
         }
@@ -974,9 +974,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 84.15,
-          "ratio": null,
+          "ratio": 0.26,
           "peers": 0,
           "share": 0
         }
@@ -998,9 +998,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 89.85,
-          "ratio": null,
+          "ratio": 0.24,
           "peers": 0,
           "share": 0
         }
@@ -1022,9 +1022,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 90,
-          "ratio": null,
+          "ratio": 0.24,
           "peers": 0,
           "share": 0
         }
@@ -1046,9 +1046,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 90.15,
-          "ratio": null,
+          "ratio": 0.24,
           "peers": 0,
           "share": 0
         }
@@ -1070,9 +1070,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 90.3,
-          "ratio": null,
+          "ratio": 0.24,
           "peers": 0,
           "share": 0
         }
@@ -1094,9 +1094,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 95.85,
-          "ratio": null,
+          "ratio": 0.23,
           "peers": 0,
           "share": 0
         }
@@ -1118,9 +1118,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 96,
-          "ratio": null,
+          "ratio": 0.23,
           "peers": 0,
           "share": 0
         }
@@ -1142,9 +1142,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 96.15,
-          "ratio": null,
+          "ratio": 0.23,
           "peers": 0,
           "share": 0
         }
@@ -1166,9 +1166,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 104,
-          "ratio": null,
+          "ratio": 0.21,
           "peers": 0,
           "share": 0
         }
@@ -1190,9 +1190,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 104,
-          "ratio": null,
+          "ratio": 0.21,
           "peers": 0,
           "share": 0
         }
@@ -1214,9 +1214,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 104,
-          "ratio": null,
+          "ratio": 0.21,
           "peers": 0,
           "share": 0
         }
@@ -1238,9 +1238,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 104,
-          "ratio": null,
+          "ratio": 0.21,
           "peers": 0,
           "share": 0
         }
@@ -1262,9 +1262,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 104,
-          "ratio": null,
+          "ratio": 0.21,
           "peers": 0,
           "share": 0
         }
@@ -1286,9 +1286,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 104,
-          "ratio": null,
+          "ratio": 0.21,
           "peers": 0,
           "share": 0
         }
@@ -1310,9 +1310,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 104,
-          "ratio": null,
+          "ratio": 0.21,
           "peers": 0,
           "share": 0
         }
@@ -1334,9 +1334,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 104,
-          "ratio": null,
+          "ratio": 0.21,
           "peers": 0,
           "share": 0
         }
@@ -1358,9 +1358,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 104,
-          "ratio": null,
+          "ratio": 0.21,
           "peers": 0,
           "share": 0
         }
@@ -1382,9 +1382,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 104,
-          "ratio": null,
+          "ratio": 0.21,
           "peers": 0,
           "share": 0
         }
@@ -1406,9 +1406,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 104,
-          "ratio": null,
+          "ratio": 0.21,
           "peers": 0,
           "share": 0
         }
@@ -1430,9 +1430,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 104,
-          "ratio": null,
+          "ratio": 0.21,
           "peers": 0,
           "share": 0
         }
@@ -1454,9 +1454,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 104,
-          "ratio": null,
+          "ratio": 0.21,
           "peers": 0,
           "share": 0
         }
@@ -1478,9 +1478,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 104,
-          "ratio": null,
+          "ratio": 0.21,
           "peers": 0,
           "share": 0
         }
@@ -1502,9 +1502,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 104,
-          "ratio": null,
+          "ratio": 0.21,
           "peers": 0,
           "share": 0
         }
@@ -1526,9 +1526,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 104,
-          "ratio": null,
+          "ratio": 0.21,
           "peers": 0,
           "share": 0
         }
@@ -1550,9 +1550,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 104,
-          "ratio": null,
+          "ratio": 0.21,
           "peers": 0,
           "share": 0
         }
@@ -1576,9 +1576,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -1600,9 +1600,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -1624,9 +1624,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -1648,9 +1648,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -1672,9 +1672,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -1696,9 +1696,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -1720,9 +1720,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -1744,9 +1744,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -1768,9 +1768,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -1792,9 +1792,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -1816,9 +1816,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -1840,9 +1840,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -1864,9 +1864,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -1888,9 +1888,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -1912,9 +1912,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -1936,9 +1936,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -1960,9 +1960,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -1984,9 +1984,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -2008,9 +2008,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -2032,9 +2032,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -2056,9 +2056,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -2080,9 +2080,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -2104,9 +2104,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -2128,9 +2128,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -2152,9 +2152,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -2176,9 +2176,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -2200,9 +2200,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -2224,9 +2224,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -2248,9 +2248,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -2272,9 +2272,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }
@@ -2296,9 +2296,9 @@
           "bottomSel": null
         },
         "hierarchy": {
-          "h1": 0,
+          "h1": 22,
           "largest": 11,
-          "ratio": null,
+          "ratio": 2,
           "peers": 0,
           "share": 0
         }

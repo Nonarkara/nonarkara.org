@@ -1,7 +1,7 @@
 # SPATIAL REPORT — nonarkara.org
 
-**Build:** v4.50 — the code is commit `2f05e81`; the deployed stamp is
-`https://nonarkara.org/version.json`
+**Build:** v4.51 — the code is the commit that carries this file; the deployed stamp
+is `https://nonarkara.org/version.json`
 
 **The law:** an interface invents a reason for things to occupy space when it arranges
 itself around a grid instead of around how people read, choose and act. The test is
@@ -43,6 +43,13 @@ drawn yet is a gate that has certified the shell:
 ```sh
 node scripts/msh/gate-guard.mjs /tmp/gate.json
 ```
+
+`scripts/msh/capture-receipt.sh` does both in one step, and **only accepts a capture
+that the guard agrees with**: a run that measured the sign instead of the desk writes
+nothing to the committed receipt. That is not a nicety. The gate compares *findings*
+against the baseline and has no idea which surface it was looking at, so a run that
+measured the wrong page produces a clean, green, worthless receipt — and a machine
+under load is enough to cause it.
 
 ---
 
@@ -169,6 +176,46 @@ ninety-three measurements re-downloaded the whole module graph. On a loaded mach
 that is the difference between a desk that paints inside the instrument's five-second
 budget and one that does not. It revalidates now (ETag, 304 when nothing changed).
 
+### 12. The document had no outline at all (v4.51)
+
+The site had **no `<h1>`, `<h2>` or `<h3>` anywhere on its main page**. Every mark and
+every section label was a `<div>` or a `<span>`: the wordmark on the sign, the room's
+brand, the desk's masthead, the wall's title, and the five section labels of the desk.
+
+Two things were wrong with that, and only one of them is about the reader.
+
+A reader using a screen reader met a wall of text with no landmarks. The desk is a
+document — v4.50 said so out loud — and a document with no headings is not a document.
+
+And the instrument's hierarchy rule — *"is the title louder than the page?"* — had
+nothing to compare. The probe recorded `h1: 0` on all ninety-three measurements and a
+ratio of `null`: a rule with nothing to measure is a rule that has never failed, and it
+had never failed here because it had never been able to run.
+
+### 13. The receipt was measuring the sign, and the theme was one tick from the paint (v4.51)
+
+The theme and the "the URL names a desk" decision lived in modules that import the desk's
+data and the room's library. They landed at the *end* of a module chain. The resource
+timeline of one page load said it plainly:
+
+```
+HTML answered            35ms
+desk.js, app.js fetched   42 → 71ms
+the parse ends          357ms          ← the theme and the view should be here
+common.js, ioc.js       356 → 407ms    ← the desk's data, only now on the wire
+first paint             412ms
+DOMContentLoaded        887ms
+```
+
+The theme landed **two milliseconds** before the first paint, and the view landed
+after it. So a reader who asked for `/?view=plan` was shown the **sign** for half a
+second while the desk's own data was fetched and parsed — and the gate, whose settle
+window is about 175ms after the parse, measured the sign instead of the desk at
+**27 of the 31 desk widths**. The old receipt was right by luck: the fonts had been
+slow enough to hold the settle open until the desk had arrived.
+
+---
+
 ---
 
 ## CHANGED
@@ -186,6 +233,8 @@ budget and one that does not. It revalidates now (ETag, 304 when nothing changed
 | 9 | A desk named in the URL was closed again by the module's default view | The URL wins over the default, in the early block and in the default-view line alike. | `app.js` |
 | 10 | The self-heal replaced the reader's URL | The heal sets the build marker and keeps every other parameter. | `index.html` |
 | 11 | The local measurement server made every measurement re-download the world | The server revalidates (ETag → 304). | `scripts/msh/serve.mjs` |
+| 12 | The document had no headings at all | The marks and the section labels are what they always were — the same words, the same type, the same place — and are now headings. Each gives up the browser's default margins, weight and size and keeps the type the house had already chosen: **a heading is a heading, not a different design**. Zero pixels moved, proved by a before/after geometry diff. | `index.html`, `styles.css`, `mixtape.html` |
+| 13 | The theme and the view landed at the end of a module chain, so the receipt measured the sign | Both decisions moved into `boot.js`, a module that imports **nothing**, and the desk's data is now fetched with the page instead of after it. The theme lands before the first paint **by ordering, not by luck**, and a URL-named desk is on screen while the room is still downloading. | `boot.js`, `common.js`, `desk.js`, `index.html` |
 
 The room and the desk now talk through one event (`desk:open`) instead of sharing a
 module, so the desk can be painted without the room and the room can still open what
@@ -204,13 +253,11 @@ every measurement a fresh page load at the width being measured:
 
 The receipt carries no findings and no reasons: there is nothing left to justify.
 
-**And what it measured.** The previous receipt's two standing findings are gone because
-the pages that produced them do not exist any more — and the run is checked, not
-assumed:
+**And what it measured.** The run is checked, not assumed:
 
 ```
-ok    /              31 measurements · chars    337…355
-ok    /?view=plan    31 measurements · chars  25955…25956
+ok    /              31 measurements · chars    337…573
+ok    /?view=plan    31 measurements · chars  25948…25949
 ok    /?view=ioc     31 measurements · chars    510…510
 
 All 93 measurements were of the surface a reader gets.
@@ -219,15 +266,68 @@ All 93 measurements were of the surface a reader gets.
 `scripts/msh/gate-guard.mjs` asks each measurement what it saw: the landing is proven
 by the sign being there, the desk by tens of thousands of characters against the sign's
 few hundred, and the wall by the **absence** of the sign — a wall with the sign still up
-is the landing wearing a wall's name. The same guard caught eight stragglers in the
-first sweep of this build and named every one of them; the sweep it accepted had none.
+is the landing wearing a wall's name.
+
+**And the receipt is reproducible.** The gate was run a second time against the
+committed receipt, with no `--update`, and every one of the ninety-three cells agreed
+with it: 93 measurements, 0 findings, 0 cells that disagreed. A receipt that only
+exists because it was just written is a receipt nobody can check.
+
+**And the receipt describes this build.** The receipt was captured before the version
+string moved from 4.50 to 4.51, so the difference between the two builds is one
+character in the desk's version stamp — measured: the stamp is **39px wide either
+way, a difference of 0px**, because it is set in a monospace face. The rest of the
+difference is proved by the geometry diff below.
+
+**One honest caveat about the instrument.** A measurement of the desk is only a
+measurement of the desk if the app has drawn the desk before the gate's settle window
+closes — about 175ms after the parse. On a machine running at load 200 with four other
+agents in it, the desk's data sometimes lands later than that, and the gate measures
+the sign instead. The gate cannot tell: it compares findings, and the sign has no
+findings, so it goes green. That is why every capture is checked with the guard, and
+why the capture script only accepts a receipt the guard agrees with. On this machine
+at load 200 a proving run had nine of ninety-three cells land on the sign; the
+receipt's own capture had none.
+
+**And the title is real.** The probe's hierarchy, which used to read `h1: 0` and a
+ratio of `null` on all ninety-three measurements, now reads a title on every one:
+
+| Surface | the title | the loudest text | ratio |
+|---|---|---|---|
+| `/` | "NON" — the sign's mark, 22px | 22px (the mark) | 1.0 |
+| `/?view=plan` | "NON OS" — the desk's masthead, 22px | 54px (the clock — a number) | 0.41 |
+| `/?view=ioc` | "IOC WALL", 11px | 11px | 2.0 |
+
+The desk's ratio is below 1 because the desk's loudest text is its **clock**: a
+number, which the law explicitly allows to dominate ("no hero over half the screen
+*unless it is the map or the number*"). The instrument cannot tell a clock from a
+shouting heading — it weighs every text, not every heading — so the title-ratio limit
+stays off for this site and the honest number is published instead.
+
+**And nothing moved.** The outline was added without touching the design, and that is
+a claim, so it was measured: `scripts/msh/snapshot.mjs` records where every piece of
+text sits and what type it is set in, and `scripts/msh/geometry-diff.mjs` compares two
+snapshots. Both sides of the comparison had to be the same page — the same state
+(the sign up, or the sign answered) and the same data (the market and fleet feeds
+blocked, because they answer with different numbers every second) — or the diff
+reports two different screens as a change in one:
+
+```
+0 moved · 0 added · 0 removed · 22 retagged — the page is the same page.
+```
+
+Twenty-two elements changed their tag: the sign's mark, the room's brand, the wall's
+title, the desk's masthead and its five section labels became headings; three `div`s
+inside the desk's button became `span`s (a button may only hold phrasing content, so
+the `div`s were invalid HTML and are now correct). **Not one pixel moved.**
 
 **The rest of the estate.** The repo's own instruments cover what the vendored gate
 cannot reach — the WebGL views, where the DOM is only the chrome over a canvas:
 
 | Gate | What it proves |
 |---|---|
-| `node scripts/msh/suite.mjs` | the whole suite, **31/31** |
+| `node scripts/msh/suite.mjs` | the whole suite, **32/32** |
+| `test-outline.mjs` | the document's outline: one visible title per surface, the title is the loudest heading, no skipped levels, no empty heading, no heading wearing the browser's margins, no heading inside a button, and the sign first in the document |
 | `test-door.mjs` | the landing is one object and one sign; the sign is ≤380px and ≤40% of the screen; no room furniture over the pavilion |
 | `test-overlap.mjs` | twelve surfaces (room · sky · ground · IOC × 390 · 1024 · 1440) with no chrome on chrome, no clipped captions, no stray labels |
 | `test-truck` (in `scripts/msh/truck.mjs`) | the seat view, both mirrors drawing, the autopilot taking the wheel |
@@ -279,7 +379,7 @@ instrument's threshold for a hole is 72px.
    "Respect Existing Headers" on the zone would make releases land as soon as they
    are deployed.
 
-5. **The falsifier caught 7 of its 10 rules — and the other 3 cannot bite on this
+5. **The falsifier caught 8 of its 10 rules — and the other 2 cannot bite on this
    site, for reasons that are checkable.**
 
    `spatial-falsify.mjs` injects one real defect per mode into a copy of the site
@@ -290,12 +390,13 @@ instrument's threshold for a hole is 72px.
    caught: a picture is stranded beside an empty column       [orphan elements]
    caught: two related actions are pushed to opposite edges   [scattered actions]
    caught: a row breaks and leaves one item alone             [accidental wrapping]
+   caught: a heading louder than the title                    [false hierarchy]
    caught: the chrome of the page grows                       [chrome cost]
    caught: a fixed bar sits on top of the work                [overlapping chrome]
    caught: a fixed bar pinned to the right sits on the work   [overlapping chrome]
    ```
 
-   The three that do not bite are dead **on this page**, and the reason is the
+   The two that do not bite are dead **on this page**, and the reason is the
    page's own shape, not a broken rule:
 
    - *The page scrolls sideways.* The site clips its own overflow
@@ -304,22 +405,22 @@ instrument's threshold for a hole is 72px.
    - *The page makes you scroll before you can do anything.* The landing's first
      **loud** control is `null` (see REMAINING 1) — the sign's two answers are
      siblings and neither is filled. There is no first action for the rule to move.
-   - *A heading louder than the title.* The site has **no `h1` at all** — no
-     `h1`, no `h2`, no `h3`; the wordmark is a `div`. The rule compares a heading
-     against the page's title, and this page has no title to shout over.
 
-   That last one is a real gap in the receipt, and it is named here rather than
-   hidden: the instrument's title rule is silent on this site, so the desk's
-   hierarchy is measured as a **ramp** (how many sizes, how many at each) and not
-   as a title-versus-the-rest comparison. The desk's own typography is measured and
-   is consistent; what is missing is the document outline a screen reader and a
-   search engine read. It is not a spatial defect, and it was not fixed in this
-   pass — it would have changed the receipt, and a receipt that changes with
-   every change is not a receipt.
+   The **title rule used to be one of the dead ones**, and this pass brought it
+   back: the site had no `h1` at all, so the rule had nothing to compare a
+   heading against. Now that the document has a title, the rule bites — and the
+   receipt can weigh the title against the rest of the page.
 
-   The falsifier's own verdict is still a FAIL — *"3 rule(s) did not bite. The gate
-   is not trustworthy."* — and it is recorded as a FAIL. What changed in this pass
-   is that the run is honest about it: the fixtures mount on the page's `load`
-   event, and until this build the desk and the wall were not painted by then, so
-   the gate measured the sign and the fixtures were not on the page at all. Two of
-   ten bit. Seven of ten bite now.
+   The falsifier's own verdict is still a FAIL — *"2 rule(s) did not bite. The gate
+   is not trustworthy."* — and it is recorded as a FAIL. Two rules of ten cannot
+   bite on a page that does not scroll sideways and has no loud first control;
+   the other eight have each been seen to fail on a real defect.
+
+   **One thing about the run itself.** The falsifier measures a COPY of the site
+   with the same browser the gate uses, so it must be run with the same browser:
+   `CHROME_PATH="$PWD/scripts/spatial/chrome-webgl.sh" node scripts/spatial/spatial-falsify.mjs <site>`.
+   Without it the inner gate runs Chrome with `--disable-gpu`, the site answers
+   with its no-WebGL notice instead of the pavilion, and the falsifier measures a
+   different surface than the one the receipt describes. The first run of this
+   pass did exactly that and reported a rule caught for the wrong reason — the
+   WebGL notice, not the defect the fixture had planted.
