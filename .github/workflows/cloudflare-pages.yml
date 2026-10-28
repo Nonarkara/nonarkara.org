@@ -56,6 +56,13 @@ jobs:
       - name: Stage the public site
         run: |
           rsync -a --exclude-from=.deployignore ./ dist/
+          # Same stamp as ship.sh. The repo keeps NON_BUILD as 'dev';
+          # version.json exists only in the upload, and its version must
+          # be the NON_VERSION the service-worker cache name already uses.
+          VER=$(grep -m1 -oE "NON_VERSION = '[^']+'" app.js | grep -oE "'[^']+'" | tr -d "'")
+          SHA=$(git rev-parse --short HEAD)
+          printf '{"version":"%s","build":"%s"}\n' "$VER" "$SHA" > dist/version.json
+          echo "version.json → $VER · build $SHA"
           echo "--- staged files ---"
           find dist -type f | wc -l
 
