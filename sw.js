@@ -2,17 +2,19 @@
  * NON OS · Service Worker
  *
  * Bump CACHE_VERSION in the same commit as any change to index.html,
- * styles.css, app.js or mixtape.html. The fetch handler is cache-first
- * for same-origin, so a stale version means users keep the old shell.
+ * styles.css, app.js or mixtape.html. The v-suffix is NON_VERSION in
+ * app.js. version.json is stamped at ship from that same version plus
+ * the git build, so the cache name and version.json name one release.
+ * A stale worker keeps serving the old shell.
  */
 
-const CACHE_VERSION = 'non-2026-10-27-v4.50';
+const CACHE_VERSION = 'non-2026-10-28-v4.51';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 // The app's own code. These are always revalidated when online so a
 // deploy is visible on the next load, not the load after the load after.
 const CODE = new Set([
-  '/', '/index.html', '/mixtape.html',
+  '/', '/index.html', '/mixtape', '/mixtape.html',
   '/styles.css', '/app.js', '/boot.js', '/desk.js', '/common.js', '/discover.js', '/sky.js', '/ground.js',
   '/entrance.css',                    // the door's own type and colour — it is not in styles.css
   '/starcat.js',                      // 5,022 real stars, fetched on the first look up
@@ -44,6 +46,7 @@ const CODE = new Set([
 const SHELL = [
   '/',
   '/index.html',
+  '/mixtape',
   '/mixtape.html',
   '/styles.css',                    // v2: extracted from inline
   '/entrance.css',                  // the door's own type and colour
@@ -133,16 +136,93 @@ const CDN_HOSTS = new Set([
   'www.artic.edu',
 ]);
 
+// Cloudflare Pages pretty URLs: /mixtape.html is a 308 to /mixtape,
+// /index.html is a 308 to /, and /dir/index.html is a 308 to /dir/.
+// A navigation request's redirect mode is "manual", so fetch(event.request)
+// does not follow that 308 (ok is false). The precache used to follow it
+// and store the result, which still has redirected set. Returning that
+// copy for a navigation is net::ERR_FAILED — the phone screen instead of
+// the mixtape. Ask for the extensionless path, and never store or return
+// a redirected response.
+function canonicalPath(pathname) {
+  if (pathname === '/index.html') return '/';
+  if (pathname.endsWith('/index.html')) return pathname.slice(0, -'index.html'.length);
+  if (pathname.endsWith('.html')) return pathname.slice(0, -'.html'.length);
+  return pathname;
+}
+
+// A response Chrome will accept as the document, and that cache.put will
+// store without keeping the redirected flag. Opaque CDN responses stay
+// as they are. An opaqueredirect hides its body; the caller refetches.
+function settledResponse(res) {
+  if (!res || res.type === 'opaqueredirect') return null;
+  if (res.type === 'opaque') return res;
+  if (res.status >= 300 && res.status < 400) {
+    const loc = res.headers.get('Location');
+    if (!loc) return null;
+    if (![301, 302, 303, 307, 308].includes(res.status)) return null;
+    return Response.redirect(new URL(loc, self.location.origin).href, res.status);
+  }
+  if (!res.redirected) return res;
+  const headers = new Headers(res.headers);
+  // fetch() already decoded the body. Leaving these makes Chrome try to
+  // decode it a second time and fail the navigation.
+  headers.delete('content-encoding');
+  headers.delete('content-length');
+  return new Response(res.body, {
+    status: res.status,
+    statusText: res.statusText,
+    headers,
+  });
+}
+
+async function fetchCode(req, canonical) {
+  const url = new URL(req.url);
+  if (canonical !== url.pathname) {
+    url.pathname = canonical;
+    return settledResponse(await fetch(url.toString(), {
+      redirect: 'follow',
+      credentials: 'same-origin',
+    }));
+  }
+  const fresh = await fetch(req);
+  // Directory slash and any other 308 the pretty-url rule did not name.
+  if (fresh && (fresh.type === 'opaqueredirect' || fresh.redirected ||
+      (fresh.status >= 300 && fresh.status < 400))) {
+    return settledResponse(await fetch(url.toString(), {
+      redirect: 'follow',
+      credentials: 'same-origin',
+    }));
+  }
+  return fresh;
+}
+
+async function matchSafe(...keys) {
+  for (const key of keys) {
+    const hit = await caches.match(key);
+    if (hit && hit.type !== 'opaqueredirect' && !hit.redirected) return hit;
+  }
+  return null;
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_VERSION);
     await Promise.all(PRECACHE.map(async (url) => {
       try {
-        const req = new Request(url, { mode: url.startsWith('http') ? 'no-cors' : 'same-origin' });
+        const sameOrigin = url.startsWith('/');
+        const path = sameOrigin ? canonicalPath(url) : url;
+        const req = new Request(path, {
+          mode: url.startsWith('http') ? 'no-cors' : 'same-origin',
+          redirect: 'follow',
+        });
         const res = await fetch(req);
-        if (res && (res.ok || res.type === 'opaque')) {
-          await cache.put(url, res.clone());
-        }
+        const stored = settledResponse(res);
+        if (!stored || stored.type === 'opaqueredirect') return;
+        if (!(stored.ok || stored.type === 'opaque')) return;
+        if (stored.type !== 'opaque' && stored.status !== 200) return;
+        await cache.put(path, stored.clone());
+        if (sameOrigin && path !== url) await cache.put(url, stored.clone());
       } catch (e) {}
     }));
     self.skipWaiting();
@@ -204,24 +284,40 @@ self.addEventListener('fetch', (event) => {
   // and changes nothing offline: the cache is still written on every
   // success and still answers the moment the network fails.
   if (url.origin === self.location.origin) {
-    const isCode = CODE.has(url.pathname) || req.destination === 'document';
+    const canonical = canonicalPath(url.pathname);
+    // mode === 'navigate' as well as destination === 'document': a phone
+    // that reports an empty destination would otherwise cache-first the
+    // 308 and fail the same way.
+    const isCode = CODE.has(url.pathname) || CODE.has(canonical) ||
+      req.destination === 'document' || req.mode === 'navigate';
     event.respondWith((async () => {
       if (isCode) {
         try {
-          const fresh = await fetch(req);
+          const fresh = await fetchCode(req, canonical);
           if (fresh && fresh.ok) {
             const cache = await caches.open(CACHE_VERSION);
-            if (fresh.status === 200) cache.put(req, fresh.clone()).catch(() => {});
+            if (fresh.status === 200 && fresh.type !== 'opaque') {
+              cache.put(canonical, fresh.clone()).catch(() => {});
+              if (canonical !== url.pathname) cache.put(url.pathname, fresh.clone()).catch(() => {});
+            }
             return fresh;
           }
+          if (fresh && fresh.status >= 300 && fresh.status < 400) return fresh;
         } catch (e) { /* offline — fall through to cache */ }
-        const cachedCode = await caches.match(req);
+        const cachedCode = await matchSafe(canonical, url.pathname, req);
         if (cachedCode) return cachedCode;
         if (req.mode === 'navigate') {
-          const shell = await caches.match('/');
+          const shell = await matchSafe('/');
           if (shell) return shell;
         }
-        return fetch(req);
+        try {
+          const last = settledResponse(await fetch(new URL(canonical, self.location.origin).toString(), {
+            redirect: 'follow',
+            credentials: 'same-origin',
+          }));
+          if (last) return last;
+        } catch (e) {}
+        return Response.error();
       }
 
       const cached = await caches.match(req);
