@@ -9,7 +9,8 @@
  *   node scripts/msh/shot-element.mjs --url ... --sel ".fleet-lines" --w 480 --out .msh6
  */
 
-import { chromium } from '/Users/nonarkara/Projects/carbon/node_modules/playwright/index.mjs';
+import { loadChromium } from './playwright.mjs';
+const chromium = await loadChromium();
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 

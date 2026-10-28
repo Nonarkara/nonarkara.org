@@ -1,6 +1,7 @@
 // Measure the desk header band: the row's height, each item's height, and
 // the hole each one leaves beneath it (the gate's "dead" rule).
-import { chromium } from '/Users/nonarkara/Projects/carbon/node_modules/playwright/index.mjs';
+import { loadChromium } from './playwright.mjs';
+const chromium = await loadChromium();
 
 const base = process.argv[2] || 'http://127.0.0.1:8786';
 const out = process.argv[3] || '.msh-shots';

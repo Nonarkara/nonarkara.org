@@ -1,4 +1,5 @@
-import { chromium } from '/Users/nonarkara/Projects/carbon/node_modules/playwright/index.mjs';
+import { loadChromium } from './playwright.mjs';
+const chromium = await loadChromium();
 
 const browser = await chromium.launch();
 const page = await browser.newPage();

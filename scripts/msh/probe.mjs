@@ -1,4 +1,5 @@
-import { chromium } from '/Users/nonarkara/Projects/carbon/node_modules/playwright/index.mjs';
+import { loadChromium } from './playwright.mjs';
+const chromium = await loadChromium();
 
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--enable-webgl', '--ignore-gpu-blocklist'] });
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });

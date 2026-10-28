@@ -1,5 +1,6 @@
 // Capture one element (the fleet board) and report its row/column geometry.
-import { chromium } from '/Users/nonarkara/Projects/carbon/node_modules/playwright/index.mjs';
+import { loadChromium } from './playwright.mjs';
+const chromium = await loadChromium();
 
 const base = process.argv[2] || 'http://127.0.0.1:8786';
 const out = process.argv[3] || '.msh-shots';

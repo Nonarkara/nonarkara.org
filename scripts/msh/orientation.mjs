@@ -19,7 +19,8 @@
  * Usage: node scripts/msh/orientation.mjs [--url http://127.0.0.1:8784/index.html]
  */
 
-import { chromium } from '/Users/nonarkara/Projects/carbon/node_modules/playwright/index.mjs';
+import { loadChromium } from './playwright.mjs';
+const chromium = await loadChromium();
 import { writeFileSync } from 'node:fs';
 
 const argv = process.argv.slice(2);

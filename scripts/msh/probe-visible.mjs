@@ -15,7 +15,8 @@
  *   node scripts/msh/probe-visible.mjs --url http://127.0.0.1:8784/index.html?view=plan
  */
 
-import { chromium } from '/Users/nonarkara/Projects/carbon/node_modules/playwright/index.mjs';
+import { loadChromium } from './playwright.mjs';
+const chromium = await loadChromium();
 
 const argv = process.argv.slice(2);
 const arg = (n, d) => { const i = argv.indexOf('--' + n); return i === -1 ? d : argv[i + 1]; };

@@ -10,6 +10,9 @@ const css = readFileSync(new URL('./styles.css', import.meta.url), 'utf8');
 // The theme decision, the words and the data live in common.js: the desk
 // and the room share them, so the desk can be painted without the room.
 const common = readFileSync(new URL('./common.js', import.meta.url), 'utf8');
+// The theme and the view are decided in boot.js: a module that imports
+// nothing, so both land before anything is painted.
+const boot = readFileSync(new URL('./boot.js', import.meta.url), 'utf8');
 
 // Boot must yield once before the render loop can touch world bindings that
 // are initialized farther down the module.
@@ -45,7 +48,20 @@ assert(/#hud-focus[\s\S]*?grid-column:\s*1\s*\/\s*-1/.test(css),
 assert(html.includes('class="plan-brief folded"') &&
   html.includes('id="os-signals-toggle"') && html.includes('aria-expanded="false"'),
   'market signals must begin folded');
-assert(common.includes("SAVED_THEME || (LOCAL_HOUR >= 18 || LOCAL_HOUR < 6 ? 'dark' : 'light')"),
+// The theme rule now lives in boot.js, which imports nothing, so it lands on
+// the body before the first paint rather than at the end of a module chain.
+// The rule itself is unchanged: light by day, dark only at night.
+assert(boot.includes("SAVED_THEME || (LOCAL_HOUR >= 18 || LOCAL_HOUR < 6 ? 'dark' : 'light')"),
   'first-run theme must be light by day and dark only at night');
+assert(boot.includes("document.body.dataset.theme = THEME"),
+  'the theme must be on the body before the first paint');
+assert(common.includes("import { THEME, SAVED_THEME, LOCAL_HOUR } from './boot.js'"),
+  'the room and the desk must read the one theme decision, not make their own');
+// A desk named in the URL is on screen before the room's module graph is
+// fetched: the view is decided in boot.js, too.
+assert(boot.includes("document.body.dataset.view = VIEW"),
+  'a desk named in the URL must be opened before the room is built');
+assert(html.includes('<script type="module" src="boot.js"></script>'),
+  'boot.js must be the page\'s first module');
 
 console.log('plan: phone boot deferred · controls wired · focus-first · quiet signals · solar theme');

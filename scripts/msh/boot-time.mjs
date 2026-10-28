@@ -1,7 +1,8 @@
 // How long does the app take to boot under the gate's own Chrome flags?
 // The gate's settle deadline is 5s; if the app is not alive by then, the
 // gate measures the shell, not the site.
-import { chromium } from '/Users/nonarkara/Projects/carbon/node_modules/playwright/index.mjs';
+import { loadChromium } from './playwright.mjs';
+const chromium = await loadChromium();
 
 const base = process.argv[2] || 'http://127.0.0.1:8786';
 const route = process.argv[3] || '/?view=plan';

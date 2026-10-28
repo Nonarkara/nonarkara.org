@@ -1,6 +1,7 @@
 // Scroll the desk (#plan is a fixed, internally-scrolling panel) to the bottom
 // and capture what a reader meets at the end of the scroll.
-import { chromium } from '/Users/nonarkara/Projects/carbon/node_modules/playwright/index.mjs';
+import { loadChromium } from './playwright.mjs';
+const chromium = await loadChromium();
 
 const base = process.argv[2] || 'http://127.0.0.1:8786';
 const out = process.argv[3] || '.msh-shots';

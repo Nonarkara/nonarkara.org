@@ -127,6 +127,13 @@
           integrity="sha384-lQXOAyZwHXE55JFyrOMB7nY2Wv+m5ZWNtJcHrd1rceRQXAYNLak8ukN5TjBTcIwz"
           crossorigin="anonymous"></script>
   <link rel="modulepreload" href="./vendor-three-0.160.0.js"/>
+  <!-- The first module, and the desk's words and data, are fetched with
+       the page, not after it: a module's imports are only discovered once
+       the module itself has been parsed, so without this the theme was
+       still in flight when the document was ready. -->
+  <link rel="modulepreload" href="./boot.js"/>
+  <link rel="modulepreload" href="./common.js"/>
+  <link rel="modulepreload" href="./ioc.js"/>
   <script type="importmap">
   {
     "imports": {
@@ -142,6 +149,47 @@
   <!-- Skip-to-content for keyboard users — visible only on :focus -->
   <a class="skip-to-content" href="#plan">skip to content</a>
 
+  <!-- THE DOOR — the first-visit question. It is NOT a curtain: the
+       pavilion is already rendering behind this panel, and the panel is
+       sized to its own content instead of being a phone-width column
+       floating in a black field. The room's own furniture is withheld
+       until the question is answered, so the first screen is the room
+       plus one sign.
+       localStorage nonarkara.mode = 'host' | 'guest' remembers the pick.
+       ?door query clears and re-asks. ?host / ?guest force a mode.
+       Host → NON OS (all-day). Guest → Pavilion (discovery room).
+
+       It sits at the top of the body because it is the first thing on the
+       screen, and the document should say so: a reader using a screen
+       reader used to hear the room's chrome — the brand, the caption, the
+       language switch — before the sign that is actually asking them
+       something. The mark is the page's title, so it is an <h1>: the one
+       place the site says what it is. -->
+  <div id="door" aria-label="Choose how you arrived">
+    <div class="door-panel">
+      <h1 class="door-mark">N<span class="door-o">O</span>N</h1>
+      <div class="door-sub" data-i18n="palace">the pavilion</div>
+      <div class="door-rule" aria-hidden="true"></div>
+      <div class="door-tag" data-i18n="door_q">how did you arrive</div>
+      <div class="door-list">
+        <button class="door-btn" id="door-host" type="button">
+          <span class="eyebrow" data-i18n="door_host_eyebrow">this is my device</span>
+          <span class="title" data-i18n="door_host_title">NON OS</span>
+          <span class="sub" data-i18n="door_host_sub">time · fleet · signals · keep it open all day</span>
+        </button>
+        <div class="door-divider" aria-hidden="true">— or —</div>
+        <button class="door-btn" id="door-guest" type="button">
+          <span class="eyebrow" data-i18n="door_guest_eyebrow">you arrived by link</span>
+          <span class="title" data-i18n="door_guest_title">enter the pavilion</span>
+          <span class="sub" data-i18n="door_guest_sub">walk the room · find who Non is · Easter eggs</span>
+        </button>
+      </div>
+      <div class="door-rule" aria-hidden="true"></div>
+      <a class="door-reading" href="reading.html" data-i18n="door_reading">Read biography &amp; selected work →</a>
+      <div class="door-foot" data-i18n="door_foot">no login · this choice stays on this device · ?door to choose again</div>
+    </div>
+  </div>
+
   <!-- 3D room canvas. There is no boot curtain in front of it: the wall of
        black that used to cover the whole first screen was a flat region
        with a decorative letter on it, and it hid a site that was already
@@ -150,7 +198,7 @@
 
   <!-- Overlay UI (room view) -->
   <div class="overlay">
-    <div class="brand" id="brand">NON</div>
+    <h1 class="brand" id="brand">NON</h1>
     <div class="caption" id="caption" data-i18n="palace">the pavilion</div>
     <div class="hint" id="hint" data-i18n="hint">tap to discover · drag to look around · ◎ counts what you find</div>
     <div class="lang" id="lang" role="group" aria-label="Language">
@@ -246,7 +294,7 @@
        when it is losing its lock. -->
   <div id="ioc" aria-hidden="true">
     <header class="ioc-head">
-      <span class="ioc-title">IOC WALL</span>
+      <h1 class="ioc-title">IOC WALL</h1>
       <span class="ioc-sub" id="ioc-count">— SYSTEMS</span>
       <button id="ioc-close" class="ioc-close" aria-label="Close the wall">CLOSE</button>
     </header>
@@ -432,11 +480,13 @@
          The connection pill is the only always-visible system truth: this OS
          is meant to keep working when the network doesn't. -->
     <header class="plan-head os-bar">
-      <button class="brand-blk" id="plan-brand-blk" aria-label="About Dr Non Arkaraprasertkul">
-        <div class="brand-mark">NON<span class="os-word">OS</span><span class="v-stamp" id="plan-version-stamp"></span></div>
-        <div class="brand-cap" data-i18n="role">architect · anthropologist · smart cities</div>
-        <div class="brand-sub" data-i18n="palace_sub">tap for contact · a window to the mind</div>
-      </button>
+      <h1 class="brand-h">
+        <button class="brand-blk" id="plan-brand-blk" aria-label="About Dr Non Arkaraprasertkul">
+          <span class="brand-mark">NON<span class="os-word">OS</span><span class="v-stamp" id="plan-version-stamp"></span></span>
+          <span class="brand-cap" data-i18n="role">architect · anthropologist · smart cities</span>
+          <span class="brand-sub" data-i18n="palace_sub">tap for contact · a window to the mind</span>
+        </button>
+      </h1>
       <div class="os-bar-right">
         <button class="os-conn" id="os-conn" aria-live="polite"
                 aria-label="Connection state — tap for what works offline">
@@ -552,7 +602,7 @@
          machines; nothing here went through anybody else's API. -->
     <section class="brief-screen" id="brief-screen" aria-label="Morning brief">
       <header class="brief-head">
-        <span class="os-lbl" data-i18n="brief_label">MORNING BRIEF</span>
+        <h2 class="os-lbl" data-i18n="brief_label">MORNING BRIEF</h2>
         <span class="brief-meta" id="brief-meta">—</span>
       </header>
       <div class="brief-title" id="brief-title" data-i18n="brief_waiting">no episode yet</div>
@@ -576,7 +626,7 @@
          on a line, closed stations on a siding. Tap one for its history. -->
     <section class="fleet" id="plan-fleet" aria-label="Fleet console">
       <header class="fleet-head">
-        <span class="fleet-lbl" data-i18n="plan_status">FLEET</span>
+        <h2 class="fleet-lbl" data-i18n="plan_status">FLEET</h2>
         <span class="fleet-sum" id="plan-stat-summary">— / —</span>
         <span class="fleet-meta">
           <span id="ribbon-ms">— ms</span>
@@ -624,17 +674,17 @@
     </section>
 
     <section class="plan-section">
-      <div class="plan-section-label" data-i18n="plan_projects">PROJECTS</div>
+      <h2 class="plan-section-label" data-i18n="plan_projects">PROJECTS</h2>
       <div class="plan-grid" id="plan-projects"></div>
     </section>
 
     <section class="plan-section">
-      <div class="plan-section-label" data-i18n="plan_personal">PERSONAL</div>
+      <h2 class="plan-section-label" data-i18n="plan_personal">PERSONAL</h2>
       <div class="plan-list" id="plan-personal"></div>
     </section>
 
     <section class="plan-philo">
-      <div class="label" data-i18n="philo_label">about this space</div>
+      <h2 class="label" data-i18n="philo_label">about this space</h2>
       <p data-i18n="philo_p1">This is a research preview of nonarkara.org — Dr. Non Arkaraprasertkul's personal operating system, built for deep work and quiet reflection. Architect (MIT), anthropologist (Harvard), Senior Expert in Smart City Promotion at Thailand's depa.</p>
       <p data-i18n="philo_p2">Built in public, run in private. Code is <span class="accent">open for personal use</span>; derivative dashboards for commercial deployment require permission. © 2026 Non Arkaraprasertkul.</p>
       <p data-i18n="philo_p3">Find him on LinkedIn or tap the contact card in the personal section above.</p>
@@ -700,41 +750,10 @@
     </div>
   </div>
 
-  <!-- The door — the first-visit question. It is NOT a curtain: the
-       pavilion is already rendering behind this panel, and the panel is
-       sized to its own content instead of being a phone-width column
-       floating in a black field. The room's own furniture is withheld
-       until the question is answered, so the first screen is the room
-       plus one sign.
-       localStorage nonarkara.mode = 'host' | 'guest' remembers the pick.
-       ?door query clears and re-asks. ?host / ?guest force a mode.
-       Host → NON OS (all-day). Guest → Pavilion (discovery room). -->
-  <div id="door" aria-label="Choose how you arrived">
-    <div class="door-panel">
-      <div class="door-mark">N<span class="door-o">O</span>N</div>
-      <div class="door-sub" data-i18n="palace">the pavilion</div>
-      <div class="door-rule" aria-hidden="true"></div>
-      <div class="door-tag" data-i18n="door_q">how did you arrive</div>
-      <div class="door-list">
-        <button class="door-btn" id="door-host" type="button">
-          <span class="eyebrow" data-i18n="door_host_eyebrow">this is my device</span>
-          <span class="title" data-i18n="door_host_title">NON OS</span>
-          <span class="sub" data-i18n="door_host_sub">time · fleet · signals · keep it open all day</span>
-        </button>
-        <div class="door-divider" aria-hidden="true">— or —</div>
-        <button class="door-btn" id="door-guest" type="button">
-          <span class="eyebrow" data-i18n="door_guest_eyebrow">you arrived by link</span>
-          <span class="title" data-i18n="door_guest_title">enter the pavilion</span>
-          <span class="sub" data-i18n="door_guest_sub">walk the room · find who Non is · Easter eggs</span>
-        </button>
-      </div>
-      <div class="door-rule" aria-hidden="true"></div>
-      <a class="door-reading" href="reading.html" data-i18n="door_reading">Read biography &amp; selected work →</a>
-      <div class="door-foot" data-i18n="door_foot">no login · this choice stays on this device · ?door to choose again</div>
-    </div>
-  </div>
-
   <!-- Main app module -->
+  <!-- The theme and the view are decided in boot.js, which imports
+       nothing, so both are on the page before anything is painted. -->
+  <script type="module" src="boot.js"></script>
   <!-- The desk is painted by its own module, beside the room's. A desk
        named in the URL must not wait for a 3D world to be assembled: the
        desk is a document, and the room is a room. -->

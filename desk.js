@@ -25,19 +25,12 @@ import { IOC, IOC_COUNT } from './ioc.js';
 // Without this, a reader who asked for /?view=plan stares at the sign
 // until the whole room has been constructed — and any instrument that
 // measures the page in the first few seconds measures the sign rather
-// than the desk. The sign is hidden for the same reason: a question is
-// only asked when there is something to choose between.
+// than the desk.
 //
-// The door module below reaches the same conclusion later, from the same
-// URL, and sets the view again. This is the same decision taken early.
-try {
-  const _v = new URLSearchParams(location.search).get('view');
-  if (_v === 'plan' || _v === 'ioc') {
-    document.body.dataset.view = _v;
-    const _door = document.getElementById('door');
-    if (_door) _door.classList.add('skip');
-  }
-} catch (_) {}
+// That decision now lives in boot.js, which imports nothing: it lands
+// before this module's own dependencies have been fetched. The door
+// module in app.js reaches the same conclusion later, from the same URL,
+// and sets the view again. This is the same decision, taken early.
 
 // ── The desk's nodes ──────────────────────────────────────
 export const planEl  = document.getElementById('plan');

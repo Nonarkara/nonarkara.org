@@ -1,6 +1,7 @@
 // Full-page captures of the real surfaces, at the three law widths.
 // Usage: node scripts/msh/shots.mjs <baseUrl> <outDir> [route ...]
-import { chromium } from '/Users/nonarkara/Projects/carbon/node_modules/playwright/index.mjs';
+import { loadChromium } from './playwright.mjs';
+const chromium = await loadChromium();
 import { mkdirSync } from 'node:fs';
 
 const base = process.argv[2] || 'http://127.0.0.1:8786';

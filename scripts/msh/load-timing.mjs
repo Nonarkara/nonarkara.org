@@ -1,7 +1,8 @@
 // What does the page's LOAD event wait for? The gate's settle deadline is
 // five seconds, and the falsifier's fixtures mount on 'load'. If 'load' is
 // late, the fixtures never arrive and the rules look dead.
-import { chromium } from '/Users/nonarkara/Projects/carbon/node_modules/playwright/index.mjs';
+import { loadChromium } from './playwright.mjs';
+const chromium = await loadChromium();
 
 const BASE = process.argv[2] || 'http://127.0.0.1:8786';
 const browser = await chromium.launch({

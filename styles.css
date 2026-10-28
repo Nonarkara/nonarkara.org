@@ -83,6 +83,7 @@
       font-family: 'Josefin Sans', sans-serif;
       font-weight: 700; font-size: 18px;
       letter-spacing: 0.05em;
+      margin: 0;
       opacity: 0;
       transition: opacity 1.6s ease 1.2s, color 0.2s ease, transform 0.15s ease;
       cursor: pointer;
@@ -1237,6 +1238,13 @@
     .plan-head {
       display: flex; align-items: flex-start; justify-content: space-between;
       gap: 16px; margin-bottom: 28px;
+    }
+    /* The desk's title. It wraps the button rather than living inside
+       it: a button may only hold phrasing content, so a heading in
+       there is invalid HTML. The heading takes no type of its own — the
+       mark and the two lines under it already have theirs. */
+    .plan-head .brand-h {
+      margin: 0; font-size: 22px; font-weight: inherit;
     }
     .plan-head .brand-blk {
       display: flex; flex-direction: column;
@@ -2657,7 +2665,7 @@ body[data-theme="light"] .offboard-btn:focus-visible { border-color: rgba(26,26,
   font-family: 'Josefin Sans', sans-serif;
   font-weight: 700; font-size: 22px;
   letter-spacing: 0.06em; color: #f5f5f0;
-  margin-bottom: 4px;
+  margin: 0 0 4px;
 }
 .door-o {
   color: transparent;
@@ -3061,7 +3069,7 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
        it, left-aligned with the text they belong to. */
     @media (max-width: 760px) {
       .os-bar { flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
-      .os-bar .brand-blk { flex: 1 0 100%; }
+      .os-bar .brand-h { flex: 1 0 100%; }
       .os-bar-right { flex: 1 0 100%; justify-content: flex-start; }
     }
     @media (max-width: 560px) {
@@ -4180,3 +4188,19 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
       body[data-nogyro="1"] .sky-hint [data-i18n],
       body[data-nogyro="1"] .ground-hint [data-i18n] { display: none; }
     }
+
+/* ── THE OUTLINE ───────────────────────────────────────────────────
+   The site is a document: a pavilion, a desk, a wall. A document with
+   no headings is a wall of text to a screen reader, and a title that
+   is a div is a title nothing can be weighed against.
+
+   So the marks and the section labels are what they always were — the
+   same words, the same type, the same place — and are now headings.
+   Each one gives up the browser's default margins, weight and size
+   and keeps the type the house had already chosen. A heading is a
+   heading, not a different design. */
+h1.ioc-title { margin: 0; font-size: inherit; font-weight: inherit; }
+h2.os-lbl,
+h2.fleet-lbl { margin: 0; font-weight: inherit; }
+h2.plan-section-label,
+.plan-philo h2.label { margin-top: 0; font-weight: inherit; }

@@ -55,7 +55,13 @@
       color: rgba(230,237,243,0.25);
       flex-shrink: 0;
     }
-    .header-logo { color: rgba(230,237,243,0.6); letter-spacing: 0.25em; }
+    /* The page's title. It is a heading, and it looks exactly like the
+       label it was: a heading wears the type of the house, not the
+       browser's. */
+    .header-logo {
+      color: rgba(230,237,243,0.6); letter-spacing: 0.25em;
+      font-size: inherit; font-weight: inherit; margin: 0;
+    }
 
     /* ── Dedication ──────────────────────────────────────────── */
     .dedication {
@@ -217,6 +223,7 @@
       text-transform: uppercase;
       color: rgba(230,237,243,0.12);
       padding-bottom: 8px;
+      font-weight: inherit; margin: 0;
     }
     .track-item {
       display: flex;
@@ -333,7 +340,7 @@
 <div class="stage">
 
   <div class="header">
-    <span class="header-logo">A MIXTAPE</span>
+    <h1 class="header-logo">A MIXTAPE</h1>
     <span id="hdr-side">SIDE A</span>
   </div>
 
@@ -436,7 +443,7 @@
   </div>
 
   <div class="tracklist" id="tracklist">
-    <div class="tracklist-label">Tracklist</div>
+    <h2 class="tracklist-label">Tracklist</h2>
     <div id="tracklist-items"></div>
   </div>
 

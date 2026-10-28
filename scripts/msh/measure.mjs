@@ -17,7 +17,8 @@
  *   node scripts/msh/measure.mjs --url ... --only ground,sky
  */
 
-import { chromium } from '/Users/nonarkara/Projects/carbon/node_modules/playwright/index.mjs';
+import { loadChromium } from './playwright.mjs';
+const chromium = await loadChromium();
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 

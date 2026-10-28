@@ -1,7 +1,8 @@
 // Does the vendored probe see the falsifier's fixture?
 // Runs the probe straight in the page — no harness, no settle deadline — so
 // the answer is about the probe, not about the clock.
-import { chromium } from '/Users/nonarkara/Projects/carbon/node_modules/playwright/index.mjs';
+import { loadChromium } from './playwright.mjs';
+const chromium = await loadChromium();
 import { readFileSync, writeFileSync, rmSync, mkdirSync, cpSync } from 'node:fs';
 import path from 'node:path';
 

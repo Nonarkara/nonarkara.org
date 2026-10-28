@@ -13,7 +13,7 @@ const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 // deploy is visible on the next load, not the load after the load after.
 const CODE = new Set([
   '/', '/index.html', '/mixtape.html',
-  '/styles.css', '/app.js', '/desk.js', '/common.js', '/discover.js', '/sky.js', '/ground.js',
+  '/styles.css', '/app.js', '/boot.js', '/desk.js', '/common.js', '/discover.js', '/sky.js', '/ground.js',
   '/entrance.css',                    // the door's own type and colour — it is not in styles.css
   '/starcat.js',                      // 5,022 real stars, fetched on the first look up
   '/render-quality.js',
@@ -48,6 +48,7 @@ const SHELL = [
   '/styles.css',                    // v2: extracted from inline
   '/entrance.css',                  // the door's own type and colour
   '/app.js',                        // v2: extracted from inline
+  '/boot.js',                       // the theme and the view, before the first paint
   '/desk.js',                       // the NON OS as a document — no 3D code
   '/common.js',                     // the words, the data, the theme
   '/render-quality.js',             // adaptive DPR + frame pacing

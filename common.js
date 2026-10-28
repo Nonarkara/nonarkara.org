@@ -16,24 +16,23 @@
 //
 // One source of truth: the room imports these from here too.
 
-export const SAVED_THEME = localStorage.getItem('nonarkara.theme');
-export const LOCAL_HOUR = new Date().getHours();
-export let CURRENT_THEME = SAVED_THEME || (LOCAL_HOUR >= 18 || LOCAL_HOUR < 6 ? 'dark' : 'light');
+// The theme is decided in boot.js, which imports nothing, so it is on
+// the body before anything is painted — not after the words and the data
+// have been fetched, parsed and evaluated.
+import { THEME, SAVED_THEME, LOCAL_HOUR } from './boot.js';
+export { SAVED_THEME, LOCAL_HOUR };
+export let CURRENT_THEME = THEME;
 export const THEMES = {
   dark:  { bg: 0x000000, line: 0xf5f5f0, accent: 0xf59e0b, bgCss: '#000000', fgCss: '#f5f5f0', accentCss: '#f59e0b' },
   light: { bg: 0xf5f5f0, line: 0x1a1a1a, accent: 0xb85c28, bgCss: '#f5f5f0', fgCss: '#1a1a1a', accentCss: '#b85c28' },
 };
 export const themeColors = () => THEMES[CURRENT_THEME];
-// The theme is put on the body HERE, before anything is painted. It used
-// to be applied at the very end of the room's module, which meant the
-// page painted in one set of colours and then changed to another — and
-// for a moment a cell and the surface behind it were in different
-// colours. A theme that is decided late is a theme that is seen late.
+// Changing the theme later is allowed; DECIDING it late is not. The
+// decision is boot.js's, and it is made before the first paint.
 export function setTheme(name) {
   CURRENT_THEME = name;
   try { document.body.dataset.theme = name; } catch (_) {}
 }
-try { document.body.dataset.theme = CURRENT_THEME; } catch (_) {}
 
 // A host is up if it answers at all in the 2xx/3xx range. The old check
 // enumerated 200/301/302 only, so every 307 (tkc, war-room) painted red.
