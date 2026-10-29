@@ -6,13 +6,13 @@
  * for same-origin, so a stale version means users keep the old shell.
  */
 
-const CACHE_VERSION = 'non-2026-10-27-v4.50';
+const CACHE_VERSION = 'non-2026-10-29-v4.52';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 // The app's own code. These are always revalidated when online so a
 // deploy is visible on the next load, not the load after the load after.
 const CODE = new Set([
-  '/', '/index.html', '/mixtape.html',
+  '/', '/index.html', '/mixtape.html', '/mixtape',
   '/styles.css', '/app.js', '/boot.js', '/desk.js', '/common.js', '/discover.js', '/sky.js', '/ground.js',
   '/entrance.css',                    // the door's own type and colour — it is not in styles.css
   '/starcat.js',                      // 5,022 real stars, fetched on the first look up

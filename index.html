@@ -34,10 +34,21 @@
     // are not enough on the custom domain: the zone rewrites JS/CSS
     // Cache-Control to max-age=14400, so location.reload() can keep
     // serving disk-cached app.js. /heal answers with Clear-Site-Data.
-    async function __nonPurge() {
+    //
+    // The worker is only unregistered on the MANUAL nuke path. Unregistering
+    // it fires 'controllerchange', and this page's own handler answers that
+    // with location.reload() — so a heal that unregistered the worker
+    // started a SECOND navigation on top of its own. Two navigations race,
+    // and the reader's tap loses. The worker is not what is wrong when the
+    // build is stale; the CACHE is. The worker is network-first for code,
+    // so clearing the caches is enough to make the next load fetch the new
+    // bytes.
+    async function __nonPurge(unregisterWorker) {
       try {
-        const ws = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(ws.map(r => r.unregister()));
+        if (unregisterWorker) {
+          const ws = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(ws.map(r => r.unregister()));
+        }
         const ks = await caches.keys();
         await Promise.all(ks.map(k => caches.delete(k)));
       } catch (_) {}
@@ -45,36 +56,72 @@
     }
     if (location.search.indexOf('reset') !== -1) {
       (async () => {
-        await __nonPurge();
+        await __nonPurge(true);
         location.replace('/');
       })();
     }
     // SELF-HEAL — the answer to "I'm still seeing the old version".
     //
-    // version.json is written at ship time from NON_VERSION and fetched
-    // with no-store, so it is always the truth from the network. If the
-    // build actually running is older, every cache on this device is
-    // wrong: unregister the workers, delete the caches, hit /heal, and
-    // navigate once. Guarded by sessionStorage so a genuine mismatch
-    // can never become a reload loop.
+    // version.json is written at ship time from NON_VERSION and the build
+    // hash, and fetched with no-store, so it is always the truth from the
+    // network. If the build actually running is older, every cache on this
+    // device is wrong: clear the caches, hit /heal, and navigate once.
+    // Guarded by sessionStorage so a genuine mismatch can never become a
+    // reload loop.
+    //
+    // IT COMPARES LIKE WITH LIKE, OR IT DOES NOTHING.
+    //
+    // It used to compare a build hash on one side with a version string on
+    // the other whenever the page's own stamp was missing — the repo keeps
+    // NON_BUILD as 'dev', and a build published without the stamp has no
+    // hash at all. Those two strings can never be equal, so the heal fired
+    // on EVERY visit: it deleted every cache, unregistered the service
+    // worker, cleared the browser's HTTP cache, and reloaded the page a
+    // second and a half in — while the reader was reaching for something.
+    // A reader who tapped the mixtape in that window had their tap thrown
+    // away by the reload, which is how a working link becomes a dead one.
+    //
+    // A heal that cannot tell whether the build is stale must do nothing.
+    // Guessing wrong costs the reader their caches, their worker, and
+    // their place on the page.
     window.addEventListener('load', () => {
       setTimeout(async () => {
         try {
           const r = await fetch('/version.json', { cache: 'no-store' });
           if (!r.ok) return;
+          // The site has no 404s: every path that does not exist answers
+          // with the app itself, so a missing version.json comes back as
+          // HTML with a 200. r.json() would throw, and the catch below
+          // would swallow it — which is how a broken stamp looked like a
+          // working one for as long as it took to notice.
+          const ct = r.headers.get('content-type') || '';
+          if (!/application\/json/i.test(ct)) return;
           const { version, build } = await r.json();
           const running = window.NON_VERSION;
-          // Compare BUILD HASHES when both sides have one — version
-          // numbers are typed by hand and have already collided once
-          // (two different builds, both '4.7', healer blinded). Fall
-          // back to the version string only for older deploys.
-          const live = build || version;
-          const mine = window.NON_BUILD && window.NON_BUILD !== 'dev' ? window.NON_BUILD : running;
+          // 'dev' is not a build — it is the absence of one. The repo keeps
+          // it, and a build published without the stamp has it too. Both
+          // sides must agree on what kind of thing they are holding.
+          const myBuild = (window.NON_BUILD && window.NON_BUILD !== 'dev') ? window.NON_BUILD : null;
+          const liveBuild = (build && build !== 'dev') ? build : null;
+          let live, mine;
+          if (liveBuild && myBuild) {
+            // Both sides named a build: compare the hashes. Version numbers
+            // are typed by hand and have collided once already (two builds,
+            // both '4.7', healer blinded).
+            live = liveBuild; mine = myBuild;
+          } else if (!liveBuild && !myBuild) {
+            // Neither side named a build: the version is all there is.
+            live = version; mine = running;
+          } else {
+            // One side has a build hash and the other does not. There is no
+            // honest comparison to be made, so there is no heal.
+            return;
+          }
           if (!live || !mine || live === mine) return;
           if (sessionStorage.getItem('non.healed') === live) return;  // already tried
           sessionStorage.setItem('non.healed', live);
-          console.warn(`[NON] running ${running}, live is ${version} — clearing caches`);
-          await __nonPurge();
+          console.warn(`[NON] running ${running}, live is ${live} — clearing caches`);
+          await __nonPurge(false);
           // replace (not reload): bypasses the HTTP disk cache entry
           // that max-age=14400 would otherwise hand back.
           //
@@ -559,7 +606,7 @@
         <span class="g">◍</span><span class="t" data-i18n="os_brief">BRIEF</span>
         <span class="r" id="os-r-brief">—</span>
       </button>
-      <a href="/mixtape.html" class="os-tile" aria-label="Open the mixtape — turntable player">
+      <a href="/mixtape" class="os-tile" aria-label="Open the mixtape — turntable player">
         <span class="g">◉</span><span class="t" data-i18n="os_mixtape">MIXTAPE</span>
         <span class="r">SIDE A/B</span>
       </a>
@@ -724,11 +771,13 @@
     <div class="pomo-hint">hold ✕ for 3 seconds to exit · timer keeps running</div>
   </div>
 
-  <!-- No WebGL: there is no pavilion to walk into, so the OS is the site.
-       A notice in the corner, not a curtain over the whole page — the
-       reader gets the desk, and one line saying why. -->
+  <!-- No GPU: the pavilion is a 3D room, and this machine cannot draw one
+       fast enough to walk through. The notice waits until the reader has
+       asked for the room — it is not a curtain over the first screen, and
+       it never touches the desk or the wall. -->
   <div class="webgl-fallback" id="webgl-fallback" role="status">
-    <span class="msg">NO WEBGL — SHOWING THE OS INSTEAD</span>
+    <span class="msg">NO WEBGL — THIS MACHINE CANNOT DRAW THE PAVILION FAST ENOUGH TO WALK IT</span>
+    <a class="action" href="reading.html">BIOGRAPHY &amp; SELECTED WORK →</a>
     <button class="action" id="fallback-btn" type="button" aria-label="Dismiss this notice">DISMISS</button>
   </div>
 

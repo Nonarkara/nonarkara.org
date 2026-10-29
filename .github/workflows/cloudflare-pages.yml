@@ -53,9 +53,28 @@ jobs:
 
       # Pages uploads whatever directory it is given, verbatim, and has no
       # ignore mechanism. Stage a clean copy instead of shipping the repo.
+      #
+      # AND STAMP IT, exactly as ship.sh does. This workflow used to stage
+      # the repo and ship it as-is: the deployed app.js kept NON_BUILD =
+      # 'dev' and there was no version.json at all. The self-heal then
+      # compared the live build hash against the page's version string —
+      # two different kinds of thing that can never be equal — so it fired
+      # on EVERY visit, deleted every cache, unregistered the service
+      # worker, cleared the browser's HTTP cache and reloaded the page a
+      # second and a half in. A reader who tapped anything in that window
+      # had their tap thrown away by the reload.
+      #
+      # Two deploy paths that produce different bytes will always fight.
+      # One path, one stamp.
       - name: Stage the public site
         run: |
           rsync -a --exclude-from=.deployignore ./ dist/
+          VER=$(grep -m1 -oE "NON_VERSION = '[^']+'" app.js | grep -oE "'[^']+'" | tr -d "'")
+          SHA=$(git rev-parse --short HEAD)
+          sed -i "s/const NON_BUILD = 'dev';/const NON_BUILD = '${SHA}';/" dist/app.js
+          grep -q "NON_BUILD = '${SHA}'" dist/app.js || { echo "build stamp failed"; exit 1; }
+          printf '{"version":"%s","build":"%s"}\n' "$VER" "$SHA" > dist/version.json
+          echo "version.json → $VER · build $SHA"
           echo "--- staged files ---"
           find dist -type f | wc -l
 

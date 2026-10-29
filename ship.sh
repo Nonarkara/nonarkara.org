@@ -24,6 +24,11 @@ die() { printf '\n\033[31m%s\033[0m\n' "$1" >&2; exit 1; }
 
 LOCAL_VERSION=$(grep -m1 -oE "NON_VERSION = '[^']+'" app.js | grep -oE "'[^']+'" | tr -d "'")
 [ -n "$LOCAL_VERSION" ] || die "could not read NON_VERSION from app.js"
+# The service worker's cache name must name the same release. It was left on
+# v4.50 while the app said 4.51 — a stale worker keeps serving the old
+# shell, which is exactly the failure the self-heal exists to undo.
+CACHE_VER=$(grep -m1 -oE "CACHE_VERSION = '[^']+'" sw.js | grep -oE "'[^']+'" | tr -d "'")
+[[ "$CACHE_VER" == *"-v${LOCAL_VERSION}" ]] || die "CACHE_VERSION ${CACHE_VER} does not end with NON_VERSION v${LOCAL_VERSION}"
 say "shipping v${LOCAL_VERSION}"
 
 # Refuse to ship a working tree that does not match what is committed —
