@@ -34,13 +34,89 @@ export { altAz, daysSinceJ2000, gmst, lst, moonPhase, moonPosition, sunPosition 
 // ten seconds and the tap handler walks all of them on every tap.
 let CATALOG = null;
 
+// The eighty-eight Modern constellation figures, as catalogue indices.
+let MODERN = null;
+
 /** Load the catalogue if it is not loaded yet. The dome does this. */
 export async function loadCatalog() {
   if (!CATALOG) {
-    const { decodeCatalog } = await import('./starcat.js');
+    const [{ decodeCatalog }, { CONSTELLATIONS }] = await Promise.all([
+      import('./starcat.js'),
+      import('./constellations.js'),
+    ]);
     CATALOG = decodeCatalog();
+    MODERN = CONSTELLATIONS;
   }
   return CATALOG;
+}
+
+/**
+ * THE COLOUR OF A STAR.
+ *
+ * Every star carries a colour index, B−V: the difference between its
+ * brightness in blue light and in green. It is a measurement, not a
+ * decoration — Betelgeuse is orange because it is cool and red, Rigel
+ * is blue-white because it is hot, and Aldebaran is the colour of a
+ * school bus because it is neither.
+ *
+ * The eye barely sees this. At night, colour is a whisper: everything
+ * above magnitude 2 looks white to a person standing outside. So the
+ * hue is pulled back towards white — a hint of the truth, not a paint
+ * chart — and the brightness is left to the catalogue, which knows it
+ * properly.
+ */
+export function starColour(bv) {
+  const t = 4600 * (1 / (0.92 * bv + 1.7) + 1 / (0.92 * bv + 0.62));
+  // The blackbody approximation is written for 1000–40000 K, so k runs
+  // from 10 to 400. Clamping it to 40 would cap every star at 4000 K
+  // and turn the whole sky orange.
+  const k = Math.max(10, Math.min(400, t / 100));
+  let r, g, b;
+  if (k <= 66) r = 255;
+  else r = 329.698727446 * Math.pow(k - 60, -0.1332047592);
+  if (k <= 66) g = 99.4708025861 * Math.log(k) - 161.1195681661;
+  else g = 288.1221695283 * Math.pow(k - 60, -0.0755148492);
+  if (k >= 66) b = 255;
+  else if (k <= 19) b = 0;
+  else b = 138.5177312231 * Math.log(k - 10) - 305.0447927307;
+  const peak = Math.max(r, g, b) / 255 || 1;
+  const mix = (v) => 1 - (1 - v / 255 / peak) * 0.78;
+  return [mix(r), mix(g), mix(b)];
+}
+
+/**
+ * The eighty-eight Modern figures, minus the ones this site draws itself.
+ *
+ * The site's own hand-written figures carry the lore — the story, the
+ * fact, the way to find it — and they are drawn the way the site likes
+ * them. The Modern figures fill in the rest of the sky: sixty-nine
+ * constellations nobody has written a word about, drawn because a sky
+ * with seventy constellations in it is a sky, and a sky with sixteen
+ * is a diagram.
+ *
+ * A constellation the site draws is never drawn twice. The match is on
+ * the name, with the diacritics put away, so that the Modern "Boötes"
+ * and the site's "Bootes" are recognised as the same constellation
+ * rather than two of them.
+ */
+function modernFigureIndices(siteFigureNames) {
+  if (!MODERN) return [];
+  const own = new Set([...siteFigureNames].map(normaliseName));
+  const out = [];
+  for (const c of MODERN) {
+    if (own.has(normaliseName(c.name || c.id))) continue;
+    for (const chain of c.lines || []) {
+      for (let i = 0; i < chain.length - 1; i++) out.push(chain[i], chain[i + 1]);
+    }
+  }
+  return out;
+}
+
+/** A name with its diacritics and its case put away. */
+function normaliseName(n) {
+  return String(n || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().trim();
 }
 
 // Constellation lines, by star name. Only the figures a person can
@@ -231,11 +307,12 @@ export async function buildSky(themeColor = 0xf5f5f0, amber = 0xf59e0b) {
     const { decodeCatalog } = await import('./starcat.js');
     CATALOG = decodeCatalog();
   }
-  const { RA, DEC, MAG, NAME, count } = CATALOG;
+  const { RA, DEC, MAG, NAME, COLOUR, count } = CATALOG;
   const { pairs: FIG_PAIRS, index: NAME_INDEX } = resolveFigures(CATALOG);
 
   const group = new THREE.Group();
   group.name = 'sky';
+  const ZERO = new THREE.Vector3(0, 0, 0);
 
   const binOf = (mag) => BINS.findIndex(b => mag <= b.max);
   const members = BINS.map(() => []);
@@ -244,6 +321,13 @@ export async function buildSky(themeColor = 0xf5f5f0, amber = 0xf59e0b) {
   const points = members.map((idx, b) => {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(idx.length * 3), 3));
+    // Each star carries its own colour, measured rather than chosen.
+    const colours = new Float32Array(idx.length * 3);
+    idx.forEach((si, n) => {
+      const [r, g, b2] = starColour(COLOUR[si]);
+      colours[n * 3] = r; colours[n * 3 + 1] = g; colours[n * 3 + 2] = b2;
+    });
+    geo.setAttribute('color', new THREE.BufferAttribute(colours, 3));
     const mat = new THREE.PointsMaterial({
       fog: false,   // the dome is 400 units out; room fog would erase it
       color: themeColor, size: BINS[b].size * 3.2,
@@ -251,6 +335,7 @@ export async function buildSky(themeColor = 0xf5f5f0, amber = 0xf59e0b) {
       blending: THREE.AdditiveBlending,   // overlapping stars pool light
       sizeAttenuation: false, transparent: true,
       opacity: 0, depthWrite: false,
+      vertexColors: true,   // the star's own colour, not the theme's
     });
     const p = new THREE.Points(geo, mat);
     p.userData = { indices: idx, targetOpacity: BINS[b].opacity };
@@ -259,15 +344,23 @@ export async function buildSky(themeColor = 0xf5f5f0, amber = 0xf59e0b) {
     return p;
   });
 
-  // Constellation figures — one LineSegments for all of them.
-  const figIdx = Object.values(FIG_PAIRS).flat();
+  // Constellation figures — one LineSegments for all of them: the ones
+  // this site drew by hand, and the rest of the Modern sky.
+  const figIdx = [
+    ...Object.values(FIG_PAIRS).flat(),
+    ...modernFigureIndices(Object.keys(FIGURES)),
+  ];
+  // The segments, as pairs, because each one is clipped at the horizon
+  // and a clipped segment is not the segment it started as.
+  const figSegments = [];
+  for (let i = 0; i + 1 < figIdx.length; i += 2) figSegments.push([figIdx[i], figIdx[i + 1]]);
   const figGeo = new THREE.BufferGeometry();
-  figGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(figIdx.length * 3), 3));
+  figGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(figSegments.length * 6), 3));
   const figures = new THREE.LineSegments(figGeo, new THREE.LineBasicMaterial({
       fog: false,   // the dome is 400 units out; room fog would erase it
     color: themeColor, transparent: true, opacity: 0, depthWrite: false,
   }));
-  figures.userData = { indices: figIdx, targetOpacity: 0.18 };
+  figures.userData = { segments: figSegments, targetOpacity: 0.18 };
   figures.frustumCulled = false;
   group.add(figures);
 
@@ -341,8 +434,54 @@ export async function buildSky(themeColor = 0xf5f5f0, amber = 0xf59e0b) {
       obj.geometry.attributes.position.needsUpdate = true;
       obj.geometry.computeBoundingSphere();
     };
+    /** Where a catalogue star stands, right now. */
+    const azOf = (i) => {
+      const { alt, az } = altAz(RA[i], DEC[i], site.lat, site.lon, date);
+      return [alt, az];
+    };
     points.forEach(p => write(p, p.userData.indices));
-    write(figures, figures.userData.indices);
+
+    // The figures, clipped at the horizon.
+    //
+    // A constellation line is a great-circle run between two stars. When
+    // one end is below the horizon the line has to stop there: a figure
+    // that runs on through the ground is a lie about the sky, and the
+    // sky is the one thing in this room that is allowed to be true.
+    //
+    // The horizon is the plane y = 0 in the dome's own frame — a star at
+    // altitude a sits at y = R·sin(a) — so the cut is a straight
+    // intersection with that plane, and the point of the cut is put
+    // back on the dome.
+    {
+      const arr = figures.geometry.attributes.position.array;
+      const segs = figures.userData.segments;
+      const put = (n, v) => {
+        arr[n * 3] = v.x; arr[n * 3 + 1] = v.y; arr[n * 3 + 2] = v.z;
+      };
+      for (let n = 0; n < segs.length; n++) {
+        const [ia, ib] = segs[n];
+        const pa = altAzToVec(...azOf(ia), R);
+        const pb = altAzToVec(...azOf(ib), R);
+        if (pa.y >= 0 && pb.y >= 0) {
+          put(n * 2, pa); put(n * 2 + 1, pb);
+        } else if (pa.y < 0 && pb.y < 0) {
+          // Both ends are under the horizon: nothing of this figure is
+          // visible from here, and a zero-length line draws no pixels.
+          put(n * 2, ZERO); put(n * 2 + 1, ZERO);
+        } else {
+          const t = pa.y / (pa.y - pb.y);
+          const cut = new THREE.Vector3(
+            pa.x + (pb.x - pa.x) * t,
+            0,
+            pa.z + (pb.z - pa.z) * t,
+          ).setLength(R);
+          if (pa.y >= 0) { put(n * 2, pa); put(n * 2 + 1, cut); }
+          else { put(n * 2, cut); put(n * 2 + 1, pb); }
+        }
+      }
+      figures.geometry.attributes.position.needsUpdate = true;
+      figures.geometry.computeBoundingSphere();
+    }
 
     const place = (obj, body) => {
       const { alt, az } = altAz(body.raHours, body.decDeg, site.lat, site.lon, date);

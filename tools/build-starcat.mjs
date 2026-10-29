@@ -65,6 +65,8 @@ const COL = {
   ra: header.indexOf('"ra"'),
   dec: header.indexOf('"dec"'),
   mag: header.indexOf('"mag"'),
+  ci: header.indexOf('"ci"'),
+  hip: header.indexOf('"hip"'),
 };
 
 const hyg = [];
@@ -84,7 +86,14 @@ for (let i = 1; i < lines.length; i++) {
   const ra = parseFloat(f[COL.ra]);
   const dec = parseFloat(f[COL.dec]);
   if (!Number.isFinite(ra) || !Number.isFinite(dec)) continue;
-  hyg.push({ ra, dec, mag, name: (f[COL.proper] || '').trim() });
+  const ci = parseFloat(f[COL.ci]);
+  const hip = parseInt(f[COL.hip], 10);
+  hyg.push({
+    ra, dec, mag,
+    name: (f[COL.proper] || '').trim(),
+    ci: Number.isFinite(ci) ? ci : 0.65,   // the Sun's own colour index
+    hip: Number.isFinite(hip) ? hip : 0,
+  });
 }
 
 function splitCsvLine(line) {
@@ -117,10 +126,16 @@ function dedupe(rows) {
       if (dh < 0.03 && Math.abs(cand.dec - s.dec) < 0.03) { g = cand; break; }
     }
     if (!g) {
-      groups.push({ ra: s.ra, dec: s.dec, mag: s.mag, names: s.name ? [s.name] : [] });
+      groups.push({
+        ra: s.ra, dec: s.dec, mag: s.mag, ci: s.ci, hip: s.hip,
+        names: s.name ? [s.name] : [],
+      });
     } else {
       if (s.name && !g.names.includes(s.name)) g.names.push(s.name);
-      if (s.mag < g.mag) { g.mag = s.mag; }
+      // The brightest record of a physical star is the one whose colour
+      // and identity we keep: a star listed twice is one star.
+      if (s.mag < g.mag) { g.mag = s.mag; g.ci = s.ci; }
+      if (!g.hip && s.hip) g.hip = s.hip;
     }
   }
   return groups;
@@ -205,6 +220,79 @@ groups.forEach((s, i) => {
 
 const b64 = Buffer.from(bytes).toString('base64');
 
+// ── The colour of each star ──────────────────────────────────────
+//
+// The catalogue's own colour index, B−V: the difference between the
+// brightness of a star in blue and in green light. It is how a star's
+// colour is measured, and it is why Betelgeuse is orange, Rigel is
+// blue-white, and Aldebaran is the colour of a school bus.
+//
+// It travels beside the six-byte record rather than inside it, as one
+// byte per star: the six-byte packing is full at 48 bits and every
+// field in it is already spoken for. A second table costs five
+// kilobytes and leaves the first one alone.
+//
+// One byte, forty steps to a magnitude of B−V, offset so that the
+// Sun's own 0.65 sits at 46.
+const colorBytes = new Uint8Array(groups.length);
+groups.forEach((s, i) => {
+  colorBytes[i] = Math.max(0, Math.min(255, Math.round((s.ci + 0.5) * 40)));
+});
+const colorB64 = Buffer.from(colorBytes).toString('base64');
+const colorWrapped = colorB64.match(/.{1,110}/g).map((l) => `  '${l}'`).join(' +\n');
+
+// ── The constellation figures ────────────────────────────────────
+//
+// The Modern sky culture: the eighty-eight constellations the IAU
+// defined in 1922, with the lines that draw them. Stellarium's team
+// transcribed them; the data is CC BY-SA 4.0 and carries that licence
+// with it, which is why this file says so in its own header.
+//
+// The lines arrive as HIP identifiers — the catalogue's own handle for
+// a star — and are JOINED HERE, at build time, onto the indices of
+// this catalogue. The sky never has to carry a second identifier for
+// every star, and the join is checked once instead of every frame.
+//
+// A line is drawn only if every star on it is in the catalogue. The
+// catalogue stops at magnitude 6 — the naked-eye limit — and some of
+// the Modern figures reach for stars fainter than that. Those lines
+// are dropped rather than drawn wrong, and the count of them is
+// printed so the loss is never silent.
+const MODERN_INDEX = process.argv[3];
+let constellationOut = null;
+if (MODERN_INDEX) {
+  const modern = JSON.parse(readFileSync(MODERN_INDEX, 'utf8'));
+  const hipToIndex = new Map();
+  groups.forEach((s, i) => { if (s.hip) hipToIndex.set(s.hip, i); });
+
+  const figures = [];
+  let kept = 0, dropped = 0;
+  for (const c of modern.constellations || []) {
+    const lines = [];
+    for (const hipList of c.lines || []) {
+      const idx = hipList.map((h) => hipToIndex.get(h));
+      if (idx.some((v) => v === undefined)) { dropped++; continue; }
+      lines.push(idx);
+      kept++;
+    }
+    if (lines.length) {
+      // The Modern index names each figure "CON modern Aql" and keeps
+      // its real name in common_name.native. The abbreviation is the
+      // IAU's three-letter code; the name is what a person would say.
+      const abbr = String(c.id || '').split(' ').pop();
+      const name = (c.common_name && c.common_name.native) || c.n || c.name || abbr;
+      figures.push({
+        id: abbr,
+        name,
+        lines,
+      });
+    }
+  }
+  console.log(`constellations: ${figures.length} of ${(modern.constellations || []).length}, ` +
+    `${kept} line(s) kept, ${dropped} dropped for want of a star fainter than magnitude ${MAG_LIMIT}`);
+  constellationOut = figures;
+}
+
 // Wrap the base64 so the file stays readable in an editor.
 const wrapped = b64.match(/.{1,110}/g).map((l) => `  '${l}'`).join(' +\n');
 
@@ -236,6 +324,13 @@ export const PACKED =
 ${wrapped};
 
 /**
+ * The colour of each star, one byte each, in the same order as PACKED.
+ * B−V × 40, offset by 0.5 — the Sun's own colour index is 0.65.
+ */
+export const PACKED_COLOR =
+${colorWrapped};
+
+/**
  * Decode the table into parallel arrays. Flat typed arrays, not 5,000
  * little arrays: the renderer walks them every ten seconds and the tap
  * handler walks all of them on every tap.
@@ -260,7 +355,10 @@ export function decodeCatalog() {
     MAG[i] = magQ / 20 - 2;
     NAME[i] = NAMES[nIdx] || '';
   }
-  return { RA, DEC, MAG, NAME, count: n };
+  const cbin = atob(PACKED_COLOR);
+  const COLOUR = new Float32Array(n);
+  for (let i = 0; i < n && i < cbin.length; i++) COLOUR[i] = cbin.charCodeAt(i) / 40 - 0.5;
+  return { RA, DEC, MAG, NAME, COLOUR, count: n };
 }
 `;
 
@@ -268,4 +366,41 @@ writeFileSync(OUT, out);
 console.log(`wrote starcat.js — ${groups.length} stars to magnitude ${MAG_LIMIT}, ` +
   `${names.length - 1} names, ${(bytes.length / 1024).toFixed(1)} KB packed, ` +
   `${(out.length / 1024).toFixed(1)} KB as a file.`);
+
+// ── And the figures, if we were given the Modern sky ────────────
+if (constellationOut) {
+  const FIG_OUT = new URL('../constellations.js', import.meta.url);
+  const body = `// ═══════════════════════════════════════════════════════════════════════════
+// THE CONSTELLATION FIGURES — the eighty-eight constellations.
+//
+// GENERATED FILE — do not edit by hand.
+//   node tools/build-starcat.mjs /path/to/hygdata_v41.csv /path/to/modern-index.json
+//
+// The Modern sky culture, as transcribed by the Stellarium team: the
+// constellations the International Astronomical Union defined in 1922,
+// and the lines that draw them.
+//
+//   Modern constellation lines © the Stellarium team, licensed
+//   CC BY-SA 4.0 — https://creativecommons.org/licenses/by-sa/4.0/
+//   from https://github.com/Stellarium/stellarium (skycultures/modern).
+//   The star catalogue they are joined to is HYG v4.1 © David Nash /
+//   Astronexus. Both derivatives carry the same licence.
+//
+// Each line is a run of INDICES INTO THE STAR CATALOGUE, not names and
+// not Hipparcos numbers: the join happened when the catalogue was built,
+// so the sky carries one identifier per star and not two.
+//
+// A line is present only if every star on it is in the catalogue. The
+// catalogue stops at magnitude 6 — the naked-eye limit — and some
+// figures reach for stars fainter than the eye. Those lines are left
+// out rather than drawn to a star that is not there.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** The eighty-eight figures: id, name, and the lines that draw them. */
+export const CONSTELLATIONS = ${JSON.stringify(constellationOut, null, 0).replace(/},/g, '},\n  ')};
+`;
+  writeFileSync(FIG_OUT, body);
+  console.log(`wrote constellations.js — ${constellationOut.length} constellations, ` +
+    `${(body.length / 1024).toFixed(1)} KB as a file.`);
+}
 console.log(`names kept from the old list: ${used.size}/${legacy.length}`);
