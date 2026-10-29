@@ -81,8 +81,45 @@ jobs:
       # Pull requests run the same regression step and stop before upload.
       # A fork has no Cloudflare secrets, and this job must not publish
       # a PR branch over the live site.
-      - name: Deploy to Cloudflare Pages
+      #
+      # AND IT ASKS THE TOKEN WHETHER IT STILL WORKS.
+      #
+      # The Cloudflare token in this repository expired on 2026-08-05, and
+      # every deploy since has failed with "Authentication error [code:
+      # 10000]" — so every push has turned this job red for a reason that
+      # has nothing to do with the code. A red job that means "a
+      # credential is old" is a job that stops meaning anything: the next
+      # real failure will be read as the same noise.
+      #
+      # So the deploy step asks the token first. If it still works, the
+      # site is deployed from here. If it does not, the job says so in
+      # plain words and the site is shipped by ./ship.sh, which uses the
+      # wrangler OAuth session on Dr Non's machine and needs no secret.
+      # The tests still gate the push either way: red means the code
+      # broke, and nothing else.
+      - name: Is the Cloudflare token still good?
+        id: cloudflare
         if: github.event_name != 'pull_request'
+        run: |
+          TOKEN='${{ secrets.CLOUDFLARE_API_TOKEN }}'
+          if [ -z "$TOKEN" ]; then
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::no Cloudflare token in this repository — the site ships with ./ship.sh"
+            exit 0
+          fi
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' \
+            --header "Authorization: Bearer $TOKEN" \
+            https://api.cloudflare.com/client/v4/user/tokens/verify || echo 000)
+          if [ "$CODE" = "200" ]; then
+            echo "valid=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::token accepted — this run will deploy"
+          else
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::the Cloudflare token is refused (HTTP $CODE). The site ships with ./ship.sh; the tests above still gate this push."
+          fi
+
+      - name: Deploy to Cloudflare Pages
+        if: github.event_name != 'pull_request' && steps.cloudflare.outputs.valid == 'true'
         uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
