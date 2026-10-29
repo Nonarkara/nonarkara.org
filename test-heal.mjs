@@ -17,7 +17,7 @@
 //
 // Run: node test-heal.mjs
 
-import { loadChromium } from './scripts/msh/playwright.mjs';
+import { chromeExecutable, loadChromium } from './scripts/msh/playwright.mjs';
 import { spawn } from 'node:child_process';
 
 const PORT = 8791;
@@ -35,7 +35,8 @@ const server = spawn('node', ['scripts/msh/serve.mjs', String(PORT), process.cwd
 await new Promise(r => setTimeout(r, 900));
 
 const browser = await (await loadChromium()).launch({
-  executablePath: process.env.CHROME_EXEC || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  // Any machine's Chrome, or the bundled one the CI runner installs.
+  executablePath: chromeExecutable(),
   args: ['--no-sandbox', '--disable-dev-shm-usage'],
 });
 

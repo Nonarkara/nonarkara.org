@@ -3,11 +3,11 @@
 // A desk named in the URL is a promise: /?view=plan is the desk, not the
 // sign. This checks the promise at four moments, and reports the door's
 // state, because the sign and the desk are two different first screens.
-import { loadChromium } from './playwright.mjs';
+import { chromeExecutable, loadChromium } from './playwright.mjs';
 
 const BASE = process.argv[2] || 'http://127.0.0.1:8786';
 const ROUTE = process.argv[3] || '/?view=plan';
-const EXEC = process.env.CHROME_EXEC || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const EXEC = chromeExecutable();
 
 const browser = await (await loadChromium()).launch({
   executablePath: EXEC,

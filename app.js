@@ -533,10 +533,12 @@ const HAS_ROOM = (() => {
 // 4.51 (2026-10-28) the document has an outline: the marks and the section
 //                  labels are headings, and the theme and the view are decided
 //                  in boot.js before the first paint.
-// 4.53 (2026-10-29) the record has one address, /mixedtape, with a way back to the
-//                  site; the first load is 3.5MB lighter; the spatial gate's
-//                  fixtures can bite.
-const NON_VERSION = '4.53';
+// 4.54 (2026-10-30) the sun is a system: the estate's shadow lands on the
+//                  ground for the first time (the receiver was buried under
+//                  the map), and a sun-path chart and a 24-hour dial let
+//                  you move the sun over the estate. The night sky gets
+//                  its colour and the rest of its constellations.
+const NON_VERSION = '4.54';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by

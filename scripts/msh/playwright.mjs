@@ -45,3 +45,36 @@ export async function loadChromium() {
     'Or set PLAYWRIGHT_PATH to playwright/index.mjs. See ANTI-SLOP.md.',
   );
 }
+
+/**
+ * A Chrome to measure with, on whatever machine this is running on.
+ *
+ * The gates used to name /Applications/Google Chrome.app outright — a
+ * path that exists on one laptop and nowhere else. On the GitHub
+ * runner the test died with "executable doesn't exist", and because
+ * the deploy step runs AFTER the tests, the deploy died with it: the
+ * site could not ship, and the failure read like a broken build rather
+ * than a hard-coded path.
+ *
+ * The order:
+ *   1. $CHROME_EXEC, when it is set and it is really on disk
+ *   2. a system Chrome, on any platform
+ *   3. nothing — and then Playwright's own Chromium, which is what the
+ *      CI runner installs and what the bundled browser is for
+ */
+export function chromeExecutable() {
+  const explicit = process.env.CHROME_EXEC;
+  if (explicit && existsSync(explicit)) return explicit;
+  const candidates = [
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/snap/bin/chromium',
+    '/usr/lib/chromium/chromium',
+  ];
+  for (const c of candidates) if (existsSync(c)) return c;
+  return undefined;
+}

@@ -6,7 +6,7 @@
  * for same-origin, so a stale version means users keep the old shell.
  */
 
-const CACHE_VERSION = 'non-2026-10-29-v4.53';
+const CACHE_VERSION = 'non-2026-10-30-v4.54';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 // The app's own code. These are always revalidated when online so a
@@ -15,9 +15,12 @@ const CODE = new Set([
   '/', '/index.html', '/mixedtape',
   '/styles.css', '/app.js', '/boot.js', '/desk.js', '/common.js', '/discover.js', '/sky.js', '/ground.js',
   '/entrance.css',                    // the door's own type and colour — it is not in styles.css
-  '/starcat.js',                      // 5,022 real stars, fetched on the first look up
+  '/vendor-three-0.160.0.js',         // pinned by name, but still the app's own code
+  '/starcat.js',                      // 5,021 real stars, fetched on the first look up
+  '/constellations.js',               // the eighty-eight Modern figures — same rule
   '/render-quality.js',
   '/world-lighting.js',
+  '/sun-study.js',                    // the sun-path chart and the dial
   '/pavilion.js', '/glasshouse.js', '/savoye.js', '/farnsworth.js', '/fallingwater.js',
   '/walk.js', '/daylight.js', '/astronomy.js', '/world.js', '/poems.js', '/starlore.js', '/look.js', '/pool.js', '/interiors.js',
   '/yard.js', '/drive.js', '/arcade.js', '/exhibit.js', '/balls.js',
@@ -58,7 +61,8 @@ const SHELL = [
   '/world-lighting.js',              // real sun position + adaptive soft shadows
   '/discover.js',                   // pavilion discovery counter
   '/sky.js',                        // the planetarium — must work offline
-  '/starcat.js',                    // 5,022 real stars — the sky, offline
+  '/starcat.js',                    // 5,021 real stars — the sky, offline
+  '/constellations.js',             // the figures on those stars — offline too
   '/pavilion.js',                   // the Barcelona plan
   '/glasshouse.js',                 // New Canaan, 1949
   '/savoye.js',                     // Poissy, 1931
@@ -96,7 +100,7 @@ const SHELL = [
   '/og.svg',
   '/cv.pdf',
   '/art-manifest.json',
-  '/vendor-three-0.160.0.js',
+  '/vendor-three-0.160.0.js',      // pinned by name, but still the app's own code
   '/portraits/01-speaker.jpg',
   '/portraits/02-depa.jpg',
   '/portraits/03-asean.jpg',

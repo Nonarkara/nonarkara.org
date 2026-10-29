@@ -6,11 +6,11 @@
 // clean — which is how a receipt for the shell gets written.
 //
 // This measures the gap between the parse and the desk's first paint.
-import { loadChromium } from './playwright.mjs';
+import { chromeExecutable, loadChromium } from './playwright.mjs';
 
 const BASE = process.argv[2] || 'http://127.0.0.1:8786';
 const ROUTE = process.argv[3] || '/?view=plan';
-const EXEC = process.env.CHROME_EXEC || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const EXEC = chromeExecutable();
 
 const browser = await (await loadChromium()).launch({
   executablePath: EXEC,

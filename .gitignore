@@ -9,6 +9,11 @@ public/
 dist/
 worker/.dev.vars
 
+# Operator workspaces — scratch, not part of the site. The deploy already
+# excludes them; this keeps them out of the repository too.
+yt-channel/
+.firecrawl/
+
 # Written by ship.sh from NON_VERSION — never committed, so it cannot drift.
 /version.json
 

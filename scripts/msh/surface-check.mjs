@@ -30,7 +30,7 @@
  *   node scripts/msh/surface-check.mjs [--base URL] [--json FILE]
  */
 
-import { loadChromium } from './playwright.mjs';
+import { chromeExecutable, loadChromium } from './playwright.mjs';
 import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 
@@ -83,7 +83,7 @@ if (!arg('--base', null)) {
 }
 
 const browser = await (await loadChromium()).launch({
-  executablePath: process.env.CHROME_EXEC || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  executablePath: chromeExecutable(),
   args: ['--no-sandbox', '--disable-dev-shm-usage'],
 });
 
