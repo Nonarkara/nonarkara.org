@@ -45,10 +45,43 @@ import {
 // ════════════════════════════════════════════════════════
 // WebGL fallback — detect support before building scene
 // ════════════════════════════════════════════════════════
+// A CONTEXT IS NOT A ROOM.
+//
+// The old test asked the browser one question: "will you hand me a WebGL
+// context?" — and on a machine with no GPU the answer is YES. Chrome hands
+// out a software context (SwiftShader), the app believes it is on a GPU, and
+// it then spends the next two minutes building a 3D world in software, at
+// one frame a second, on a tab the reader can barely use.
+//
+// That is not a fallback, it is a hang. And it is worse than useless for
+// measurement: a headless browser with no GPU answers "yes" here, so the
+// site behaves one way on a reader's Mac and a completely different way in
+// CI — and a receipt taken in one of them says nothing about the other.
+//
+// So the question that matters is not "is there a context" but "can this
+// machine build the pavilion in the time a reader is willing to wait". The
+// renderer knows the answer, and it puts it in its name.
+function isSoftwareRenderer(gl) {
+  try {
+    const ext = gl.getExtension('WEBGL_debug_renderer_info');
+    const name = String(
+      (ext && gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) || gl.getParameter(gl.RENDERER) || ''
+    );
+    // SwiftShader (Chrome's own software rasteriser), llvmpipe (Mesa) and
+    // the Microsoft Basic Render Driver are all real WebGL contexts that
+    // render a 3D world at a fraction of a frame a second.
+    return /swiftshader|llvmpipe|software|basic render/i.test(name);
+  } catch (_) {
+    // No renderer info (some browsers hide it). A hidden renderer is not a
+    // software renderer; assume the machine can do what it says it can.
+    return false;
+  }
+}
 function hasWebGL() {
   try {
     const c = document.createElement('canvas');
-    return !!(window.WebGLRenderingContext && (c.getContext('webgl') || c.getContext('experimental-webgl')));
+    const gl = window.WebGLRenderingContext && (c.getContext('webgl') || c.getContext('experimental-webgl'));
+    return !!gl;
   } catch (_) { return false; }
 }
 function hasWebGL2() {
@@ -60,8 +93,51 @@ function hasWebGL2() {
 const WEBGL_OK = hasWebGL();
 const WEBGL2_OK = hasWebGL2();
 
+// A ROOM IS NOT A CONTEXT.
+//
+// WEBGL_OK means "this browser hands out a WebGL context", and that is all
+// it means: the world's construction is guarded by it, and the world is
+// geometry — it needs a context only to be DRAWN.
+//
+// HAS_ROOM is the other question, and the one a reader cares about: can this
+// machine actually walk the pavilion at a speed worth walking? A software
+// rasteriser (SwiftShader, llvmpipe, the Microsoft Basic Render Driver)
+// hands out a perfectly real context and then renders a 3D world at a
+// fraction of a frame a second. The reader gets a frozen tab and a page
+// that reloads itself, and the honest thing to say is that there is no room
+// here — not to leave them waiting for a room that will never arrive.
+//
+// So: the world is built whenever there is a context, and the sign stays up
+// and says so whenever there is no room.
+const HAS_ROOM = (() => {
+  try {
+    const c = document.createElement('canvas');
+    const gl = window.WebGLRenderingContext && (c.getContext('webgl') || c.getContext('experimental-webgl'));
+    if (!gl) return false;
+    return !isSoftwareRenderer(gl);
+  } catch (_) { return false; }
+})();
+
 // Version stamp — single source of truth. Bump on every meaningful push.
 // History (most recent first):
+//   4.52 (2026-10-29) the sign is decided BEFORE the first paint, and the
+//                    site survives a machine that cannot draw a room. The
+//                    question was being asked at the far end of a megabyte
+//                    of 3D code, so for a second and a half the landing
+//                    was the room's furniture with a question on top of it,
+//                    and the room's furniture vanished when the answer
+//                    arrived. Now boot.js — the first module, which imports
+//                    nothing — decides, and the reader sees the sign from
+//                    the first frame. The renderer became optional, so a
+//                    machine with no WebGL keeps the sign, the desk and
+//                    the wall instead of dying at the top of the module.
+//                    And ?view=ioc no longer gets overridden by the
+//                    no-WebGL path, so the wall renders where there is no
+//                    GPU at all.
+//   4.51 (2026-10-28) the desk is a document — it no longer waits for the
+//                    room to be built, and the receipt proves it measured
+//                    the desk.
+//   4.50 (2026-10-27) the spatial receipt: 93 measurements, 0 findings.
 //   4.48 (2026-10-25) real sun shadows, a north-east Khao Yai landmark,
 //                    independent flank-camera perception and a focus-first
 //                    quiet 2D desk. Persistent simulation RNG stops roaming
@@ -456,7 +532,7 @@ const WEBGL2_OK = hasWebGL2();
 // 4.51 (2026-10-28) the document has an outline: the marks and the section
 //                  labels are headings, and the theme and the view are decided
 //                  in boot.js before the first paint.
-const NON_VERSION = '4.51';
+const NON_VERSION = '4.52';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -500,16 +576,23 @@ window.__discover = (id) => { try { return DISCOVERY?.mark(id); } catch (_) { re
 // reader to press a button to continue. That was a wall on first load, and
 // it hid the one thing the browser COULD see. Now the desk opens
 // underneath and the notice is a card beside it.
-if (!WEBGL_OK) {
-  const fb = document.getElementById('webgl-fallback');
-  if (fb) fb.style.display = 'flex';
-  // The pavilion is a WebGL room. Without WebGL there is nothing to walk
-  // into, so the sign has nothing to stand in front of and the OS opens
-  // straight away. The door module reads this and keeps out of the way.
-  document.body.dataset.view = 'plan';
+// Wire the no-room path.
+//
+// There is no pavilion to walk into, but the QUESTION is still a question:
+// the sign is still the sign, and it is still the first thing a reader gets.
+// The old path forced the desk open and hid the sign, which turned the
+// landing into a fourth surface that no receipt describes — the room's
+// chrome over an empty canvas, with the notice in the corner explaining
+// that the thing you came for is not here.
+//
+// The sign now stays up and the notice waits until the reader has asked for
+// the room, so the landing measures the same on a GPU and on a machine that
+// cannot build one. The desk, the wall and the sign are the same three
+// surfaces everywhere, which is what lets one receipt mean something on
+// another machine.
+if (!HAS_ROOM) {
   document.body.dataset.noWebGL = '1';
-  const planEl = document.getElementById('plan');
-  if (planEl) planEl.setAttribute('aria-hidden', 'false');
+  const fb = document.getElementById('webgl-fallback');
   const btn = document.getElementById('fallback-btn');
   if (btn) btn.addEventListener('click', () => {
     if (fb) fb.style.display = 'none';
@@ -673,33 +756,52 @@ camera.lookAt(0, 2.0, -10);
 LOOK.yaw = camera.rotation.y;
 LOOK.pitch = camera.rotation.x;
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-const RENDER_QUALITY = new AdaptiveResolution(renderer, {
-  maxPixelRatio: preferredPixelRatio({
-    devicePixelRatio: window.devicePixelRatio,
-    width: window.innerWidth,
-    height: window.innerHeight,
-    deviceMemory: navigator.deviceMemory,
-    coarsePointer: window.matchMedia('(pointer: coarse)').matches,
-  }),
-});
-window.__renderQuality = RENDER_QUALITY;
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.getElementById('canvas-root').appendChild(renderer.domElement);
+// THE RENDERER IS OPTIONAL.
+//
+// Without a WebGL context, THREE.WebGLRenderer() throws — and a throw at the
+// top level of this module kills everything below it: the door, the clock,
+// the view switcher, the desk's own controls. The reader would get no room
+// AND no desk, which is not a fallback, it is a worse site.
+//
+// A machine with no context gets the sign, the desk and the wall, and the
+// notice that says why there is no room.
+let renderer = null;
+let RENDER_QUALITY = null;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  RENDER_QUALITY = new AdaptiveResolution(renderer, {
+    maxPixelRatio: preferredPixelRatio({
+      devicePixelRatio: window.devicePixelRatio,
+      width: window.innerWidth,
+      height: window.innerHeight,
+      deviceMemory: navigator.deviceMemory,
+      coarsePointer: window.matchMedia('(pointer: coarse)').matches,
+    }),
+  });
+  window.__renderQuality = RENDER_QUALITY;
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.getElementById('canvas-root').appendChild(renderer.domElement);
+} catch (err) {
+  renderer = null;
+  RENDER_QUALITY = null;
+  console.warn('[NON] no WebGL renderer — the desk and the wall still work:', err && err.message);
+}
 
 // WebGL context loss safety — gracefully pause & handle GPU driver resets
 let isWebGLContextLost = false;
-renderer.domElement.addEventListener('webglcontextlost', (e) => {
-  e.preventDefault();
-  isWebGLContextLost = true;
-  console.warn('[NON] WebGL context lost — pausing render loop');
-}, false);
-renderer.domElement.addEventListener('webglcontextrestored', () => {
-  isWebGLContextLost = false;
-  console.log('[NON] WebGL context restored — resuming render loop');
-  syncRendererSize(true);
-}, false);
+if (renderer) {
+  renderer.domElement.addEventListener('webglcontextlost', (e) => {
+    e.preventDefault();
+    isWebGLContextLost = true;
+    console.warn('[NON] WebGL context lost — pausing render loop');
+  }, false);
+  renderer.domElement.addEventListener('webglcontextrestored', () => {
+    isWebGLContextLost = false;
+    console.log('[NON] WebGL context restored — resuming render loop');
+    syncRendererSize(true);
+  }, false);
+}
 
 // ════════════════════════════════════════════════════════
 // Ambient particles — dust motes drifting in the light shafts
@@ -996,8 +1098,9 @@ WALK.colliders.push(...YARD.colliders);
 window.__yard = YARD;
 
 // Arcade kiosks inside the Glass House (local coords ride its group).
-const ARCADE = buildArcade(THREE, GLASS.group, GLASS_PLAN, { dark: true });
-{
+// The kiosks live inside a house, so there are none without a house.
+const ARCADE = GLASS ? buildArcade(THREE, GLASS.group, GLASS_PLAN, { dark: true }) : null;
+if (ARCADE) {
   const o = GLASS_PLAN.origin;
   for (const b of kioskColliders(GLASS_PLAN)) {
     WALK.colliders.push({
@@ -1013,11 +1116,13 @@ const ARCADE = buildArcade(THREE, GLASS.group, GLASS_PLAN, { dark: true });
 window.__arcade = ARCADE;
 
 // The Bangkok Room on Savoye's living floor.
-const EXHIBIT = buildExhibit(THREE, SAVOYE.group, SAVOYE_PLAN, { dark: true });
-EXHIBIT.frames.forEach((f) => {
-  f.holder.userData = { kind: 'exhibit', key: f.photo.file, photo: f.photo, hit: f.hit };
-  INTERACTABLES_PENDING.push(f.holder);
-});
+const EXHIBIT = SAVOYE ? buildExhibit(THREE, SAVOYE.group, SAVOYE_PLAN, { dark: true }) : null;
+if (EXHIBIT) {
+  EXHIBIT.frames.forEach((f) => {
+    f.holder.userData = { kind: 'exhibit', key: f.photo.file, photo: f.photo, hit: f.hit };
+    INTERACTABLES_PENDING.push(f.holder);
+  });
+}
 window.__exhibit = EXHIBIT;
 
 // Shot targets: goal mouths and hoops, clickable from anywhere near.
@@ -3662,7 +3767,7 @@ function onClick(e) {
   // flagrant case: "enter the pavilion" fired through its own button into
   // the poster wall behind it, opening the portrait share sheet as the
   // visitor's very first frame inside.
-  if (e && e.target && e.target !== renderer.domElement) return;
+  if (e && e.target && e.target !== renderer?.domElement) return;
   // If this came from a touchend that involved a drag, treat as rotate-only
   if (e && e.type === 'touchend') {
     lastCanvasTouchTs = Date.now();
@@ -3779,7 +3884,7 @@ function syncRendererSize(force = false) {
   viewportWidth = width;
   viewportHeight = height;
   applyCameraFraming();
-  renderer.setSize(width, height);
+  renderer?.setSize(width, height);
 }
 function queueRendererResize() {
   if (viewportRAF) return;
@@ -6008,7 +6113,11 @@ function animate() {
 // lets any future reference to one of those `let` bindings hit its temporal
 // dead zone and abort the rest of boot. The next animation frame runs only
 // after module evaluation has completed, so door + PLAN wiring always lands.
-requestAnimationFrame(animate);
+//
+// And there is no loop at all without a renderer: there is no room to
+// animate, and a loop that spends a frame doing nothing is a loop that
+// takes the reader's battery for a picture that is not there.
+if (renderer) requestAnimationFrame(animate);
 
 // ════════════════════════════════════════════════════════
 // OFFBOARD RITUAL
@@ -6211,13 +6320,12 @@ function closeFrameWithRitual() {
   const doorEl = document.getElementById('door');
   if (!doorEl) return;
 
-  // Without WebGL there is no pavilion, so the question the sign asks has
-  // no answer to give — the reader cannot walk in either way. The OS is
-  // already open underneath the notice. Keep the sign out of it.
-  if (!WEBGL_OK) {
-    doorEl.classList.add('skip');
-    return;
-  }
+  // The sign is the first screen on EVERY machine — including one that
+  // cannot build the room. The old path hid the sign when there was no
+  // WebGL, which turned the landing into a fourth surface nobody had
+  // measured: the room's chrome over an empty canvas. The question is
+  // still a question even when the room behind it is not there.
+  const NO_ROOM = !HAS_ROOM;
 
   const KEY = 'nonarkara.mode';
   const lsRead  = () => { try { return localStorage.getItem(KEY); } catch (_) { return null; } };
@@ -7022,7 +7130,7 @@ async function initGround() {
   if (gHint) { gHint.classList.add('in'); gHint.disabled = true; }
   try {
     const mod = await import('./ground.js');
-    GROUND = mod.buildGround(0xe6edf3, 0xf59e0b, renderer.capabilities.getMaxAnisotropy());
+    GROUND = mod.buildGround(0xe6edf3, 0xf59e0b, renderer?.capabilities?.getMaxAnisotropy() ?? 1);
     GROUND.setTileListener(({ expected, loaded, failed }) => {
       document.body.dataset.groundTiles = `${loaded}/${expected}`;
       document.body.dataset.groundTileFailures = String(failed);
@@ -7554,7 +7662,7 @@ function setWalk(on) {
     // Start from wherever the camera already is, so entering walk mode
     // never teleports you.
     WALK.teleport(camera.position.x, camera.position.z);
-    const cvs = renderer.domElement;
+    const cvs = renderer?.domElement;
     if (!IS_TOUCH && cvs.requestPointerLock) {
       try {
         // Embedded browsers may reject pointer lock asynchronously. Walk

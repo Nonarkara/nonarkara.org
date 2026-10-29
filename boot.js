@@ -54,3 +54,44 @@ if (VIEW) {
     if (door) door.classList.add('skip');
   } catch (_) {}
 }
+
+// ════════════════════════════════════════════════════════════════
+// 3. THE QUESTION.
+//
+// When no desk is named and the reader has not answered yet, the sign is
+// up. That is decided HERE — the first module, before the room's megabyte
+// of 3D code has been fetched, parsed and evaluated.
+//
+// It used to be decided at the far end of app.js, which meant that for the
+// second and a half that three.js takes to arrive, the landing was the
+// room's furniture — brand, caption, hints, links — with the sign sitting
+// on top of it. The room's furniture is hidden while the question is up,
+// and it was not yet known that the question was up.
+//
+// A reader saw the furniture for a beat before it disappeared. An
+// instrument that landed in that window measured a page no reader ever
+// saw: one width of a sweep showed the desk, the next showed the sign,
+// and the receipt said the site was both.
+//
+// The door module in app.js reaches the same conclusion later, from the
+// same URL and the same storage, and sets the view again. This is the
+// same decision, taken early.
+export const MODE = (() => {
+  try {
+    const p = new URLSearchParams(location.search);
+    let m = localStorage.getItem('nonarkara.mode');
+    if (p.has('door')) m = null;
+    if (p.has('host')) m = 'host';
+    if (p.has('guest')) m = 'guest';
+    return (m === 'host' || m === 'guest') ? m : null;
+  } catch (_) { return null; }
+})();
+
+export const ASK = !VIEW && !MODE;
+
+if (ASK) {
+  try {
+    document.body.dataset.door = 'open';
+    if (!document.body.dataset.view) document.body.dataset.view = 'room';
+  } catch (_) {}
+}

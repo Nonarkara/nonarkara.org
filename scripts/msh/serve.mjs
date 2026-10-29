@@ -18,6 +18,29 @@ import path from 'node:path';
 const PORT = Number(process.argv[2] || 8783);
 const ROOT = path.resolve(process.argv[3] || process.cwd());
 
+// THE VERSION THIS TREE IS.
+//
+// The page asks /version.json whether it is the build the reader is looking
+// at, and if the answer is "no" it purges the caches and navigates. A
+// measurement that is navigating is a measurement of a page that is on its
+// way somewhere else — and the sweep measured the desk on one width and the
+// sign on the next because the navigation landed in between.
+//
+// So the server answers from the code it is serving, not from a file that
+// can drift. app.js holds the one true version; version.json is written at
+// ship time from it and is deliberately not committed. A local server that
+// served the committed file would be serving a build that does not exist.
+async function treeVersion() {
+  try {
+    const src = await readFile(path.join(ROOT, 'app.js'), 'utf8');
+    const m = src.match(/const NON_VERSION = '([^']+)'/);
+    const b = src.match(/const NON_BUILD = '([^']+)'/);
+    return { version: m ? m[1] : '0', build: b ? b[1] : 'dev' };
+  } catch (_) {
+    return { version: '0', build: 'dev' };
+  }
+}
+
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -54,6 +77,18 @@ createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
     let rel = decodeURIComponent(url.pathname);
     if (rel.endsWith('/')) rel += 'index.html';
+    // The build stamp the page reads to decide whether it is stale.
+    if (rel === '/version.json') {
+      const v = await treeVersion();
+      const body = Buffer.from(JSON.stringify(v));
+      res.writeHead(200, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Length': body.length,
+        'Cache-Control': 'no-store',
+      });
+      res.end(body);
+      return;
+    }
     const file = path.join(ROOT, rel);
     if (!file.startsWith(ROOT)) { res.writeHead(403).end('no'); return; }
     const s = await stat(file);

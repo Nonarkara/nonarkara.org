@@ -2528,6 +2528,7 @@
 }
 .webgl-fallback .msg {
   line-height: 1.5;
+  flex: 1 1 100%;
 }
 .webgl-fallback .action {
   flex: 0 0 auto;
@@ -2544,6 +2545,23 @@
 }
 .webgl-fallback .action:hover {
   opacity: 0.7;
+}
+
+/* The notice WAITS for the room.
+   While the sign is up there is nothing to say: the reader has not asked
+   for the pavilion yet, and a card in the corner of the first screen is
+   exactly the kind of thing the sign is meant to replace. The desk and the
+   wall never show it either — a machine that cannot draw a room still
+   draws those perfectly, and a reader who asked for the desk must not be
+   told about a room they did not ask for.
+   So it appears in one place only: the room, after the reader has asked
+   for it, when there is no room to give. */
+body[data-no-webgl][data-view="room"]:not([data-door="open"]) .webgl-fallback {
+  display: flex;
+}
+/* The room's own instructions are a promise this machine cannot keep. */
+body[data-no-webgl][data-view="room"] .hint {
+  display: none;
 }
 
 /* ── Keyboard shortcut hints (plan view) ──────────────────── */
