@@ -46,11 +46,25 @@ const lines = headers.split('\n');
 let written = 0;
 for (let i = 0; i < lines.length; i++) {
   if (!/Content-Security-Policy:/.test(lines[i])) continue;
-  // Strip every existing hash from script-src, then put the computed ones in.
+  // Rebuild script-src from scratch: 'self', then the computed hashes, then
+  // whatever other sources the policy names (the CDN and the beacon).
+  //
+  // It has to be a REBUILD, not an append. This script used to strip the
+  // hashes and prepend "'self'" to whatever was left — and what was left
+  // still contained the 'self' that was already there, so every run added
+  // one more. It never converged: run it twice and script-src grew a
+  // second 'self'. That was harmless to the browser and fatal to the
+  // deploy, because ship.sh runs this before staging and then refuses to
+  // ship a tree with tracked changes — so the deploy could never pass its
+  // own check. A generator that never reaches a fixed point is not a
+  // generator; it is a way of dirtying the tree.
   const m = lines[i].match(/script-src ([^;]*);/);
   if (!m) { console.error('no script-src directive in the CSP'); process.exit(1); }
-  const others = m[1].replace(/'sha256-[^']*'\s*/g, '').trim();
-  const rebuilt = `script-src 'self' ${hashes.join(' ')} ${others};`;
+  const others = m[1]
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((t) => !/^'sha256-/.test(t) && t !== "'self'");
+  const rebuilt = ['script-src', "'self'", ...hashes, ...others].join(' ') + ';';
   lines[i] = lines[i].replace(/script-src [^;]*;/, rebuilt);
   written++;
 }

@@ -32,6 +32,18 @@ for (const source of inlineScripts) {
   assert(headers.includes(`'${hash}'`), `CSP is missing inline script hash ${hash}`);
 }
 
+// The policy must pin EXACTLY the inline scripts that exist — not one
+// missing (the browser blocks the script and the self-heal stops existing,
+// silently) and not one stale. Checking only for presence cannot see a
+// leftover hash, and a leftover hash is how a policy rots.
+const scriptSrc = headers.match(/script-src ([^;]*);/)[1].split(/\s+/).filter(Boolean);
+const computed = inlineScripts.map(
+  (s) => `'sha256-${createHash('sha256').update(s).digest('base64')}'`);
+assert.deepEqual(scriptSrc.filter((t) => /^'sha256-/.test(t)), computed,
+  'the CSP must pin exactly the inline scripts that exist, no more and no fewer');
+assert.equal(scriptSrc.filter((t) => t === "'self'").length, 1,
+  "script-src must name 'self' exactly once — a duplicate means the generator never converged");
+
 assert(index.includes('integrity="sha384-lQXOAyZwHXE55JFyrOMB7nY2Wv+m5ZWNtJcHrd1rceRQXAYNLak8ukN5TjBTcIwz"'),
   'QR dependency must retain its verified SRI digest');
 for (const token of [
@@ -56,5 +68,7 @@ for (const file of ['./.github/workflows/cloudflare-pages.yml', './.github/workf
 assert(ship.includes('LIVE_BODY=$(curl -fsS'), 'deployment verifier must capture the full response before matching');
 assert(!/curl[^\n]+\|\s*grep\s+-m1/.test(ship),
   'deployment verifier must not let an early-exit grep turn a successful curl into a pipefail error');
+assert(ship.includes('scripts/msh/csp.mjs --write'),
+  'ship.sh must refresh the CSP hashes before staging, or a stale hash ships and the heal dies silently');
 
 console.log('security: CSP hashes · SRI · privacy · capture boundary · pinned CI · honest deploy verification');
