@@ -83,18 +83,45 @@ const FIXTURES = [
     expect: "wrap: nav.sl-wrap",
   },
   {
+    // The fifth mode. A page that scrolls sideways is a page whose layout is
+    // wider than the screen, and everything on it is then off the edge.
+    //
+    // The fixture used to be a 4,000px div and nothing else, and it could
+    // not bite: this site clips its own overflow (html, body { overflow:
+    // hidden }), so the document never scrolled sideways and the rule had
+    // nothing to catch. The rule is about a page that CAN scroll sideways,
+    // and the fixture has to be able to make one — so the fixture removes
+    // the clip for the length of the test. A fixture that depends on the
+    // project's CSS is not portable, and this one now carries its own
+    // conditions.
     name: "the page scrolls sideways",
     mode: "accidental wrapping",
     at: "bottom",
-    html: `<div class="sl-over" style="width:4000px;height:10px"></div>`,
+    html: `<style id="__sl_unclip__">html,body{overflow:visible !important}</style>
+<div class="sl-over" style="width:4000px;height:10px"></div>`,
     expect: "scrolls sideways",
   },
   {
+    // The sixth mode. The page makes you scroll before you can do anything.
+    //
+    // It could not bite either, and for a subtler reason: the rule asks
+    // where the FIRST ACTABLE CONTROL is, and this landing has none the
+    // instrument can see. The two answers on the sign are hairline — a
+    // transparent background and a one-pixel rule — so the probe finds no
+    // action at all, and a rule about an action that does not exist cannot
+    // fire.
+    //
+    // So the fixture brings its own action: a loud control BELOW the spacer
+    // it plants. That is the defect the mode names — there is something you
+    // can do, and it is 2,400px down the page — and the fixture no longer
+    // depends on the project having a control to find.
     name: "the page makes you scroll before you can do anything",
     mode: "spatially expensive information",
     at: "top",
-    html: `<div class="sl-tall" style="height:2400px"></div>`,
-    expect: "the first thing you can do moved",
+    html: `<div class="sl-tall" style="height:2400px"></div>
+<a class="sl-act" href="#sl" style="display:inline-block;background:#f59e0b;color:#000;padding:14px 20px;border-radius:8px;text-decoration:none">Do the thing</a>`,
+    limits: { firstAction: 1200 },
+    expect: "the first thing you can do is",
   },
   {
     // The sixth mode. A page where the TITLE loses to another piece of text:
