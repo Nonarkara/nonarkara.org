@@ -64,7 +64,7 @@ const ROUTES = [
   { route: '/', name: 'the landing', ready: 'sign' },
   { route: '/?view=plan', name: 'the desk', ready: 'desk' },
   { route: '/?view=ioc', name: 'the wall', ready: 'wall' },
-  { route: '/mixtape.html', name: 'the mixtape', ready: 'page' },
+  { route: '/mixedtape.html', name: 'the mixtape', ready: 'page' },
 ];
 
 const chromium = await loadChromium();

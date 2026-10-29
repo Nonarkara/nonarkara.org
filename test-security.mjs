@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 const app = read('./app.js');
 const index = read('./index.html');
-const mixtape = read('./mixtape.html');
+const mixtape = read('./mixedtape.html');
 const headers = read('./_headers');
 const worker = read('./worker/src/index.js');
 const ship = read('./ship.sh');

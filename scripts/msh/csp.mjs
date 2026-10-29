@@ -26,7 +26,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 
 const read = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
 
-const inlineScripts = ['index.html', 'mixtape.html'].flatMap((file) => {
+const inlineScripts = ['index.html', 'mixedtape.html'].flatMap((file) => {
   const html = read(file);
   return [...html.matchAll(/<script\b(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]);
 });

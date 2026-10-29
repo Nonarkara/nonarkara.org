@@ -41,11 +41,11 @@
 /*.css
   Cache-Control: no-cache
 
-/mixtape.html
+/mixedtape.html
   Cache-Control: no-cache
 
 # The pretty URL is what Pages serves and what the desk links to now.
-/mixtape
+/mixedtape
   Cache-Control: no-cache
 
 /version.json

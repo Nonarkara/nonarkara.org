@@ -8,7 +8,8 @@
   <meta property="og:title" content="A Mixtape from Non"/>
   <meta property="og:description" content="A mixtape — composed by Non."/>
   <meta property="og:type" content="website"/>
-  <meta property="og:url" content="https://nonarkara.org/mixtape"/>
+  <meta property="og:url" content="https://nonarkara.org/mixedtape"/>
+  <link rel="canonical" href="https://nonarkara.org/mixedtape"/>
   <meta property="og:image" content="https://nonarkara.org/og.png"/>
   <meta name="theme-color" content="#0a0e14"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -48,7 +49,9 @@
       display: flex;
       width: 100%;
       justify-content: space-between;
-      align-items: baseline;
+      /* center, not baseline: the close control is a 44px tap target
+         sharing this row with 11px text, and baseline would hang it. */
+      align-items: center;
       letter-spacing: 0.18em;
       font-size: 11px;
       text-transform: uppercase;
@@ -62,6 +65,30 @@
       color: rgba(230,237,243,0.6); letter-spacing: 0.25em;
       font-size: inherit; font-weight: inherit; margin: 0;
     }
+
+    /* The way out. This page is a link people are sent — they arrive with
+       no history, so the browser's back button is empty and this is the
+       only route to the rest of the site. Pulled left by the stage's own
+       padding so the glyph sits on the page margin while keeping its full
+       44px target (§11.8). */
+    .close-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 44px;
+      min-height: 44px;
+      margin-left: -14px;
+      color: rgba(230,237,243,0.45);
+      font-family: inherit;
+      font-size: 15px;
+      line-height: 1;
+      text-decoration: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: color 0.15s;
+    }
+    .close-btn:hover,
+    .close-btn:active { color: #f59e0b; }
+    .close-btn:focus-visible { outline: 1px solid #f59e0b; outline-offset: 2px; }
 
     /* ── Dedication ──────────────────────────────────────────── */
     .dedication {
@@ -340,7 +367,10 @@
 <div class="stage">
 
   <div class="header">
-    <h1 class="header-logo">A MIXTAPE</h1>
+    <span class="header-left">
+      <a class="close-btn" href="/?view=plan" aria-label="Close the mixtape and open the rest of the site" title="Back to nonarkara.org">✕</a>
+      <h1 class="header-logo">A MIXTAPE</h1>
+    </span>
     <span id="hdr-side">SIDE A</span>
   </div>
 
@@ -449,10 +479,10 @@
 
   <div class="share-row">
     <button class="share-btn" id="btn-share">Share</button>
-    <div class="url-chip" id="url-chip">nonarkara.org/mixtape</div>
+    <div class="url-chip" id="url-chip">nonarkara.org/mixedtape</div>
   </div>
 
-  <div class="colophon">nonarkara.org/mixtape · 2026</div>
+  <div class="colophon">nonarkara.org/mixedtape · 2026</div>
 
 </div>
 
@@ -685,7 +715,7 @@
   // ── Share ─────────────────────────────────────────────────
   var btnShare = document.getElementById('btn-share');
   var urlChip  = document.getElementById('url-chip');
-  var SHARE_URL = 'https://nonarkara.org/mixtape';
+  var SHARE_URL = 'https://nonarkara.org/mixedtape';
 
   btnShare.addEventListener('click', async function () {
     var data = {

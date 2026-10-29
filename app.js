@@ -532,7 +532,10 @@ const HAS_ROOM = (() => {
 // 4.51 (2026-10-28) the document has an outline: the marks and the section
 //                  labels are headings, and the theme and the view are decided
 //                  in boot.js before the first paint.
-const NON_VERSION = '4.52';
+// 4.53 (2026-10-29) the record has one address, /mixedtape, with a way back to the
+//                  site; the first load is 3.5MB lighter; the spatial gate's
+//                  fixtures can bite.
+const NON_VERSION = '4.53';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -3025,14 +3028,30 @@ WALL_TVS.forEach((p, i) => {
     'portraits/04-roundtable.jpg',
   ];
   const portraitLoader = new THREE.TextureLoader();
-  const portraitMats = PORTRAIT_FILES.map(src => {
-    const tex = portraitLoader.load(src);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    return new THREE.MeshBasicMaterial({
-      map: tex, transparent: true, opacity: 0,
-      side: THREE.DoubleSide, depthWrite: false,
-    });
-  });
+  // One at a time, one ahead. The rotator holds each portrait ~28s, so
+  // fetching all four at boot spends three of them on a visitor who has
+  // not been here thirty seconds yet. The swap loop below already
+  // refuses to fade in a material whose map has not arrived, so a
+  // portrait still in flight simply waits its turn instead of flashing.
+  const portraitMats = PORTRAIT_FILES.map(() => new THREE.MeshBasicMaterial({
+    transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false,
+  }));
+  const portraitFetch = (i) => {
+    const m = portraitMats[i];
+    if (!m || m.userData.started) return;
+    m.userData.started = true;
+    portraitLoader.load(PORTRAIT_FILES[i], (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      m.map = tex;
+      m.needsUpdate = true;
+    }, undefined, () => { /* a blank pane, not an error */ });
+  };
+  portraitFetch(0);                       // on screen at once — earns its bytes
+  // The second one is wanted at ~28s. Fetch it when the browser is idle
+  // rather than in the boot scramble, so it is ready without competing.
+  const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 4000));
+  idle(() => portraitFetch(1));
+  window.__portraitFetch = portraitFetch;
   // Same geometry size as aphorism plane so words sit on top of the photo.
   const portraitPlane = new THREE.Mesh(new THREE.PlaneGeometry(APH_W, APH_H), portraitMats[0]);
   portraitPlane.position.set(-1.5, 2.8, FRONT_Z - 0.06);
@@ -4683,6 +4702,23 @@ function chooseDefaultView() {
     if (mode === 'host') lsSet('nonarkara.view', 'plan');
     if (mode === 'guest') lsSet('nonarkara.view', 'room');
   }
+
+  // ?view=plan|room wins over everything, and is remembered.
+  //
+  // This is how /music gets you home. The music page is a standalone
+  // link people are sent — they have no history to go back to, so its
+  // close control points at /?view=plan rather than at the browser's
+  // back button. Persisting it is the part that matters: a first-time
+  // visitor still meets the door, and without the write their answer
+  // would pick the view instead (guest → the room), which is the one
+  // place the link explicitly did not want to land. Read after the
+  // migration above, never before, or the migration clobbers it on the
+  // next load.
+  try {
+    const want = new URLSearchParams(location.search).get('view');
+    if (want === 'plan' || want === 'room') { lsSet('nonarkara.view', want); return want; }
+  } catch (_) {}
+
   const saved = lsGet('nonarkara.view');
   if (saved === 'plan' || saved === 'room') return saved;
   // Host keeps the OS open all day. Guest walks the Pavilion.
@@ -5792,6 +5828,9 @@ function animate() {
       if (window.__portraitFade <= 0) {
         window.__portraitIdx = (window.__portraitIdx + 1) % window.__portraitMats.length;
         window.__portraitPlane.material = window.__portraitMats[window.__portraitIdx];
+        // Pull the one after this into flight — 28s of lead, which is
+        // far more than it needs, so no portrait ever arrives late.
+        window.__portraitFetch?.((window.__portraitIdx + 1) % window.__portraitMats.length);
         window.__portraitFadeDir = 1;
         window.__portraitLastSwap = now;
       }
@@ -6451,7 +6490,16 @@ function closeFrameWithRitual() {
     // mode's default wins on this first choice (later toggles stick).
     try {
       localStorage.removeItem('nonarkara.view');
-      const go = mode === 'host' ? 'plan' : 'room';
+      // …unless a destination was actually named. ?view= is how the
+      // music page's close control asks for the plan, and a first-time
+      // visitor arriving that way used to pick "enter the pavilion" and
+      // land in the 3D room — the mode default quietly overwriting the
+      // one thing the link had asked for. A stated destination is not a
+      // default, so it survives the door.
+      let want = null;
+      try { want = new URLSearchParams(location.search).get('view'); } catch (_) {}
+      const go = (want === 'plan' || want === 'room') ? want
+        : (mode === 'host' ? 'plan' : 'room');
       (window.setView || setView)(go);
     } catch (_) {}
   }
@@ -7737,6 +7785,11 @@ if (WEBGL_OK && SITE.length > 1) {
   const travelTo = (b) => {
     if (TRAVEL || DRIVE.active) return;
     const to = doorstep(b);
+    // Start the gallery fetching the moment you ask to go there, not
+    // when you land. Travel takes 1.6s; that is the head start the
+    // photographs need to be on the wall as you walk in rather than
+    // resolving in front of you afterwards.
+    if (b.plan === SAVOYE_PLAN && EXHIBIT && !EXHIBIT.loaded) EXHIBIT.load();
     // Face the building on arrival: aim the head through the same
     // integrator every other input uses, eased to land as the feet do.
     LOOK.aimAt(Math.atan2(-(to.lookX - to.x), -(to.lookZ - to.z)), 0, 0.055);
@@ -7811,6 +7864,25 @@ if (WEBGL_OK && SITE.length > 1) {
     // The HUD used to say PAVILION whatever happened. There are five
     // buildings now and it has to say the true one, or it is lying.
     if (here && here.textContent !== near[0].b.name) here.textContent = near[0].b.name;
+
+    // The gallery hangs inside Savoye. Fetch its photographs the first
+    // time the walker is near enough for them to be worth anything.
+    // Before this they loaded at boot: 2.6MB spent on a phone, over
+    // mobile data, on pictures inside a building 84m from where you land
+    // and that most visitors never walk to.
+    //
+    // 45m is chosen against the estate, not by feel: Savoye's nearest
+    // neighbour is the Pavilion at 62m and the arrival spawn is 84m out,
+    // so standing where you land can never trigger it — and at 4.2m/s it
+    // is still ten seconds of warning, which is longer than the fetch.
+    // Measured from the walker rather than the camera: the walker is
+    // where the visitor actually is, and it is right on the frame the
+    // camera has not caught up yet (travel, or a backgrounded tab).
+    if (EXHIBIT && !EXHIBIT.loaded) {
+      const s = SITE.find(b => b.plan === SAVOYE_PLAN);
+      const at = WALK.pos || camera.position;
+      if (s && Math.hypot(s.origin.x - at.x, s.origin.z - at.z) < 45) EXHIBIT.load();
+    }
     const n = near[1];
     if (!n) return;
     label.textContent = `${n.b.name} · ${Math.round(n.d)} M`;

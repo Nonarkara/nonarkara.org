@@ -2,17 +2,17 @@
  * NON OS · Service Worker
  *
  * Bump CACHE_VERSION in the same commit as any change to index.html,
- * styles.css, app.js or mixtape.html. The fetch handler is cache-first
+ * styles.css, app.js or mixedtape.html. The fetch handler is cache-first
  * for same-origin, so a stale version means users keep the old shell.
  */
 
-const CACHE_VERSION = 'non-2026-10-29-v4.52';
+const CACHE_VERSION = 'non-2026-10-29-v4.53';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 // The app's own code. These are always revalidated when online so a
 // deploy is visible on the next load, not the load after the load after.
 const CODE = new Set([
-  '/', '/index.html', '/mixtape.html', '/mixtape',
+  '/', '/index.html', '/mixedtape',
   '/styles.css', '/app.js', '/boot.js', '/desk.js', '/common.js', '/discover.js', '/sky.js', '/ground.js',
   '/entrance.css',                    // the door's own type and colour — it is not in styles.css
   '/starcat.js',                      // 5,022 real stars, fetched on the first look up
@@ -44,7 +44,10 @@ const CODE = new Set([
 const SHELL = [
   '/',
   '/index.html',
-  '/mixtape.html',
+  // The record. Pages serves mixedtape.html at /mixedtape and 308s the
+  // .html form to it, so /mixedtape is the only path worth a cache
+  // entry — /music and /mixtape 301 here (see _redirects).
+  '/mixedtape',
   '/styles.css',                    // v2: extracted from inline
   '/entrance.css',                  // the door's own type and colour
   '/app.js',                        // v2: extracted from inline
