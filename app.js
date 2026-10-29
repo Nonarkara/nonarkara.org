@@ -30,6 +30,7 @@ import { poemForDate } from './poems.js';
 import * as STARLORE_MOD from './starlore.js';
 import { AdaptiveResolution, preferredPixelRatio } from './render-quality.js';
 import { buildWorldLighting } from './world-lighting.js';
+import { setupSunStudy } from './sun-study.js';
 // The desk and the words it is written in live in their own modules, so
 // the desk can be painted without the room's megabyte of 3D code. The
 // room imports the same words and the same data — one source of truth.
@@ -736,6 +737,7 @@ camera.rotation.order = 'YXZ';
 const LOOK = new Look();
 window.__look = LOOK;
 window.__camera = camera;   // verification handle
+window.__scene = scene;      // verification handle
 camera.rotation.order = 'YXZ';
 
 // Camera framing adapts to portrait phones — pull back, widen FOV,
@@ -783,6 +785,12 @@ try {
     }),
   });
   window.__renderQuality = RENDER_QUALITY;
+  // The renderer and the scene are verification handles: the shadow
+  // proof reads pixels off this canvas and asks the scene what it
+  // contains. They are published HERE, after the renderer exists —
+  // reaching for `renderer` before this line is a reference error
+  // that kills the whole module, and the site dies of it silently.
+  window.__renderer = renderer;
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.getElementById('canvas-root').appendChild(renderer.domElement);
 } catch (err) {
@@ -7010,6 +7018,24 @@ function ensureSky() {
   return SKY_BUILDING;
 }
 
+// ════════════════════════════════════════════════════════
+// THE WORLD'S CLOCK
+//
+// One clock for the whole estate: the light, the palette, the sky and
+// the shadows. It is the visitor's own by default, and the sun study
+// may move it — when the dial is dragged, the room follows, because a
+// shadow belonging to a different hour than the sun above it is a lie
+// told in geometry.
+//
+// A null clock means the real one. Nothing else may read the time
+// directly; a second clock is how the sun and the stars end up in
+// different years.
+// ════════════════════════════════════════════════════════
+let WORLD_CLOCK = null;
+
+/** The moment the estate is living in. */
+const worldNow = () => WORLD_CLOCK || new Date();
+
 // The sky turns a quarter of a degree per minute. Recomputing every
 // frame would be 152 stars of arithmetic to move them less than a pixel.
 function recalcSky(force) {
@@ -7017,7 +7043,7 @@ function recalcSky(force) {
   const now = Date.now();
   if (!force && now - SKY_LAST_CALC < 10_000) return;
   SKY_LAST_CALC = now;
-  const d = new Date();
+  const d = worldNow();
   SKY.update(d, WORLD_SITE);
   const place = document.getElementById('sky-place');
   const time  = document.getElementById('sky-time');
@@ -8222,7 +8248,7 @@ if (WEBGL_OK && PAVILION) {
   };
 
   const refresh = () => {
-    const now = new Date();
+    const now = worldNow();
     const sun = sunHorizontal(now, WORLD_SITE.lat, WORLD_SITE.lon);
     const moon = moonHorizontal(now, WORLD_SITE.lat, WORLD_SITE.lon);
     const lunar = moonPhase(now);
@@ -8251,6 +8277,31 @@ if (WEBGL_OK && PAVILION) {
   refreshWeather();
   setInterval(refresh, 60_000);
   setInterval(refreshWeather, 15 * 60_000);
+
+  // ── THE SUN STUDY ───────────────────────────────────────────
+  // The dial moves the clock; the clock moves the sun; the sun moves
+  // the shadows. One chain. The panel cannot show a time the room is
+  // not living in, because the panel and the room read the same
+  // clock — the panel draws it, the room stands in it.
+  const sunChip = document.getElementById('sun-chip');
+  const sunPanel = document.getElementById('sun-panel');
+  const SUN_STUDY = setupSunStudy({
+    site: WORLD_SITE,
+    onTime: (instant, { live }) => {
+      WORLD_CLOCK = live ? null : instant;
+      // Amber means the sun is where you put it, not that the panel is
+      // open. A chip that says two things at once says neither.
+      sunChip?.classList.toggle('on', !live);
+      refresh();
+    },
+  });
+  window.__sunStudy = SUN_STUDY;
+
+  sunChip?.addEventListener('click', () => {
+    const open = !sunPanel?.classList.contains('in');
+    if (open) SUN_STUDY?.open(); else SUN_STUDY?.close();
+    sunChip.setAttribute('aria-pressed', String(open));
+  });
 
   let _rainT = performance.now();
   window.__tickWeather = () => {

@@ -4232,3 +4232,215 @@ h2.os-lbl,
 h2.fleet-lbl { margin: 0; font-weight: inherit; }
 h2.plan-section-label,
 .plan-philo h2.label { margin-top: 0; font-weight: inherit; }
+
+/* ── SUN & SHADOW ─────────────────────────────────────────────────
+   An instrument, not a card. No shadow, no radius, no glass, no
+   gradient: the chart is the table, the hairlines are the frame.
+
+   It sits at the RIGHT EDGE on a wide screen and never covers the
+   middle of the room — the shadows live on the ground you are looking
+   at, so a sheet across the floor would hide the very thing it
+   explains. On a phone it becomes a short sheet at the bottom, with
+   the two instruments side by side, because a phone has no edge to
+   put them on. */
+.sun-panel {
+  position: fixed;
+  z-index: 160;
+  left: 0; right: 0; bottom: 0;
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px calc(14px + var(--sar)) calc(16px + var(--sab)) calc(14px + var(--sal));
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+  max-height: 88dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.sun-panel.in { display: flex; }
+
+.sun-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+  flex-wrap: wrap;
+}
+.sun-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.26em;
+  color: var(--fg);
+  white-space: nowrap;
+}
+.sun-place {
+  margin: 0;
+  flex-basis: 100%;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sun-close {
+  margin-left: auto;
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--dim);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+.sun-close:hover { color: var(--amber); }
+
+.sun-instruments {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: start;
+}
+.sun-figure { margin: 0; }
+.sun-figure canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  touch-action: none;
+}
+.sun-figure figcaption {
+  margin-top: 6px;
+  font-size: 9px;
+  line-height: 1.5;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+}
+
+.sun-readings {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 10px 0;
+}
+.sun-clock {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sun-clock span {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.sun-clock small {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: var(--dim);
+}
+.sun-facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+}
+.sun-facts > div {
+  padding-left: 8px;
+  border-left: 1px solid var(--line);
+}
+.sun-facts dt {
+  font-size: 8px;
+  letter-spacing: 0.2em;
+  color: var(--dim);
+}
+.sun-facts dd {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.sun-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.sun-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--dim);
+}
+.sun-field input {
+  appearance: none;
+  background: none;
+  border: 1px solid var(--line);
+  color: var(--fg);
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  padding: 4px 6px;
+  color-scheme: dark;
+}
+.sun-btn, .sun-preset {
+  appearance: none;
+  background: none;
+  border: 1px solid var(--line);
+  color: var(--fg);
+  font: inherit;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  padding: 5px 9px;
+  cursor: pointer;
+}
+.sun-btn:hover, .sun-preset:hover { border-color: var(--amber); color: var(--amber); }
+.sun-btn[aria-pressed="true"] { border-color: var(--amber); color: var(--amber); }
+
+.sun-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* The chip joins the right rail as its own row, and the contextual
+   chips below it move down to keep the column free of collisions. */
+.sun-chip { top: calc(150px + var(--sat)); }
+.level-chip  { top: calc(194px + var(--sat)); }
+.drive-chip  { top: calc(242px + var(--sat)); }
+.shoot-chip  { top: calc(290px + var(--sat)); }
+
+@media (min-width: 900px) {
+  .sun-panel {
+    left: auto;
+    top: 0;
+    width: 420px;
+    max-height: none;
+    border-top: 0;
+    border-left: 1px solid var(--line);
+    padding-top: calc(16px + var(--sat));
+    gap: 14px;
+  }
+  /* One instrument per row at this width: two squares side by side in
+     380px would each be 170px, too small to read a sun path. */
+  .sun-instruments { grid-template-columns: 1fr; }
+  .sun-figure canvas { max-width: 340px; margin: 0 auto; }
+  .sun-figure figcaption { text-align: center; max-width: 34ch; margin-left: auto; margin-right: auto; }
+}
+
+@media (max-width: 640px) {
+  .sun-chip { top: calc(202px + var(--sat)); }
+  .sun-readings { grid-template-columns: 1fr; gap: 8px; }
+  .sun-clock span { font-size: 30px; }
+}

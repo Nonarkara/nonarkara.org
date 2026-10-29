@@ -52,7 +52,12 @@ function freePort() {
 /** Does this port answer with our page? */
 async function servesOurs(base) {
   try {
-    const res = await fetch(`${base}/index.html`, { signal: AbortSignal.timeout(10000) });
+    // Thirty seconds, not ten: a machine under heavy load can take that
+    // long to answer a single request, and a server that has not
+    // answered YET is not a server serving someone else. The point of
+    // this check is to catch another project on our port, not to punish
+    // a slow disk.
+    const res = await fetch(`${base}/index.html`, { signal: AbortSignal.timeout(30000) });
     if (!res.ok) return false;
     const body = await res.text();
     return body.includes(MARKER);

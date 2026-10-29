@@ -397,6 +397,16 @@
         <span><span class="solar-needle set" id="sunset-needle" aria-hidden="true">▲</span><span id="sunset-label">SET —</span></span>
       </span>
     </button>
+    <!-- The sun. One chip for the whole solar system of the estate:
+         where the sun is now, where it goes today, and what it does to
+         the ground you are standing on. The panel it opens is an
+         instrument, not a card — the chart is the table, the dial is
+         the handle, and dragging the dial moves the sun over the
+         estate so the shadows travel. -->
+    <button id="sun-chip" class="hud-chip sun-chip" aria-label="Open the sun and shadow study" aria-pressed="false">
+      <span class="hud-chip-glyph" aria-hidden="true">◑</span>
+      <span class="hud-chip-label">SUN</span>
+    </button>
     <button id="walk-btn" class="hud-chip walk-btn" aria-label="Walk through the pavilion" aria-pressed="false">
       <span class="hud-chip-glyph" aria-hidden="true">⇱</span>
       <span class="hud-chip-label" data-i18n="walk">WALK</span>
@@ -435,6 +445,57 @@
       <span class="hud-chip-label">FOCUS</span>
     </button>
   </div>
+  <!-- SUN & SHADOW ──────────────────────────────────────────────
+       The sun's path across a day, and a dial you can drag. The
+       numbers are computed from this place's own coordinates by the
+       same astronomy the sky and the palette use, so the chart cannot
+       disagree with the room. Move the dial and the sun moves: the
+       light, the sky, the stars and the shadows all follow it. -->
+  <section class="sun-panel" id="sun-panel" aria-hidden="true" aria-labelledby="sun-title">
+    <header class="sun-head">
+      <h2 class="sun-title" id="sun-title">SUN &amp; SHADOW</h2>
+      <button class="sun-close" id="sun-close" aria-label="Close the sun study">✕</button>
+      <p class="sun-place" id="sun-place">—</p>
+    </header>
+
+    <div class="sun-readings">
+      <p class="sun-clock"><span id="sun-time">—</span><small id="sun-date">—</small></p>
+      <dl class="sun-facts">
+        <div><dt>ALT</dt><dd id="sun-altitude">—</dd></div>
+        <div><dt>AZ</dt><dd id="sun-azimuth">—</dd></div>
+        <div><dt>RISE</dt><dd id="sun-rise">—</dd></div>
+        <div><dt>SET</dt><dd id="sun-set">—</dd></div>
+        <div><dt>DAY</dt><dd id="sun-length">—</dd></div>
+      </dl>
+    </div>
+
+    <div class="sun-instruments">
+      <figure class="sun-figure">
+        <canvas id="sun-chart" role="img" aria-label="The sun's path across the selected day"></canvas>
+        <figcaption>The sun's path across the day. The rim is the horizon; the centre is straight up.</figcaption>
+      </figure>
+      <figure class="sun-figure">
+        <canvas id="sun-dial" role="slider" tabindex="0" aria-label="Time of day" aria-valuemin="0" aria-valuemax="1439" aria-valuenow="720"></canvas>
+        <figcaption>Drag the dial to move the sun. The lit arc is the length of the day.</figcaption>
+      </figure>
+    </div>
+
+    <div class="sun-controls">
+      <label class="sun-field">DATE<input id="sun-date-input" type="date"></label>
+      <label class="sun-field">TIME<input id="sun-time-input" type="time" step="60"></label>
+      <button class="sun-btn" id="sun-now">NOW</button>
+      <button class="sun-btn" id="sun-play" aria-pressed="false">PLAY THE DAY</button>
+    </div>
+
+    <div class="sun-presets">
+      <button class="sun-preset" data-sun-date="today">TODAY</button>
+      <button class="sun-preset" data-sun-date="03-20">MAR 20</button>
+      <button class="sun-preset" data-sun-date="06-21">JUN 21</button>
+      <button class="sun-preset" data-sun-date="09-22">SEP 22</button>
+      <button class="sun-preset" data-sun-date="12-21">DEC 21</button>
+    </div>
+  </section>
+
   <div class="discover-toast" id="discover-toast" aria-live="polite"></div>
 
   <!-- Tilt-to-look hint (gyro-capable phones only, auto-fades) -->
