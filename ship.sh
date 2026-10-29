@@ -31,6 +31,12 @@ CACHE_VER=$(grep -m1 -oE "CACHE_VERSION = '[^']+'" sw.js | grep -oE "'[^']+'" | 
 [[ "$CACHE_VER" == *"-v${LOCAL_VERSION}" ]] || die "CACHE_VERSION ${CACHE_VER} does not end with NON_VERSION v${LOCAL_VERSION}"
 say "shipping v${LOCAL_VERSION}"
 
+# The CSP pins every inline script by hash (see scripts/msh/csp.mjs). Rewrite
+# the hashes from the scripts first: if they had drifted, _headers is now a
+# tracked change and the check below stops the deploy instead of shipping a
+# policy that silently blocks the self-heal.
+node scripts/msh/csp.mjs --write >/dev/null || die "csp hash refresh failed"
+
 # Refuse to ship a working tree that does not match what is committed —
 # otherwise the version you verify is not the version in git.
 if [ -n "$(git status --porcelain --untracked-files=no 2>/dev/null)" ]; then
