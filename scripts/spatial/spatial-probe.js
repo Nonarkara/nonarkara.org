@@ -694,6 +694,13 @@
       var ae = acts[ai];
       if (!visible(ae, win)) continue;
       var ar = ae.getBoundingClientRect();
+      // A control wholly above the top of the document cannot be scrolled
+      // to: it is parked there on purpose (a skip link waits off-screen
+      // until it is focused). It is not something a reader can do, so it
+      // is not the first thing they can do. It used to count whenever its
+      // colours happened to read as loud, and the finding then appeared at
+      // a different width on every run.
+      if (ar.bottom <= 0 && (win.scrollY || 0) === 0) continue;
       var actable = /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName) || loudControl(ae, win);
       if (!actable) continue;
       var y = ar.top + (win.scrollY || 0);

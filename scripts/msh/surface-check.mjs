@@ -55,7 +55,9 @@ const EXPECT = {
 };
 
 const PORT = Number(arg('--port', '8792'));
-const BASE = arg('--base', `http://127.0.0.1:${PORT}`);
+// Routes begin with '/', so a base ending in '/' would build '//' and the
+// check would measure a page that is not the site. spatial-gate passes one.
+const BASE = arg('--base', `http://127.0.0.1:${PORT}`).replace(/\/+$/, '');
 
 // Wait until the page stops changing. A surface that has not settled is a
 // surface nobody has seen yet — the same rule the spatial gate's own settle
@@ -97,6 +99,18 @@ for (const [route, want] of Object.entries(EXPECT)) {
     await page.setViewportSize({ width, height: 900 });
     if (width === WIDTHS[0]) {
       await page.goto(BASE + route, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      // Quiet is not the same as booted: the page can be silent for 150ms
+      // before its module scripts have run, and every cell then reads
+      // "nothing rendered". Wait for the surface the route names to have a
+      // box (and its cells, if it has any). If it never does, fall through
+      // and measure — that is the honest failure, not a skipped one.
+      await page.waitForFunction(({ id, cells }) => {
+        const el = document.getElementById(id);
+        if (!el) return false;
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0
+          && (!cells || document.querySelectorAll(cells).length > 0);
+      }, { id: want.up, cells: want.filled }, { timeout: 20000 }).catch(() => {});
     }
     await page.evaluate(SETTLE);
 
