@@ -37,16 +37,22 @@ let CATALOG = null;
 // The eighty-eight Modern constellation figures, as catalogue indices.
 let MODERN = null;
 
-/** Load the catalogue if it is not loaded yet. The dome does this. */
+/**
+ * Load the star catalogue and the Modern figures, if they are not loaded yet.
+ *
+ * The two arrive together. The dome used to decode the stars on its own
+ * and leave the figures unset: the fifteen hand-drawn constellations were
+ * stroked, the rest of the sky was not, and a later call here saw the
+ * stars were already decoded and never fetched the figures.
+ */
 export async function loadCatalog() {
-  if (!CATALOG) {
-    const [{ decodeCatalog }, { CONSTELLATIONS }] = await Promise.all([
-      import('./starcat.js'),
-      import('./constellations.js'),
-    ]);
-    CATALOG = decodeCatalog();
-    MODERN = CONSTELLATIONS;
-  }
+  if (CATALOG && MODERN) return CATALOG;
+  const [{ decodeCatalog }, { CONSTELLATIONS }] = await Promise.all([
+    import('./starcat.js'),
+    import('./constellations.js'),
+  ]);
+  if (!CATALOG) CATALOG = decodeCatalog();
+  MODERN = CONSTELLATIONS;
   return CATALOG;
 }
 
@@ -97,14 +103,17 @@ export function starColour(bv) {
  * A constellation the site draws is never drawn twice. The match is on
  * the name, with the diacritics put away, so that the Modern "Boötes"
  * and the site's "Bootes" are recognised as the same constellation
- * rather than two of them.
+ * rather than two of them. This is that list: the figures the dome strokes.
  */
-function modernFigureIndices(siteFigureNames) {
+export function modernFiguresToDraw(siteFigureNames) {
   if (!MODERN) return [];
   const own = new Set([...siteFigureNames].map(normaliseName));
+  return MODERN.filter((c) => !own.has(normaliseName(c.name || c.id)));
+}
+
+function modernFigureIndices(siteFigureNames) {
   const out = [];
-  for (const c of MODERN) {
-    if (own.has(normaliseName(c.name || c.id))) continue;
+  for (const c of modernFiguresToDraw(siteFigureNames)) {
     for (const chain of c.lines || []) {
       for (let i = 0; i < chain.length - 1; i++) out.push(chain[i], chain[i + 1]);
     }
@@ -301,12 +310,11 @@ export function visibilityFor(sunAlt, moonAlt, illumination) {
 }
 
 export async function buildSky(themeColor = 0xf5f5f0, amber = 0xf59e0b) {
-  // The catalogue is 5,022 stars in 29 KB. It is fetched the first time
-  // somebody looks up, so the room boots without waiting on a star chart.
-  if (!CATALOG) {
-    const { decodeCatalog } = await import('./starcat.js');
-    CATALOG = decodeCatalog();
-  }
+  // The catalogue is 5,022 stars in 29 KB, and the figures are the
+  // eighty-eight. Both are fetched the first time somebody looks up, so
+  // the room boots without waiting on a star chart — and the figures
+  // arrive with the stars, or the rest of the sky is never drawn.
+  await loadCatalog();
   const { RA, DEC, MAG, NAME, COLOUR, count } = CATALOG;
   const { pairs: FIG_PAIRS, index: NAME_INDEX } = resolveFigures(CATALOG);
 
