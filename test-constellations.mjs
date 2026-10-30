@@ -13,7 +13,7 @@
 import assert from 'node:assert';
 import { decodeCatalog } from './starcat.js';
 import { CONSTELLATIONS } from './constellations.js';
-import { FIGURES, starColour } from './sky.js';
+import { FIGURES, starColour, loadCatalog, modernFiguresToDraw } from './sky.js';
 
 const cat = decodeCatalog();
 
@@ -71,21 +71,74 @@ assert(cat.COLOUR.length === cat.count, 'every star must have a colour index');
 // ── No constellation is drawn twice ───────────────────────────────
 //
 // The site draws fifteen of them itself, by hand, with the lore
-// attached. The Modern figures fill in the rest. If a constellation
-// appeared in both, its lines would be drawn on top of themselves and
-// the sky would have a bright seam down the middle of it.
+// attached. The Modern catalogue still holds all of them — it is the
+// eighty-eight, which is why the count above can clear eighty — and the
+// dome leaves those fifteen out when it strokes the rest. Taking them
+// out of the catalogue would drop the count under eighty, and would
+// throw away the record of which lines the IAU draws.
+//
+// Andromeda is the proof. The hand figure is Alpheratz–Mirach–Almach.
+// The Modern figure takes the long way between Alpheratz and Mirach, and
+// then the same Mirach–Almach segment the hand figure already draws. If
+// both were stroked, that segment would be a bright seam. The catalogue
+// is allowed to contain both; the stroke list is not.
 {
   const normalise = (n) => String(n || '')
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
   const own = new Set(Object.keys(FIGURES).map(normalise));
-  for (const c of CONSTELLATIONS) {
+  const overlap = CONSTELLATIONS.filter((c) => own.has(normalise(c.name)));
+  assert(overlap.length === Object.keys(FIGURES).length,
+    `every hand figure is one of the eighty-eight, missing ${Object.keys(FIGURES).length - overlap.length}`);
+
+  await loadCatalog();
+  const drawn = modernFiguresToDraw(Object.keys(FIGURES));
+  assert(drawn.length === CONSTELLATIONS.length - overlap.length,
+    `the dome should stroke each remaining figure once: ${drawn.length} drawn, ` +
+    `${overlap.length} already drawn by hand, ${CONSTELLATIONS.length} in the catalogue`);
+  for (const c of drawn) {
     assert(!own.has(normalise(c.name)),
       `${c.name} is drawn twice: the site draws it by hand and the Modern sky draws it too`);
   }
+
+  const nameIndex = new Map();
+  cat.NAME.forEach((n, i) => { if (n && !nameIndex.has(n)) nameIndex.set(n, i); });
+  const edgeKey = (a, b) => (a < b ? `${a}:${b}` : `${b}:${a}`);
+  const edgesOf = (chains) => {
+    const keys = new Set();
+    for (const chain of chains) {
+      for (let i = 0; i < chain.length - 1; i++) keys.add(edgeKey(chain[i], chain[i + 1]));
+    }
+    return keys;
+  };
+  const handEdges = new Set();
+  for (const chains of Object.values(FIGURES)) {
+    for (const chain of chains) {
+      const idx = chain.map((n) => nameIndex.get(n));
+      assert(idx.every((i) => i != null), 'a hand figure names a star the catalogue does not have');
+      for (let i = 0; i < idx.length - 1; i++) handEdges.add(edgeKey(idx[i], idx[i + 1]));
+    }
+  }
+  const modernEdges = edgesOf(drawn.flatMap((c) => c.lines));
+  for (const e of modernEdges) {
+    assert(!handEdges.has(e), `a constellation line is drawn twice (${e})`);
+  }
+
+  const mirach = nameIndex.get('Mirach');
+  const almach = nameIndex.get('Almach');
+  const shared = edgeKey(mirach, almach);
+  const andromeda = CONSTELLATIONS.find((c) => normalise(c.name) === 'andromeda');
+  assert(andromeda, 'Andromeda must be in the Modern catalogue');
+  assert(edgesOf(andromeda.lines).has(shared) && handEdges.has(shared),
+    'the hand figure and the Modern figure of Andromeda share Mirach–Almach');
+  assert(!modernEdges.has(shared),
+    'Andromeda is drawn twice: the site draws it by hand and the Modern sky draws it too');
+
   // The diaeresis is the test of the matcher: the Modern scheme spells
   // it Boötes, the site spells it Bootes, and they are one constellation.
   assert(CONSTELLATIONS.some((c) => normalise(c.name) === 'bootes'),
     'Boötes must be in the sky, and must match the site\'s own Bootes');
+  assert(!drawn.some((c) => normalise(c.name) === 'bootes'),
+    'Boötes is drawn twice: the site draws Bootes by hand and the Modern sky draws it too');
 }
 
 console.log(`constellations: ${CONSTELLATIONS.length} Modern figures · colour index · no double-drawn sky`);
