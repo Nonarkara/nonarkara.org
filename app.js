@@ -538,7 +538,10 @@ const HAS_ROOM = (() => {
 //                  the map), and a sun-path chart and a 24-hour dial let
 //                  you move the sun over the estate. The night sky gets
 //                  its colour and the rest of its constellations.
-const NON_VERSION = '4.54';
+// 4.55 (2026-11-02) the audit: internal docs are no longer served, the worker's
+//                  secrets compare in constant time, the constellations are
+//                  stroked once.
+const NON_VERSION = '4.55';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
