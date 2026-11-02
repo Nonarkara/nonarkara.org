@@ -1950,6 +1950,32 @@
     body.driving .auto-chip { bottom: calc(132px + var(--sab)); }
     body.driving .view-chip { bottom: calc(40px + var(--sab)); }
 
+    /* A phone has two thumbs, so give them two territories while driving:
+       steering/throttle stays under the right thumb; the three switches
+       form a left rail. The old shared corner put buttons through the
+       joystick and made AUTOPILOT a likely accidental tap. The temporary
+       driving legend sits below the compass, away from both thumbs. */
+    @media (max-width: 640px) {
+      body.driving .cv-chip,
+      body.driving .auto-chip,
+      body.driving .view-chip {
+        left: calc(14px + var(--sal));
+        right: auto;
+      }
+      body.driving .discover-toast {
+        top: calc(128px + var(--sat));
+        right: calc(14px + var(--sar));
+        bottom: auto;
+        left: calc(14px + var(--sal));
+        width: auto;
+        transform: translateY(4px);
+        justify-content: center;
+        text-align: center;
+        font-size: 9px;
+      }
+      body.driving .discover-toast.in { transform: translateY(0); }
+    }
+
     /* Driving is its own world. The room's furniture leaves with it: the
        wall and the plan are places you cannot go from the driver's seat,
        the key legend repeats what the toast already says, and the MENU
@@ -1957,6 +1983,7 @@
     body.driving .view-toggle,
     body.driving .ioc-toggle,
     body.driving .menu-btn,
+    body.driving .lang,
     body.driving .shortcut-hints,
     body.driving .hint,
     body.driving .intent-line,

@@ -546,7 +546,9 @@ const HAS_ROOM = (() => {
 //                  (76 KB, fetched on idle).
 // 4.57 (2026-11-02) the same baked light under the Farnsworth trays (166 KB, idle);
 //                  one generic pipeline, tools/export-building.mjs + bake-ground.py.
-const NON_VERSION = '4.57';
+// 4.58 (2026-11-03) Blender-authored Cybertruck exterior: 117 KB / 1,716
+//                  triangles, idle-loaded above the procedural mechanics.
+const NON_VERSION = '4.58';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -1180,9 +1182,48 @@ const TRUCK_POSE = {
 TRUCK_BUILD.group.position.set(TRUCK_POSE.x, 0, TRUCK_POSE.z);
 TRUCK_BUILD.group.rotation.y = TRUCK_POSE.yaw;
 scene.add(TRUCK_BUILD.group);
+// A game-engine separation with web-sized consequences: the existing truck
+// remains the collider, cockpit and instant visual fallback; Blender supplies
+// only a richer exterior. No model request competes with the first room, and
+// low-memory phones keep the deliberately cheap procedural shell.
+if (!(navigator.deviceMemory && navigator.deviceMemory <= 2)) {
+  (window.requestIdleCallback || ((fn) => setTimeout(fn, 2400)))(async () => {
+    try {
+      const { loadGlb } = await import('./glb-lite.js');
+      const hero = await loadGlb(THREE, `/models/cybertruck.glb?v=${NON_VERSION}`);
+      TRUCK_BUILD.useHeroExterior(hero);
+    } catch (_) { /* the procedural truck is the visible failure state */ }
+  });
+}
 const DRIVE = new Drive(camera, WALK.colliders, TRUCK_POSE);
 DRIVE.group = TRUCK_BUILD.group;
 DRIVE.keys = WALK.keys;
+// Walk collision boxes describe walls, but floors are height patches rather
+// than solids. A chase camera can therefore be "legal" to the walker while
+// sitting inside a visible slab. Raycast only when Drive tests a chase pose;
+// the normal behind-the-car view remains one cheap ray per frame.
+{
+  const ray = new THREE.Raycaster();
+  const from = new THREE.Vector3();
+  const direction = new THREE.Vector3();
+  const cameraRoots = [PAVILION?.group, GLASS?.group, SAVOYE?.group,
+    FARNSWORTH?.group, FALLINGWATER?.group].filter(Boolean);
+  DRIVE.setChaseOcclusion((a, b) => {
+    from.set(a.x, a.y, a.z);
+    direction.set(b.x - a.x, b.y - a.y, b.z - a.z);
+    const distance = direction.length();
+    if (distance < 0.8) return false;
+    ray.set(from, direction.normalize());
+    ray.near = 0.65;
+    ray.far = distance - 0.25;
+    return ray.intersectObjects(cameraRoots, true).some((hit) => {
+      const material = hit.object?.material;
+      const materials = Array.isArray(material) ? material : [material];
+      return hit.object?.visible !== false && materials.some((m) =>
+        m && m.visible !== false && (!m.transparent || (m.opacity ?? 1) > 0.15));
+    });
+  });
+}
 window.__drive = DRIVE;
 // The truck's own solid — a mutable box the walker collides with,
 // skipped by the truck itself, moved whenever it parks.

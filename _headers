@@ -71,5 +71,9 @@
 /vendor-three-0.160.0.js
   Cache-Control: public, max-age=31536000, immutable
 
+# Versioned at the call site; never part of the install-time shell.
+/models/*
+  Cache-Control: public, max-age=31536000, immutable
+
 /bkk-photos/*
   Cache-Control: public, max-age=31536000, immutable

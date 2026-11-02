@@ -6,7 +6,7 @@
  * for same-origin, so a stale version means users keep the old shell.
  */
 
-const CACHE_VERSION = 'non-2026-11-02-v4.57';
+const CACHE_VERSION = 'non-2026-11-03-v4.58';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 // The app's own code. These are always revalidated when online so a
@@ -24,6 +24,7 @@ const CODE = new Set([
   '/pavilion.js', '/glasshouse.js', '/savoye.js', '/farnsworth.js', '/fallingwater.js', '/bake-shade.js',
   '/walk.js', '/daylight.js', '/astronomy.js', '/world.js', '/poems.js', '/starlore.js', '/look.js', '/pool.js', '/interiors.js',
   '/yard.js', '/drive.js', '/arcade.js', '/exhibit.js', '/balls.js',
+  '/glb-lite.js',                    // idle-only static prop loader; not precached
   // The truck's brain (23 Oct 2026). These MUST be here: a module that the
   // service worker does not know about is a module it answers 404 for,
   // and app.js imports all of them at once — so one missing entry here

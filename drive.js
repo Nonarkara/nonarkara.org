@@ -272,7 +272,52 @@ export function buildCybertruck(THREE, opts = {}) {
   G.cabin = cabin;
   G.shell = shell;
 
-  return { group: G, materials: { steel, glass: glassMat, line }, body: shell, shell, winF, wheels, cabin };
+  // The authored Blender exterior is a visual skin only. Keep every
+  // procedural part alive underneath it: this geometry is the instant,
+  // dependency-free fallback and the driving/collision dimensions remain
+  // the constants above. A failed or skipped fetch changes nothing.
+  const fallbackParts = [...shell.children];
+  let heroExterior = null;
+  const useHeroExterior = (model) => {
+    if (!model?.isObject3D || heroExterior) return false;
+    model.name = 'cybertruck-hero';
+    model.traverse((object) => {
+      if (!object.isMesh) return;
+      object.castShadow = true;
+      object.receiveShadow = true;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      for (const material of materials) {
+        if (!material) continue;
+        // The estate's physical sun lights the PBR metal by day. This faint
+        // self-fill keeps its silhouette legible under the real night sky;
+        // emissive light bars keep their stronger exported values.
+        if (material.isMeshStandardMaterial && material.emissive?.getHex() === 0) {
+          material.emissive.copy(material.color);
+          // 0.32 is a restrained night-sky fill: enough for the steel facets
+          // to separate from the black estate, still far below the exported
+          // light bars (2.5). The daytime sun remains the dominant light.
+          material.emissiveIntensity = 0.32;
+        }
+      }
+    });
+    fallbackParts.forEach((object) => { object.visible = false; });
+    heroExterior = model;
+    shell.add(model);
+    shell.userData.heroExterior = model;
+    return true;
+  };
+
+  return {
+    group: G,
+    materials: { steel, glass: glassMat, line },
+    body: shell,
+    shell,
+    winF,
+    wheels,
+    cabin,
+    fallbackParts,
+    useHeroExterior,
+  };
 }
 
 export class Drive {
@@ -315,6 +360,8 @@ export class Drive {
     this.look = { yaw: 0, pitch: 0 };   // free look from the driver's seat
     this._sinceLook = 0;
     this._rng = null;        // seeded, set by the caller
+    this._chaseAngle = 0;    // stable orbit offset; changes only when architecture blocks it
+    this._chaseOccluded = null; // optional visual-geometry ray test, supplied by the world
   }
 
   /** The seat view and the chase view. */
@@ -351,6 +398,9 @@ export class Drive {
 
   /** What the cameras can see. Replaced wholesale when the world changes. */
   setObjects(list) { this.objects = list || []; }
+
+  /** The world may add a visual ray test for slabs that are floors, not walls. */
+  setChaseOcclusion(test) { this._chaseOccluded = typeof test === 'function' ? test : null; }
 
   /** Free look from the driver's seat, in camera radians. */
   addLook(dyaw, dpitch) {
@@ -396,6 +446,35 @@ export class Drive {
       if (this._blocked(x - s * off, z - c * off)) return true;
     }
     return false;
+  }
+
+  /** A camera is a point, not the truck's bumper: respect vertical scope. */
+  _cameraPointBlocked(x, y, z) {
+    for (const b of this.colliders) {
+      if (b.skipForTruck) continue;
+      if (b.minY != null && y < b.minY - 0.08) continue;
+      if (b.maxY != null && y > b.maxY + 0.08) continue;
+      if (x > b.minX - 0.12 && x < b.maxX + 0.12 &&
+          z > b.minZ - 0.12 && z < b.maxZ + 0.12) return true;
+    }
+    return false;
+  }
+
+  /** Is the whole sightline from the truck to this chase pose unobstructed? */
+  _clearChaseLine(x, y, z) {
+    const focusY = 1.25;
+    const steps = 14;
+    for (let i = 2; i <= steps; i++) {
+      const t = i / steps;
+      const px = this.pos.x + (x - this.pos.x) * t;
+      const py = focusY + (y - focusY) * t;
+      const pz = this.pos.z + (z - this.pos.z) * t;
+      if (this._cameraPointBlocked(px, py, pz)) return false;
+    }
+    if (this._chaseOccluded?.(
+      { x: this.pos.x, y: focusY, z: this.pos.z },
+      { x, y, z })) return false;
+    return true;
   }
 
   /**
@@ -518,8 +597,22 @@ export class Drive {
 
     // Chase view: back and above, easing into place.
     const back = 7.6, up = 3.3;
-    const cx = this.pos.x + Math.sin(this.yaw) * back;
-    const cz = this.pos.z + Math.cos(this.yaw) * back;
+    const candidate = (offset) => ({
+      offset,
+      x: this.pos.x + Math.sin(this.yaw + offset) * back,
+      z: this.pos.z + Math.cos(this.yaw + offset) * back,
+    });
+    let chase = candidate(this._chaseAngle);
+    if (!this._clearChaseLine(chase.x, up, chase.z)) {
+      // Behind is preferred. At Savoye it is inside the house, so orbit to
+      // whichever shoulder first gives an uninterrupted view. Keeping the
+      // selected offset prevents left/right flicker beside a wall.
+      const offsets = [0, 0.92, -0.92, 1.48, -1.48, Math.PI];
+      chase = offsets.map(candidate).find((p) => this._clearChaseLine(p.x, up, p.z))
+        || candidate(Math.PI);
+      this._chaseAngle = chase.offset;
+    }
+    const cx = chase.x, cz = chase.z;
     const ease = 1 - Math.exp(-6 * dt);
     cam.position.x += (cx - cam.position.x) * ease;
     cam.position.y += (up - cam.position.y) * ease;

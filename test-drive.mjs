@@ -76,6 +76,30 @@ const run = (d, n = 60, dt = 1 / 60) => { for (let i = 0; i < n; i++) d.update(d
   assert(d.toggleSeat() === 'seat', 'and back again');
 }
 
+// ── The chase camera does not back through the house ──────
+{
+  // At yaw 0 the nominal camera is on +Z. Put a storey exactly there:
+  // the camera must orbit to a shoulder and keep the truck in view.
+  const wallBehind = { minX: -3, maxX: 3, minZ: 2.5, maxZ: 8.5, minY: 0, maxY: 5 };
+  const d = mk([wallBehind]);
+  d.mode = 'chase';
+  run(d, 180);
+  assert(!d._cameraPointBlocked(d.camera.position.x, d.camera.position.y, d.camera.position.z),
+    'chase camera must not settle inside architecture');
+  assert(Math.abs(d._chaseAngle) > 0.5,
+    'blocked rear sightline must choose a stable side orbit');
+}
+
+// A visible slab may not be a walk collider; the world can still veto that
+// camera ray without coupling the driving module to Three.js raycasting.
+{
+  const d = mk();
+  d.mode = 'chase';
+  d.setChaseOcclusion((_, to) => Math.abs(to.x) < 0.1);
+  run(d, 120);
+  assert(Math.abs(d._chaseAngle) > 0.5, 'visual geometry can push the camera off-axis');
+}
+
 // ── The camera sits in the driver's seat, not above the truck ──
 {
   const d = mk([], { x: 10, z: 20, yaw: 0 });

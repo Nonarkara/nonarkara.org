@@ -153,8 +153,10 @@ export const PLAN = {
   // wall that stops you is exactly the wall you see.
   solarium: { x: 3.2, z: 3.4, r: 6.2, a0: 2.2, a1: 4.8, h: 2.4, seg: 28 },
 
-  // Citroën Traction Avant under the pilotis — off the door axis so the
-  // promenade stays clear, in the driveway the ground-floor curve drew.
+  // The vehicle bay under the pilotis — off the door axis so the promenade
+  // stays clear, in the driveway the ground-floor curve drew. It began as a
+  // Traction Avant study; the live estate now parks the drivable Cybertruck
+  // at the same architectural turning point.
   car: {
     // On the drive apron, just clear of the ground-floor curve — where
     // the photographs put the car, and where a 5.2m truck can actually

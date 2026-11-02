@@ -22,7 +22,7 @@ Assessed 2026-11-02. Measured against this repo, not against general claims.
 Blender is scriptable (`blender -b -P script.py`), free, and exports glTF. The useful thing it does is the thing the unlit estate lacks: **baked light**.
 
 1. **Baked ambient occlusion and sun/sky light into a texture, applied to the existing `MeshBasicMaterial`.** The building looks lit and grounded (contact shadows under the Farnsworth trays, under the Savoye pilotis, inside the Pavilion's roof plane) at zero per-frame cost and with no light in the scene. This is how phone-safe 3D gets depth.
-2. **Hero props as glTF with meshopt compression.** The Traction Avant under the pilotis, furniture, the Barcelona chair: anything where procedural boxes read as a placeholder. Budget below.
+2. **Hero props as compact glTF.** Objects where procedural boxes read as a placeholder, while collision and interaction stay in code. Budget below.
 3. **Offline truth renders** for visual regression: Cycles renders of the same geometry to compare against what the room shows.
 
 ### The rule that keeps this safe
@@ -67,7 +67,7 @@ node test-bake.mjs                                       # the budget and the sh
 - **Scope:** the podium top only. A top-down Cycles render with a morning sun and soft sky, the shade written as the alpha of a black RGBA PNG, laid over the podium as one translucent plane with planar mapping from `PLAN.podium`. No UV set, no new geometry, no loader. Pools are masked out so water keeps its colour.
 - **Cost:** 76 KB (budget 250), fetched on idle, skipped when `deviceMemory <= 2`, plane hidden until the image arrives so a failed fetch leaves the room unchanged.
 - **Effect:** 25% of a first-person frame gets darker where the roof and walls shade the paving (`docs/bake-spike/`, with and without). It is real and deliberately quiet. The spike does not yet bake the walls, columns or interiors; that is the next step if the podium reads well in use.
-- **Next, in order of value:** one hero prop (the Traction Avant) as meshopt glTF, only if it clears its own byte budget.
+- **Next, in order of value:** one hero prop as compact glTF, only if it clears its own byte budget. (The later estate replaced the static Traction Avant concept with a drivable Cybertruck, so that is the prop to improve without adding another car to the bay.)
 
 ## v4.57 (2026-11-02): second building, one pipeline
 
@@ -75,3 +75,20 @@ The scripts are generic now: `export-building.mjs <name>` writes the geometry an
 
 - **Farnsworth: kept.** 166 KB (budget 250), sky occlusion only (no sun), so it never argues with the live sun shadow. Soft contact shade under the lifted trays and the terrace.
 - **Savoye: tried, deleted.** The house's slab covers its whole footprint, so the bake came out as one uniform grey square with a hard edge: a drop shadow, not light. It did not clearly improve the room, so it did not ship. The pilotis need a bake that lights the *underside* geometry, not the ground; that is a different job.
+
+## v4.58 (2026-11-03): first Blender-authored hero prop
+
+The Cybertruck now separates the visual mesh from the mechanics in the same
+way a game engine separates render geometry from a collision body.
+
+- `tools/build-cybertruck.py` authors a faceted PBR exterior in Blender. It
+  exports only the exterior: no camera, light, collision mesh or cabin.
+- `models/cybertruck.glb` is 117 KB and 1,716 triangles against hard gates of
+  160 KB and 3,000 triangles. It has no textures, animation or external files.
+- The model and the 5 KB static-only loader are requested on idle, never in the
+  first-load shell, and skipped on devices reporting 2 GB or less.
+- The old procedural shell remains in the scene until parsing succeeds, then
+  becomes a hidden fallback. Driving, collision, the driver's seat, computer
+  vision and autonomous logic are unchanged and still use code-owned geometry.
+- Unreal remains a studio renderer, not a web runtime. This split captures its
+  useful pattern without Pixel Streaming, a second physics source or a GPU bill.

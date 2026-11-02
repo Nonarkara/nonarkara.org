@@ -102,6 +102,29 @@ ok(inSeat.mode === 'seat', `the first-person driver's seat is the default view (
 ok(inSeat.seatClass, 'the body carries the seat-view state');
 await page.screenshot({ path: path.join(OUT, 'truck-seat.png') });
 
+// ── the authored exterior ─────────────────────────────────
+// The GLB is idle-loaded, so by the time a person reaches and enters the
+// parked truck it should have replaced the procedural shell. The fallback
+// remains the correct outcome on a constrained device or failed request.
+await page.evaluate(() => window.__drive.toggleSeat());
+await page.waitForTimeout(900);
+const exterior = await page.evaluate(() => {
+  const shell = window.__drive?.group?.shell;
+  const hero = shell?.userData?.heroExterior;
+  return {
+    mode: window.__drive?.mode,
+    hero: !!hero,
+    heroVisible: hero?.visible ?? false,
+    meshes: (() => { let n = 0; hero?.traverse?.((o) => { if (o.isMesh) n++; }); return n; })(),
+  };
+});
+ok(exterior.mode === 'chase', 'C still reaches the exterior chase view');
+ok(exterior.hero && exterior.heroVisible && exterior.meshes >= 20,
+  `the Blender exterior is live (${exterior.meshes} meshes)`);
+await page.screenshot({ path: path.join(OUT, 'truck-exterior.png') });
+await page.evaluate(() => window.__drive.toggleSeat());
+await page.waitForTimeout(400);
+
 // ── the cameras ───────────────────────────────────────────
 await page.evaluate(() => window.__driveChips.toggleCv());
 await page.waitForTimeout(1400);
