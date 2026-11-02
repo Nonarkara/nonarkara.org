@@ -43,6 +43,7 @@ assert.deepEqual(
   assert(keyOk(req(), u("?key=s3cret"), "s3cret"), "query key must still pass (the daemon uses it)");
   assert(!keyOk(req(), u("?key=s3cre"), "s3cret"), "a prefix of the secret must fail");
   assert(!keyOk(req(), u("?key=s3crets"), "s3cret"), "the secret plus more must fail");
+  assert(!keyOk(req(), u("?key=s3creT"), "s3cret"), "a same-length wrong key must fail");
   assert(!keyOk(req(), u(), "s3cret"), "no key must fail");
   assert(!keyOk(req(), u("?key="), ""), "an unset secret must never match an empty key");
   assert(!keyOk(req({ Authorization: "Bearer " }), u(), undefined), "an undefined secret must fail");
