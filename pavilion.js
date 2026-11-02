@@ -326,5 +326,32 @@ export function buildPavilion(THREE, scene, opts = {}) {
     colliders.push({ minX: -halfW, maxX: halfW, minZ: halfD, maxZ: halfD + T });
   }
 
-  return { group: G, colliders, surfaces, materials: MATS, plan: PLAN };
+  /**
+   * Lay the baked light over the podium top.
+   *
+   * The image is black with the shade in its alpha channel, baked offline by
+   * tools/bake-podium.py from THIS geometry (tools/pavilion-export.mjs runs
+   * buildPavilion). It maps planar over the podium's own footprint, so it
+   * needs no UV set and the geometry never changes. The plane stays hidden
+   * until the image has arrived: a failed or slow fetch leaves the room
+   * exactly as it was, never a white sheet.
+   */
+  function addShade(url) {
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0x000000, transparent: true, depthWrite: false, visible: false,
+    });
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(p.w, p.d), mat);
+    plane.rotation.x = -Math.PI / 2;
+    plane.position.y = 0.004;
+    plane.renderOrder = 1;
+    G.add(plane);
+    new THREE.TextureLoader().load(url, (tex) => {
+      mat.map = tex;
+      mat.visible = true;
+      mat.needsUpdate = true;
+    }, undefined, () => {});
+    return plane;
+  }
+
+  return { group: G, colliders, surfaces, materials: MATS, plan: PLAN, addShade };
 }

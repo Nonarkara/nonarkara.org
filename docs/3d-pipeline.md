@@ -52,3 +52,19 @@ Neither Blender nor Unreal is installed here (`/Applications` has neither; no `b
 1. Blender, bake-only, Pavilion first. Install it, run the spike, keep it only if it clears the budget.
 2. Unreal, studio-only, when a hero film or share card is wanted. Not before.
 3. No Pixel Streaming, no glTF buildings, no second geometry source.
+
+## Spike result (2026-11-02): kept
+
+Blender 5.2.3 (checksum verified against the cask, run from `~/Applications`). The pipeline is three commands and nothing is modelled twice:
+
+```bash
+node tools/pavilion-export.mjs out/pavilion.obj          # the browser's own buildPavilion(), flattened
+~/Applications/Blender.app/Contents/MacOS/Blender -b -P tools/bake-podium.py -- \
+  out/pavilion.obj out/pavilion.json bake/pavilion-podium.png
+node test-bake.mjs                                       # the budget and the shape
+```
+
+- **Scope:** the podium top only. A top-down Cycles render with a morning sun and soft sky, the shade written as the alpha of a black RGBA PNG, laid over the podium as one translucent plane with planar mapping from `PLAN.podium`. No UV set, no new geometry, no loader. Pools are masked out so water keeps its colour.
+- **Cost:** 76 KB (budget 250), fetched on idle, skipped when `deviceMemory <= 2`, plane hidden until the image arrives so a failed fetch leaves the room unchanged.
+- **Effect:** 25% of a first-person frame gets darker where the roof and walls shade the paving (`docs/bake-spike/`, with and without). It is real and deliberately quiet. The spike does not yet bake the walls, columns or interiors; that is the next step if the podium reads well in use.
+- **Next, in order of value:** bake the same shade onto the Farnsworth trays and the Savoye pilotis undersides; then one hero prop (the Traction Avant) as meshopt glTF. Each only if it clears its own byte budget.

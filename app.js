@@ -541,7 +541,10 @@ const HAS_ROOM = (() => {
 // 4.55 (2026-11-02) the audit: internal docs are no longer served, the worker's
 //                  secrets compare in constant time, the constellations are
 //                  stroked once.
-const NON_VERSION = '4.55';
+// 4.56 (2026-11-02) baked light: the Pavilion's podium is shaded by its own roof
+//                  and walls, baked in Blender from the browser's own geometry
+//                  (76 KB, fetched on idle).
+const NON_VERSION = '4.56';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -934,6 +937,13 @@ if (WEBGL_OK) {
   // fence:false — the podium edge used to be the end of the world.
   const dark = CURRENT_THEME !== 'light';
   PAVILION = buildPavilion(THREE, scene, { dark, fence: false });
+  // The baked light on the podium (tools/bake-podium.py). Fetched when the
+  // browser is idle, never on a device that is short of memory, and a
+  // failed fetch leaves the room as it was.
+  if (!(navigator.deviceMemory && navigator.deviceMemory <= 2)) {
+    (window.requestIdleCallback || ((fn) => setTimeout(fn, 2000)))(
+      () => PAVILION.addShade('/bake/pavilion-podium.png'));
+  }
   // Mies's Barcelona pieces plus Marcel Breuer's Wassily, Cesca, and
   // Laccio — the 1929 sitting group, where the famous photograph was
   // taken from. Without this the Pavilion is a beautiful room with
