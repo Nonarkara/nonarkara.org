@@ -47,3 +47,17 @@ portraits/IMG_4734.jpg
 # Operator workspaces. Not part of the public site.
 yt-channel/
 .firecrawl/
+
+# Working documents and gate fixtures. They were being served to anyone who
+# asked (tasks/lessons.md, AGENTS.md, CLAUDE.md, the spatial baseline, the
+# probe injected by the gate): not secrets, but internal law and
+# lessons-learned a visitor has no use for. Anchored to the repo root so
+# city-photos/CREDITS.md, which the site owes its photographers, still ships.
+/README.md
+/AGENTS.md
+/CLAUDE.md
+/ANTI-SLOP.md
+/CONTRIBUTING.md
+/tasks/
+/design/
+/scripts/

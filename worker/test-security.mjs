@@ -1,5 +1,5 @@
 import assert from "node:assert";
-import { isCaptureOriginAllowed, sanitizeCapture } from "./src/index.js";
+import { isCaptureOriginAllowed, sanitizeCapture, keyOk } from "./src/index.js";
 
 assert(isCaptureOriginAllowed("https://nonarkara.org"));
 assert(isCaptureOriginAllowed("https://www.nonarkara.org"));
@@ -35,4 +35,17 @@ assert.deepEqual(
   {},
 );
 
-console.log("worker security: capture origin + payload allowlists pass");
+// The shared-secret check: header or query, exact match only, never empty.
+{
+  const req = (h = {}) => ({ headers: new Headers(h) });
+  const u = (q = "") => new URL("https://api.test/x" + q);
+  assert(keyOk(req({ Authorization: "Bearer s3cret" }), u(), "s3cret"), "bearer header must pass");
+  assert(keyOk(req(), u("?key=s3cret"), "s3cret"), "query key must still pass (the daemon uses it)");
+  assert(!keyOk(req(), u("?key=s3cre"), "s3cret"), "a prefix of the secret must fail");
+  assert(!keyOk(req(), u("?key=s3crets"), "s3cret"), "the secret plus more must fail");
+  assert(!keyOk(req(), u(), "s3cret"), "no key must fail");
+  assert(!keyOk(req(), u("?key="), ""), "an unset secret must never match an empty key");
+  assert(!keyOk(req({ Authorization: "Bearer " }), u(), undefined), "an undefined secret must fail");
+}
+
+console.log("worker security: capture origin + payload allowlists + shared-secret check pass");

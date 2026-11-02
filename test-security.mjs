@@ -71,4 +71,12 @@ assert(!/curl[^\n]+\|\s*grep\s+-m1/.test(ship),
 assert(ship.includes('scripts/msh/csp.mjs --write'),
   'ship.sh must refresh the CSP hashes before staging, or a stale hash ships and the heal dies silently');
 
+const ignore = read('./.deployignore');
+for (const internal of ['/tasks/', '/design/', '/scripts/', '/AGENTS.md', '/CLAUDE.md']) {
+  assert(ignore.split('\n').includes(internal),
+    `.deployignore must keep ${internal} off the public site: it was served to anyone who asked`);
+}
+assert(!/searchParams\.get\("key"\) !==/.test(worker),
+  'shared secrets must go through keyOk (constant-time, header-capable), not a bare !== on the query');
+
 console.log('security: CSP hashes · SRI · privacy · capture boundary · pinned CI · honest deploy verification');

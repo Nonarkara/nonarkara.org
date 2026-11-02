@@ -343,6 +343,21 @@ async function captureRateLimited(req, env) {
 
 export { isCaptureOriginAllowed, sanitizeCapture };
 
+// A shared-secret check that does not leak the secret through timing, and
+// that lets the caller keep it out of the URL: a ?key= lands in access logs
+// and browser history, an Authorization header does not. The query form is
+// still accepted so the resident daemon keeps working until it is moved over.
+export function keyOk(req, url, secret) {
+  if (!secret) return false;
+  const given = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "")
+    || url.searchParams.get("key") || "";
+  const a = new TextEncoder().encode(given);
+  const b = new TextEncoder().encode(secret);
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < b.length; i++) diff |= (a[i] ?? 0) ^ b[i];
+  return diff === 0;
+}
+
 export default {
   // ── Scheduled handler (cron */5) ────────────────────────────
   async scheduled(_event, env, ctx) {
@@ -727,7 +742,7 @@ export default {
     //                                brain's contents never leave the
     //                                laptop; only its vital signs do.
     if (url.pathname === "/captures") {
-      if (!env.BRAIND_KEY || url.searchParams.get("key") !== env.BRAIND_KEY) {
+      if (!keyOk(req, url, env.BRAIND_KEY)) {
         return json({ error: "unauthorized" }, { status: 401 });
       }
       const since = url.searchParams.get("since") || "1970-01-01T00:00:00Z";
@@ -743,7 +758,7 @@ export default {
     }
 
     if (url.pathname === "/brain-status" && req.method === "POST") {
-      if (!env.BRAIND_KEY || url.searchParams.get("key") !== env.BRAIND_KEY) {
+      if (!keyOk(req, url, env.BRAIND_KEY)) {
         return json({ error: "unauthorized" }, { status: 401 });
       }
       let body;
@@ -790,7 +805,7 @@ export default {
 
     // Guarded end-to-end check that the bot token and chat id actually work.
     if (url.pathname === "/alert-test") {
-      if (!env.ALERT_TEST_SECRET || url.searchParams.get("key") !== env.ALERT_TEST_SECRET) {
+      if (!keyOk(req, url, env.ALERT_TEST_SECRET)) {
         return json({ error: "forbidden" }, { status: 403 });
       }
       const r = await tg(env, "\u{1F7E1} TEST · nonarkara-status alerting is wired up.");
