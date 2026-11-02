@@ -22,6 +22,12 @@
  * Same return shape as buildGlassHouse / buildPavilion.
  */
 
+import { layShade } from './bake-shade.js';
+
+// Where the baked ground shade lands, in the group's own coordinates. Generated
+// by tools/export-building.mjs and checked against it by test-bake.mjs.
+export const SHADE = { x0: -7.5, x1: 7.5, z0: -15, z1: 24.5, y: 0 };
+
 export const PLAN = {
   name: 'FARNSWORTH',
   // South of the Pavilion on the denser estate (~50m centres).
@@ -518,5 +524,7 @@ export function buildFarnsworth(THREE, scene, opts = {}) {
     heightAt: (x, z, curY) => f.heightAt(x - o.x, z - o.z, curY),
   }));
 
-  return { group: G, colliders, floors, surfaces, materials: MATS, plan: PLAN };
+  const addShade = (url) => layShade(THREE, G, SHADE, url);
+
+  return { group: G, colliders, floors, surfaces, materials: MATS, plan: PLAN, addShade };
 }

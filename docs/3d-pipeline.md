@@ -58,8 +58,8 @@ Neither Blender nor Unreal is installed here (`/Applications` has neither; no `b
 Blender 5.2.3 (checksum verified against the cask, run from `~/Applications`). The pipeline is three commands and nothing is modelled twice:
 
 ```bash
-node tools/pavilion-export.mjs out/pavilion.obj          # the browser's own buildPavilion(), flattened
-~/Applications/Blender.app/Contents/MacOS/Blender -b -P tools/bake-podium.py -- \
+node tools/export-building.mjs pavilion out/pavilion.obj # the browser's own buildPavilion(), flattened (also: farnsworth)
+~/Applications/Blender.app/Contents/MacOS/Blender -b -P tools/bake-ground.py -- \
   out/pavilion.obj out/pavilion.json bake/pavilion-podium.png
 node test-bake.mjs                                       # the budget and the shape
 ```
@@ -67,4 +67,11 @@ node test-bake.mjs                                       # the budget and the sh
 - **Scope:** the podium top only. A top-down Cycles render with a morning sun and soft sky, the shade written as the alpha of a black RGBA PNG, laid over the podium as one translucent plane with planar mapping from `PLAN.podium`. No UV set, no new geometry, no loader. Pools are masked out so water keeps its colour.
 - **Cost:** 76 KB (budget 250), fetched on idle, skipped when `deviceMemory <= 2`, plane hidden until the image arrives so a failed fetch leaves the room unchanged.
 - **Effect:** 25% of a first-person frame gets darker where the roof and walls shade the paving (`docs/bake-spike/`, with and without). It is real and deliberately quiet. The spike does not yet bake the walls, columns or interiors; that is the next step if the podium reads well in use.
-- **Next, in order of value:** bake the same shade onto the Farnsworth trays and the Savoye pilotis undersides; then one hero prop (the Traction Avant) as meshopt glTF. Each only if it clears its own byte budget.
+- **Next, in order of value:** one hero prop (the Traction Avant) as meshopt glTF, only if it clears its own byte budget.
+
+## v4.57 (2026-11-02): second building, one pipeline
+
+The scripts are generic now: `export-building.mjs <name>` writes the geometry and the ground rect, `bake-ground.py` lights it, `bake-shade.js` lays it. `test-bake.mjs` checks each bake's budget, aspect and that its `SHADE` rect still equals what the exporter computes from the geometry.
+
+- **Farnsworth: kept.** 166 KB (budget 250), sky occlusion only (no sun), so it never argues with the live sun shadow. Soft contact shade under the lifted trays and the terrace.
+- **Savoye: tried, deleted.** The house's slab covers its whole footprint, so the bake came out as one uniform grey square with a hard edge: a drop shadow, not light. It did not clearly improve the room, so it did not ship. The pilotis need a bake that lights the *underside* geometry, not the ground; that is a different job.

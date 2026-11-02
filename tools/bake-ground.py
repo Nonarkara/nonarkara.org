@@ -1,20 +1,21 @@
 """
-Bake the Pavilion's light onto its podium, headless.
+Bake a building's light onto the ground it shades, headless.
 
-    blender -b -P tools/bake-podium.py -- out/pavilion.obj out/pavilion.json out/podium-shade.png
+    blender -b -P tools/bake-ground.py -- out/<name>.obj out/<name>.json bake/<name>-ground.png
 
-The geometry is whatever tools/pavilion-export.mjs wrote: the browser's own
-buildPavilion(), not a second model. This script only LIGHTS it. It renders a
-top-down orthographic view of the podium top with a morning sun and a soft
-sky, and writes the shade as the ALPHA of a black image, so the browser lays
-it over the podium as a single translucent plane. No UVs are needed: the
-mapping is planar and the bounds are in the JSON.
+The geometry is whatever tools/export-building.mjs wrote: the browser's own
+buildX(), not a second model. This script only LIGHTS it. It renders a
+top-down orthographic view of the ground rectangle in the JSON, with a soft
+sky (and a morning sun when the JSON says so), and writes the shade as the
+ALPHA of a black image, so the browser lays it over the ground as a single
+translucent plane. No UVs are needed: the mapping is planar. Rectangles in
+`mask` get no shade (water keeps its colour).
 """
 import bpy, sys, json, math
 
 obj, meta, out = sys.argv[sys.argv.index("--") + 1:][:3]
 J = json.load(open(meta))
-M = J["podiumTop"]
+M = J["ground"]
 W, D = M["x1"] - M["x0"], M["z1"] - M["z0"]
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -29,7 +30,7 @@ for o in list(bpy.context.scene.objects):
     o.visible_camera = False
 
 # Ground receiver: the podium top, a hair above y=0.
-bpy.ops.mesh.primitive_plane_add(size=1, location=((M["x0"]+M["x1"])/2, -(M["z0"]+M["z1"])/2, 0.001))
+bpy.ops.mesh.primitive_plane_add(size=1, location=((M["x0"]+M["x1"])/2, -(M["z0"]+M["z1"])/2, M["y"] + 0.001))
 ground = bpy.context.object
 ground.scale = (W, D, 1)
 mat = bpy.data.materials.new("receiver"); mat.use_nodes = True
@@ -39,7 +40,7 @@ ground.data.materials.append(mat)
 ground.visible_camera = True
 
 # Light: a morning sun and an overcast-ish sky.
-sun = bpy.data.lights.new("sun", "SUN"); sun.energy = 3.0; sun.angle = math.radians(2.5)
+sun = bpy.data.lights.new("sun", "SUN"); sun.energy = 3.0 if J.get("sun") else 0.0; sun.angle = math.radians(2.5)
 so = bpy.data.objects.new("sun", sun); scene.collection.objects.link(so)
 so.rotation_euler = (math.radians(55), 0, math.radians(110))   # ~35° up, from the east-south-east
 world = bpy.data.worlds.new("w"); world.use_nodes = True
@@ -48,15 +49,15 @@ world.node_tree.nodes["Background"].inputs["Strength"].default_value = 1.0
 scene.world = world
 
 # Top-down orthographic camera exactly over the podium top.
-cam = bpy.data.cameras.new("c"); cam.type = "ORTHO"; cam.ortho_scale = W
+cam = bpy.data.cameras.new("c"); cam.type = "ORTHO"; cam.ortho_scale = max(W, D)
 co = bpy.data.objects.new("c", cam); scene.collection.objects.link(co)
 co.location = ((M["x0"]+M["x1"])/2, -(M["z0"]+M["z1"])/2, 60)
 co.rotation_euler = (0, 0, 0)
 scene.camera = co
 
-px = 1024
-scene.render.resolution_x = px
-scene.render.resolution_y = int(round(px * D / W / 8) * 8) or 8
+px = 1024   # on the longer axis
+scene.render.resolution_x = int(round(px * min(1, W / D) / 8) * 8) or 8
+scene.render.resolution_y = int(round(px * min(1, D / W) / 8) * 8) or 8
 scene.render.engine = "CYCLES"
 scene.cycles.samples = 64
 scene.cycles.device = "CPU"
@@ -64,7 +65,7 @@ scene.render.film_transparent = False
 scene.view_settings.view_transform = "Standard"
 scene.render.image_settings.file_format = "PNG"
 scene.render.image_settings.color_mode = "RGB"
-scene.render.filepath = out + ".lit.png"
+scene.render.filepath = "/tmp/bake-ground-lit.png"   # scratch render; only the alpha PNG ships
 bpy.ops.render.render(write_still=True)
 
 # Shade -> alpha. Fully lit open ground (the brightest 2%) is alpha 0; the
@@ -79,7 +80,7 @@ lum = a[..., 0] * 0.2126 + a[..., 1] * 0.7152 + a[..., 2] * 0.0722
 top = np.percentile(lum, 98)
 shade = np.clip((top - lum) / max(top, 1e-6), 0, 1) * SHADE_MAX
 # Water keeps its own colour: the pools are not paving, so they get no shade.
-for pool in J["pools"]:
+for pool in J.get("mask", []):
     c0 = int((pool["x0"] - M["x0"]) / W * w); c1 = int((pool["x1"] - M["x0"]) / W * w)
     r0 = int((M["z1"] - pool["z1"]) / D * h);  r1 = int((M["z1"] - pool["z0"]) / D * h)   # pixel rows run bottom-up: row 0 is the +z edge
     shade[min(r0, r1):max(r0, r1), c0:c1] = 0

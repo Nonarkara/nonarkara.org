@@ -544,7 +544,9 @@ const HAS_ROOM = (() => {
 // 4.56 (2026-11-02) baked light: the Pavilion's podium is shaded by its own roof
 //                  and walls, baked in Blender from the browser's own geometry
 //                  (76 KB, fetched on idle).
-const NON_VERSION = '4.56';
+// 4.57 (2026-11-02) the same baked light under the Farnsworth trays (166 KB, idle);
+//                  one generic pipeline, tools/export-building.mjs + bake-ground.py.
+const NON_VERSION = '4.57';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -967,6 +969,10 @@ if (WEBGL_OK) {
   SAVOYE = buildSavoye(THREE, scene, { dark });
   window.__savoyePlan = SAVOYE_PLAN;   // verification handle
   FARNSWORTH = buildFarnsworth(THREE, scene, { dark });
+  if (!(navigator.deviceMemory && navigator.deviceMemory <= 2)) {
+    (window.requestIdleCallback || ((fn) => setTimeout(fn, 2000)))(
+      () => FARNSWORTH.addShade('/bake/farnsworth-ground.png'));
+  }
   furnishFarnsworth(THREE, FARNSWORTH.group, dark, FARN_PLAN.lift);
   FALLINGWATER = buildFallingwater(THREE, scene, { dark });
   SITE.push(
