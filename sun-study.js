@@ -578,6 +578,14 @@ export function setupSunStudy({ site, onTime }) {
 
   return {
     open, close, refresh,
+    /** Stand the room at a given hour — for the proof, and for anything
+     *  that wants the world at a particular time of day. */
+    setTime(minutes, day = state.day) {
+      state.day = day;
+      state.minutes = ((minutes % 1440) + 1440) % 1440;
+      state.live = false;
+      commit();
+    },
     get playing() { return state.playing; },
     /** The estate asks the study where the clock is, when it wakes up. */
     syncToNow() {

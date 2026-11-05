@@ -6,7 +6,7 @@
  * for same-origin, so a stale version means users keep the old shell.
  */
 
-const CACHE_VERSION = 'non-2026-11-03-v4.58';
+const CACHE_VERSION = 'non-2026-11-05-v4.59';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 // The app's own code. These are always revalidated when online so a
@@ -17,6 +17,8 @@ const CODE = new Set([
   '/entrance.css',                    // the door's own type and colour — it is not in styles.css
   '/vendor-three-0.160.0.js',         // pinned by name, but still the app's own code
   '/starcat.js',                      // 5,021 real stars, fetched on the first look up
+  '/citymass.js',                     // the city massing — the buildings under the plate
+  '/city-model.js',                   // and the module that draws them
   '/constellations.js',               // the eighty-eight Modern figures — same rule
   '/render-quality.js',
   '/world-lighting.js',
@@ -63,6 +65,8 @@ const SHELL = [
   '/discover.js',                   // pavilion discovery counter
   '/sky.js',                        // the planetarium — must work offline
   '/starcat.js',                    // 5,021 real stars — the sky, offline
+  '/citymass.js',                   // the city massing — offline too
+  '/city-model.js',                 // and the module that draws it
   '/constellations.js',             // the figures on those stars — offline too
   '/pavilion.js',                   // the Barcelona plan
   '/glasshouse.js',                 // New Canaan, 1949

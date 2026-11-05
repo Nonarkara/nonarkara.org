@@ -548,7 +548,10 @@ const HAS_ROOM = (() => {
 //                  one generic pipeline, tools/export-building.mjs + bake-ground.py.
 // 4.58 (2026-11-03) Blender-authored Cybertruck exterior: 117 KB / 1,716
 //                  triangles, idle-loaded above the procedural mechanics.
-const NON_VERSION = '4.58';
+// 4.59 (2026-11-05) the ground is glass and the city is under it: the
+//                  real massing of Bangkok, baked from OpenStreetMap,
+//                  standing on the map the visitor is standing on.
+const NON_VERSION = '4.59';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -6176,6 +6179,14 @@ function animate() {
     // stepping the wheel reads as a lift, not a cut.
     const wantY = (GROUND && GROUND.getDepth) ? GROUND.getDepth() : 0.06;
     window.__groundGroup.position.y = damp(window.__groundGroup.position.y, wantY, 5, dtLook);
+    // The city's heights are exaggerated so the massing reads from a
+    // kilometre up — and the exaggeration is tied to the gap it hangs
+    // in, so it can never grow up through the floor. It follows the
+    // plate's actual depth, not the depth it is easing towards, so the
+    // model and the space it hangs in never disagree.
+    if (CITY) {
+      CITY.group.scale.y = CITY.reliefFor(window.__groundGroup.position.y, CITY.maxHeight);
+    }
   }
 
   // Ambient particles
@@ -7201,7 +7212,15 @@ function updateGroundCaption() {
   if (cap && GROUND) {
     const pitch = CAMERA_MODE === 'ground' ? camera.rotation.x : GROUND_PITCH;
     const across = GROUND.scaleLabel(WORLD_SITE.lat, window.innerWidth / window.innerHeight, pitch);
-    cap.textContent = `${across} · ${GROUND.mod.ATTRIBUTION}`;
+    // Say what the floor actually is: the city under it, and by how
+    // much its heights have been multiplied to be legible from a
+    // kilometre up. A height that has been quietly exaggerated is a
+    // height that is lying.
+    const relief = CITY ? CITY.reliefFor(GROUND.getDepth(), CITY.maxHeight) : 0;
+    const massing = CITY?.bangkok
+      ? ` · MASSING ×${relief < 10 ? relief.toFixed(1) : Math.round(relief)}`
+      : '';
+    cap.textContent = `${across}${massing} · ${GROUND.mod.ATTRIBUTION}`;
     document.body.dataset.groundZoom = String(GROUND.getZoom());
   }
 }
@@ -7229,6 +7248,7 @@ function syncOverheadHud() {
   if (mode === 'ground') {
     if (GROUND) {
       GROUND.load(WORLD_SITE);
+      ensureCity();
       const cap = document.getElementById('ground-cap');
       updateGroundCaption();
       const place = document.getElementById('ground-place');
@@ -7246,12 +7266,65 @@ function syncOverheadHud() {
 }
 
 // ── THE GROUND — the sky's mirror ───────────────────────────
+//
+// The city under the plate is drawn only where it is true. The model
+// is Bangkok's; the plate is wherever the visitor is; and if those are
+// not the same place, Bangkok's buildings would be standing under
+// somebody else's street.
+// THE CITY UNDER THE PLATE.
+//
+// The plate is a picture of the ground. This is the ground itself: the
+// real buildings of the real place, baked into a massing and hung
+// under the map, so that looking down shows the city rather than a
+// photograph of one.
+//
+// It is built when the ground is first asked for — not at boot, because
+// a quarter of a megabyte of city on the first load is a price for
+// something most visitors never look at.
+//
+// It is a child of the ground group, so it falls with the plate and
+// travels with the walker, and it is 1:1 with the map: its footprints
+// sit exactly where those buildings stand. Only the heights are not to
+// scale, and the caption says by how much.
+async function ensureCity() {
+  if (CITY || !GROUND) return;
+  try {
+    const city = await import('./city-model.js');
+    const model = await city.loadCityModel();
+    CITY = city.buildCityModel(THREE, model);
+    CITY.reliefFor = city.reliefFor;
+    CITY.paint = city.paintCityModel;
+    CITY.offset = city.cityOffset;
+    CITY.radius = city.cityRadius;
+    CITY.inside = city.cityInside;
+    GROUND.group.add(CITY.group);
+    placeCity();
+    window.__cityModel = CITY;   // verification handle
+  } catch (err) {
+    console.warn('[NON] the city massing did not load:', err && err.message);
+  }
+}
+
+function placeCity() {
+  if (!CITY || !CITY.offset) return;
+  const offset = CITY.offset(WORLD_SITE);
+  CITY.group.position.set(offset.x, 0, offset.z);
+  const inside = CITY.inside(WORLD_SITE);
+  CITY.group.visible = inside;
+  CITY.bangkok = inside;
+}
+
 // Same position, same compass, opposite direction. The floor goes to
 // glass and underneath it is the actual ground, from orbit, turned so
 // that north on the photograph is north in the room.
 let GROUND = null;
 let GROUND_BLEND = 0;
 let GROUND_CAPTION_TICK = 0;
+// The city, under the plate. The massing of the real place, baked into a
+// file and hung under the floor: the model stands on the map, at 1:1 with
+// the ground it stands on, so the streets between its blocks are the
+// streets under your feet.
+let CITY = null;
 // 78° down. The plate is 1:1 with the world, so the frame can only hold a
 // neighbourhood if the eye looks nearly straight down: at 68° the far edge
 // of the picture sits 2.7 km away and the plate would have to be twice its
@@ -7281,6 +7354,7 @@ async function initGround() {
     // refresh the "X M ACROSS · KIND" label and the lat/lon.
     GROUND.setZoomListener(() => updateGroundCaption());
     if (gHint) gHint.disabled = false;
+
   } catch (_) {
     gHint?.remove();
   }
@@ -8285,6 +8359,10 @@ if (WEBGL_OK && PAVILION) {
     // so there is a horizon rather than a void.
     if (window.__plainMat) window.__plainMat.color.setHex(mixHex(p.bg, p.podium, 0.35));
     if (window.__plainGridMat) window.__plainGridMat.color.setHex(p.line);
+    // The city below is drawn in the room's ink, so it changes colour
+    // with the hour exactly when the room above it does. At night it is
+    // a pale line drawing on black; at noon it is ink on paper.
+    if (CITY?.paint) CITY.paint(CITY);
     if (MOUNTAINS) MOUNTAINS.setPalette(p, WORLD_STATE?.sun.alt ?? -30);
     // Dust catches low sunlight warm and high daylight cool. MeshBasic
     // buildings do not respond to fake lights, so their actual material
@@ -8334,7 +8412,7 @@ if (WEBGL_OK && PAVILION) {
   // One geolocation request updates every consumer. Previously the sky and
   // daylight each held a private coordinate, so accepting one prompt could
   // put the stars here while leaving sunrise in Bangkok.
-  window.__worldLocationChanged = () => { refresh(); refreshWeather(); };
+  window.__worldLocationChanged = () => { placeCity(); refresh(); refreshWeather(); };
   refresh();
   refreshWeather();
   setInterval(refresh, 60_000);
