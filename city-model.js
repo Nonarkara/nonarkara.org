@@ -40,12 +40,29 @@
  * and it is the real one.
  */
 
-import { MODEL_CENTER, MODEL_MAX_H, MODEL_RADIUS_M, decodeCityModel } from './citymass.js';
+import {
+  MODEL_CENTER,
+  MODEL_MAX_H,
+  MODEL_RADIUS_M,
+  MODEL_HEIGHT_SOURCES,
+  MODEL_RETRIEVED_ON,
+  decodeCityModel,
+} from './citymass.js';
 
 /** How much of the gap between the plate and the floor the model fills. */
 const RELIEF_FILL = 0.34;
 
 const D2R = Math.PI / 180;
+const EARTH_RADIUS_M = 6378137;
+const EARTH_CIRCUMFERENCE_M = 2 * Math.PI * EARTH_RADIUS_M;
+
+const mercatorUnit = (site) => {
+  const latRad = site.lat * D2R;
+  return {
+    x: (site.lon + 180) / 360,
+    y: (1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2,
+  };
+};
 
 /**
  * The four tones of a face, as multipliers of the ink.
@@ -57,6 +74,7 @@ const D2R = Math.PI / 180;
  * city read as a city in a single glance.
  */
 const TONE = { top: 0.95, north: 0.72, east: 0.62, west: 0.52, south: 0.44 };
+const MASS_INK = 0x2b343c;
 
 /** The tone for a wall's outward normal, in scene coordinates. */
 function toneFor(nx, nz) {
@@ -70,7 +88,14 @@ let _model = null;
 
 /** Load the model once. It is a file, not a request. */
 export async function loadCityModel() {
-  if (!_model) _model = { ...decodeCityModel(), maxHeight: MODEL_MAX_H };
+  if (!_model) {
+    _model = {
+      ...decodeCityModel(),
+      maxHeight: MODEL_MAX_H,
+      heightSources: MODEL_HEIGHT_SOURCES,
+      retrievedOn: MODEL_RETRIEVED_ON,
+    };
+  }
   return _model;
 }
 
@@ -103,10 +128,18 @@ export function cityInside(site) {
  * model is centred under your feet.
  */
 export function cityOffset(site) {
+  const here = mercatorUnit(site);
+  const centre = mercatorUnit(MODEL_CENTER);
+  const scale = EARTH_CIRCUMFERENCE_M * Math.cos(site.lat * D2R);
   return {
-    x: (MODEL_CENTER.lon - site.lon) * 111320 * Math.cos(site.lat * D2R),
-    z: -(MODEL_CENTER.lat - site.lat) * 110574,
+    x: (centre.x - here.x) * scale,
+    z: (centre.y - here.y) * scale,
   };
+}
+
+/** Match the model's baked local Mercator scale to the visitor's plate. */
+export function cityScale(site) {
+  return Math.cos(site.lat * D2R) / Math.cos(MODEL_CENTER.lat * D2R);
 }
 
 /**
@@ -116,7 +149,7 @@ export function cityOffset(site) {
  * the model never changes, only where it stands and how tall it is
  * drawn.
  */
-export function buildCityModel(THREE, model, { ink = 0xffffff, edge = 0xffffff } = {}) {
+export async function buildCityModel(THREE, model, { ink = MASS_INK, edge = MASS_INK } = {}) {
   const { count, offsets, points, heights } = model;
 
   const facePos = [];
@@ -124,8 +157,16 @@ export function buildCityModel(THREE, model, { ink = 0xffffff, edge = 0xffffff }
   const linePos = [];
 
   const push = (arr, x, y, z) => { arr.push(x, y, z); };
+  const yieldFrame = () => new Promise((resolve) => {
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => resolve());
+    else setTimeout(resolve, 0);
+  });
 
   for (let b = 0; b < count; b++) {
+    // Triangulating the whole city in one turn used to block the camera for
+    // 285 ms exactly as the visitor looked down. The city may take a few
+    // more frames to finish; the hand and the LOOK transition never wait.
+    if (b > 0 && b % 192 === 0) await yieldFrame();
     const start = offsets[b];
     const end = offsets[b + 1];
     const n = end - start;
@@ -220,7 +261,15 @@ export function buildCityModel(THREE, model, { ink = 0xffffff, edge = 0xffffff }
   lines.frustumCulled = false;
   group.add(lines);
 
-  return { group, faces, lines, vertices: facePos.length / 3, maxHeight: model.maxHeight };
+  return {
+    group,
+    faces,
+    lines,
+    vertices: facePos.length / 3,
+    maxHeight: model.maxHeight,
+    heightSources: model.heightSources,
+    retrievedOn: model.retrievedOn,
+  };
 }
 
 /**
@@ -256,8 +305,6 @@ export function reliefFor(depth, maxHeight) {
  * ink at full strength. The drawing reads against the map in every
  * light, which is the only thing a drawing has to do.
  */
-const MASS_INK = 0x2b343c;
-
 export function paintCityModel(built) {
   built.faces.material.color.setHex(MASS_INK);
   built.faces.material.needsUpdate = true;

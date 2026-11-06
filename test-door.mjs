@@ -53,9 +53,10 @@ for (const vp of WIDTHS) {
 
   await page.goto(URL_, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => {
-    const b = document.getElementById('boot');
-    return b && getComputedStyle(b).display === 'none';
-  }, { timeout: 20000 }).catch(() => {});
+    const door = document.getElementById('door');
+    return document.body.dataset.door === 'open'
+      && door && getComputedStyle(door).display !== 'none';
+  }, null, { timeout: 20000 });
   await page.waitForTimeout(800);
 
   const m = await page.evaluate(() => {

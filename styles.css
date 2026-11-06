@@ -3468,12 +3468,28 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
     /* Attribution is a condition of using the imagery, so it renders on
        screen rather than living in a comment nobody reads. */
     .ground-cap {
-      position: absolute; left: 0; right: 0;
+      position: absolute; left: 50%; right: auto;
+      transform: translateX(-50%);
       bottom: calc(22px + var(--sab));
+      width: max-content; max-width: calc(100vw - 24px);
+      display: flex; flex-wrap: wrap; justify-content: center;
+      gap: 2px 10px;
       text-align: center;
-      font-size: 9px; letter-spacing: 0.26em; text-transform: uppercase;
+      font-size: 11px; line-height: 1.45; letter-spacing: 0.11em; text-transform: uppercase;
       color: var(--dim);
-      padding: 0 16px;
+      padding: 5px 8px;
+      background: rgba(255, 255, 255, 0.82);
+      box-shadow: 0 0 0 1px rgba(18, 24, 31, 0.12);
+    }
+    .ground-cap-main,
+    .ground-cap-meta,
+    .ground-cap-credit { white-space: nowrap; }
+    .ground-cap-meta { opacity: 0.78; }
+    .ground-cap-credit {
+      color: inherit;
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 2px;
     }
     /* On a phone the caption wraps to two lines and reaches the link row
        in the bottom-right corner. It steps up above it. */

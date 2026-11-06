@@ -551,7 +551,10 @@ const HAS_ROOM = (() => {
 // 4.59 (2026-11-05) the ground is glass and the city is under it: the
 //                  real massing of Bangkok, baked from OpenStreetMap,
 //                  standing on the map the visitor is standing on.
-const NON_VERSION = '4.59';
+// 4.60 (2026-11-06) the city and map share one Web Mercator plane;
+//                  height provenance is visible and the city payload is
+//                  truly deferred until the visitor looks down.
+const NON_VERSION = '4.60';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by
@@ -751,6 +754,10 @@ camera.rotation.order = 'YXZ';
 // result was a view that lagged, snapped back, and hijacked itself.
 const LOOK = new Look();
 window.__look = LOOK;
+const aimLook = (yaw, pitch, k) => {
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  LOOK.aimAt(yaw, pitch, reduce ? 1 : k);
+};
 window.__camera = camera;   // verification handle
 window.__scene = scene;      // verification handle
 camera.rotation.order = 'YXZ';
@@ -5633,7 +5640,7 @@ function startDollyTo(targetPoint) {
   // two rotation authorities is exactly the disease this rewrite cures.
   const d = targetPoint.clone().sub(camera.position);
   const flat = Math.hypot(d.x, d.z);
-  LOOK.aimAt(Math.atan2(-d.x, -d.z), Math.atan2(d.y + 0.5, flat), 0.09);
+  aimLook(Math.atan2(-d.x, -d.z), Math.atan2(d.y + 0.5, flat), 0.09);
 }
 function endDolly() {
   dollyTarget = null;
@@ -7191,12 +7198,12 @@ document.querySelectorAll('[data-place-ask]').forEach((b) => {
 // The sky appears because you are looking at it — same as walking.
 function enterSky() {
   if (!skyAvailable()) return;
-  LOOK.aimAt(LOOK.yaw, 1.15, 0.10);
+  aimLook(LOOK.yaw, 1.15, 0.10);
   ensureSky();
   try { enableGyro(); } catch (_) {}
 }
 
-function exitSky() { LOOK.aimAt(LOOK.yaw, 0, 0.10); }
+function exitSky() { aimLook(LOOK.yaw, 0, 0.10); }
 
 function toggleSky() { CAMERA_MODE === 'sky' ? exitSky() : enterSky(); }
 
@@ -7220,7 +7227,21 @@ function updateGroundCaption() {
     const massing = CITY?.bangkok
       ? ` · MASSING ×${relief < 10 ? relief.toFixed(1) : Math.round(relief)}`
       : '';
-    cap.textContent = `${across}${massing} · ${GROUND.mod.ATTRIBUTION}`;
+    const hs = CITY?.heightSources;
+    const heightNote = CITY?.bangkok && hs
+      ? ` · HEIGHTS ${hs.height} MEASURED · ${hs.levels} LEVEL-BASED · ${hs.type + hs.default} EST.`
+      : '';
+    const main = document.getElementById('ground-cap-main');
+    const meta = document.getElementById('ground-cap-meta');
+    if (main && meta) {
+      main.textContent = `${across.replace(' ACROSS', '')}${massing.replace('MASSING', 'HEIGHT')}`;
+      meta.textContent = CITY?.bangkok && hs
+        ? `${hs.height} MEASURED · ${hs.levels.toLocaleString('en-US')} LEVEL-DERIVED · ${(hs.type + hs.default).toLocaleString('en-US')} EST.`
+        : '';
+      cap.setAttribute('aria-label', `${across}${massing}${heightNote} · ${GROUND.mod.ATTRIBUTION}`);
+    } else {
+      cap.textContent = `${across}${massing}${heightNote} · ${GROUND.mod.ATTRIBUTION}`;
+    }
     document.body.dataset.groundZoom = String(GROUND.getZoom());
   }
 }
@@ -7291,10 +7312,11 @@ async function ensureCity() {
   try {
     const city = await import('./city-model.js');
     const model = await city.loadCityModel();
-    CITY = city.buildCityModel(THREE, model);
+    CITY = await city.buildCityModel(THREE, model);
     CITY.reliefFor = city.reliefFor;
     CITY.paint = city.paintCityModel;
     CITY.offset = city.cityOffset;
+    CITY.mercatorScale = city.cityScale;
     CITY.radius = city.cityRadius;
     CITY.inside = city.cityInside;
     GROUND.group.add(CITY.group);
@@ -7309,6 +7331,9 @@ function placeCity() {
   if (!CITY || !CITY.offset) return;
   const offset = CITY.offset(WORLD_SITE);
   CITY.group.position.set(offset.x, 0, offset.z);
+  const planarScale = CITY.mercatorScale ? CITY.mercatorScale(WORLD_SITE) : 1;
+  CITY.group.scale.x = planarScale;
+  CITY.group.scale.z = planarScale;
   const inside = CITY.inside(WORLD_SITE);
   CITY.group.visible = inside;
   CITY.bangkok = inside;
@@ -7362,11 +7387,11 @@ async function initGround() {
 
 function enterGround() {
   if (!GROUND) return;
-  LOOK.aimAt(LOOK.yaw, -1.36, 0.10);
+  aimLook(LOOK.yaw, -1.36, 0.10);
   try { enableGyro(); } catch (_) {}
 }
 
-function exitGround() { LOOK.aimAt(LOOK.yaw, 0, 0.10); }
+function exitGround() { aimLook(LOOK.yaw, 0, 0.10); }
 
 function toggleGround() { CAMERA_MODE === 'ground' ? exitGround() : enterGround(); }
 document.getElementById('ground-hint')?.addEventListener('click', enterGround);
@@ -7954,7 +7979,7 @@ if (WEBGL_OK && SITE.length > 1) {
     if (b.plan === SAVOYE_PLAN && EXHIBIT && !EXHIBIT.loaded) EXHIBIT.load();
     // Face the building on arrival: aim the head through the same
     // integrator every other input uses, eased to land as the feet do.
-    LOOK.aimAt(Math.atan2(-(to.lookX - to.x), -(to.lookZ - to.z)), 0, 0.055);
+    aimLook(Math.atan2(-(to.lookX - to.x), -(to.lookZ - to.z)), 0, 0.055);
     // Pointer lock has to be asked for inside the tap, not 1.6s later.
     setWalk(true);
     // The destination floorY is needed up front so the camera can ease
@@ -8359,9 +8384,9 @@ if (WEBGL_OK && PAVILION) {
     // so there is a horizon rather than a void.
     if (window.__plainMat) window.__plainMat.color.setHex(mixHex(p.bg, p.podium, 0.35));
     if (window.__plainGridMat) window.__plainGridMat.color.setHex(p.line);
-    // The city below is drawn in the room's ink, so it changes colour
-    // with the hour exactly when the room above it does. At night it is
-    // a pale line drawing on black; at noon it is ink on paper.
+    // The city below uses fixed dark ink against the map photograph.
+    // Re-applying it here restores the invariant if a renderer or debug
+    // view has touched the material; it does not follow the room palette.
     if (CITY?.paint) CITY.paint(CITY);
     if (MOUNTAINS) MOUNTAINS.setPalette(p, WORLD_STATE?.sun.alt ?? -30);
     // Dust catches low sunlight warm and high daylight cool. MeshBasic

@@ -6,7 +6,7 @@
  * for same-origin, so a stale version means users keep the old shell.
  */
 
-const CACHE_VERSION = 'non-2026-11-05-v4.59';
+const CACHE_VERSION = 'non-2026-11-06-v4.60';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 // The app's own code. These are always revalidated when online so a
@@ -65,8 +65,10 @@ const SHELL = [
   '/discover.js',                   // pavilion discovery counter
   '/sky.js',                        // the planetarium — must work offline
   '/starcat.js',                    // 5,021 real stars — the sky, offline
-  '/citymass.js',                   // the city massing — offline too
-  '/city-model.js',                 // and the module that draws it
+  // citymass.js + city-model.js are deliberately absent: both are lazy
+  // ground-view payloads. CODE still makes them network-first and caches
+  // them after use; pre-caching them would spend 240 KB at first install
+  // for a view most visitors never open.
   '/constellations.js',             // the figures on those stars — offline too
   '/pavilion.js',                   // the Barcelona plan
   '/glasshouse.js',                 // New Canaan, 1949

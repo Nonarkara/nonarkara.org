@@ -12,7 +12,7 @@
  *
  * WHY IT IS BAKED, NOT FETCHED
  *
- * The OpenStreetMap API is a courtesy, not a CDN. Asking it for a
+ * OpenStreetMap's public services are a commons, not a CDN. Asking for a
  * city every time a visitor tilts their phone down would be rude, slow,
  * and unreliable — and it would put a third party's uptime between a
  * reader and the ground they are standing on. So the data is fetched
@@ -25,8 +25,8 @@
  * small shophouses make a texture, not a model, and a texture is not
  * what you want when you are looking down through a floor at the place
  * you live. So the buildings are ranked by MASSING — footprint area
- * times height — and the largest 4,000 are kept, plus every building
- * over a hundred metres, which are the towers that define a skyline.
+ * times height — and the largest 3,500 are kept, plus every building
+ * over a hundred metres and the smaller buildings nearest the centre.
  *
  * The heights are real where OpenStreetMap knows them, and estimated
  * where it does not — which is most of them. The estimates are stated
@@ -39,11 +39,10 @@
  * That travels with the file and is printed on the site.
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 const CENTER = { lat: 13.7563, lon: 100.5018 };
-const RADIUS_M = 1500;
 const BOX = 6000;                    // metres, square
 const TILE_M = 500;                  // the API's comfortable box
 const MAX_BUILDINGS = 3500;
@@ -52,7 +51,6 @@ const TALL_KEEP_M = 100;             // every tower over this height is kept
 const SIMPLIFY_M = 2.0;
 const MIN_H = 2.5;
 const MAX_H = 330;
-const PAUSE_MS = 1200;
 
 const CACHE = (() => {
   const i = process.argv.indexOf('--cache');
@@ -61,8 +59,11 @@ const CACHE = (() => {
 })();
 
 const OUT = new URL('../citymass.js', import.meta.url);
-const M_PER_DEG_LAT = 110574;
-const M_PER_DEG_LON = 111320;
+const EARTH_RADIUS_M = 6378137;
+const EARTH_CIRCUMFERENCE_M = 2 * Math.PI * EARTH_RADIUS_M;
+const M_PER_DEG = EARTH_CIRCUMFERENCE_M / 360;
+const SOURCE_CACHE = path.join(CACHE, 'bangkok-buildings.osm');
+const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 
 // ── The heights nobody measured ──────────────────────────────────
 //
@@ -83,11 +84,9 @@ const TYPE_HEIGHT = {
 const DEFAULT_HEIGHT = 8;
 const LEVELS_M = 3.2;
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
 // ── The grid ─────────────────────────────────────────────────────
-const latSpan = BOX / 2 / M_PER_DEG_LAT;
-const lonSpan = BOX / 2 / (M_PER_DEG_LON * Math.cos((CENTER.lat * Math.PI) / 180));
+const latSpan = BOX / 2 / M_PER_DEG;
+const lonSpan = BOX / 2 / (M_PER_DEG * Math.cos((CENTER.lat * Math.PI) / 180));
 const MIN_LAT = CENTER.lat - latSpan;
 const MAX_LAT = CENTER.lat + latSpan;
 const MIN_LON = CENTER.lon - lonSpan;
@@ -98,30 +97,62 @@ const cols = rows;
 const tileKey = (i, j) => `${i}_${j}`;
 
 // ── Fetching ─────────────────────────────────────────────────────
-async function fetchTile(i, j) {
-  const file = path.join(CACHE, `${tileKey(i, j)}.xml`);
-  if (existsSync(file)) return { file, cached: true };
-  const lon0 = MIN_LON + (i * TILE_M) / (M_PER_DEG_LON * Math.cos((CENTER.lat * Math.PI) / 180));
-  const lon1 = MIN_LON + ((i + 1) * TILE_M) / (M_PER_DEG_LON * Math.cos((CENTER.lat * Math.PI) / 180));
-  const lat0 = MIN_LAT + (j * TILE_M) / M_PER_DEG_LAT;
-  const lat1 = MIN_LAT + ((j + 1) * TILE_M) / M_PER_DEG_LAT;
-  const url = `https://api.openstreetmap.org/api/0.6/map?bbox=${lon0.toFixed(7)},${lat0.toFixed(7)},${lon1.toFixed(7)},${lat1.toFixed(7)}`;
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      const res = await fetch(url, {
-        headers: { 'User-Agent': 'nonarkara.org build (city massing model)' },
-        signal: AbortSignal.timeout(90000),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const body = await res.text();
-      mkdirSync(CACHE, { recursive: true });
-      writeFileSync(file, body);
-      return { file, cached: false };
-    } catch (err) {
-      if (attempt === 3) throw err;
-      await sleep(2000 * attempt);
+//
+// The main OpenStreetMap API is an EDITING API, not a bulk-download
+// endpoint. The first version of this baker sent 144 map requests to it.
+// The result was cached and valid, but repeating that traffic would be a
+// poor neighbour. New snapshots are one Overpass read-only query. The old
+// per-tile cache remains readable so the shipped snapshot is reproducible
+// without another network request.
+const overpassQuery = `[out:xml][timeout:240];
+(
+  way["building"](${MIN_LAT},${MIN_LON},${MAX_LAT},${MAX_LON});
+  relation["building"](${MIN_LAT},${MIN_LON},${MAX_LAT},${MAX_LON});
+);
+(._;>;);
+out body qt;`;
+
+const retrievedOn = (files) => new Date(Math.max(...files.map((f) => statSync(f).mtimeMs)))
+  .toISOString().slice(0, 10);
+
+async function sourceFiles() {
+  mkdirSync(CACHE, { recursive: true });
+  if (existsSync(SOURCE_CACHE)) {
+    return { files: [SOURCE_CACHE], day: retrievedOn([SOURCE_CACHE]), source: OVERPASS_URL };
+  }
+
+  const legacy = [];
+  for (let j = 0; j < rows; j++) {
+    for (let i = 0; i < cols; i++) {
+      const file = path.join(CACHE, `${tileKey(i, j)}.xml`);
+      if (existsSync(file)) legacy.push(file);
     }
   }
+  if (legacy.length === rows * cols) {
+    console.log(`using complete legacy cache (${legacy.length} files); future snapshots use Overpass`);
+    return {
+      files: legacy,
+      day: retrievedOn(legacy),
+      source: 'https://api.openstreetmap.org/api/0.6/map',
+    };
+  }
+
+  const response = await fetch(OVERPASS_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+      'User-Agent': 'nonarkara.org build (city massing model)',
+    },
+    body: new URLSearchParams({ data: overpassQuery }),
+    signal: AbortSignal.timeout(300000),
+  });
+  if (!response.ok) throw new Error(`Overpass snapshot failed: HTTP ${response.status}`);
+  const body = await response.text();
+  if (!/<osm\b/.test(body) || /<remark\b/.test(body)) {
+    throw new Error('Overpass snapshot was not complete OSM XML; cache was not changed');
+  }
+  writeFileSync(SOURCE_CACHE, body);
+  return { files: [SOURCE_CACHE], day: retrievedOn([SOURCE_CACHE]), source: OVERPASS_URL };
 }
 
 // ── Parsing ──────────────────────────────────────────────────────
@@ -175,10 +206,26 @@ function parseOsm(xml) {
 }
 
 // ── Geometry, in metres about the centre ────────────────────────
-const toXY = (lat, lon) => [
-  (lon - CENTER.lon) * M_PER_DEG_LON * Math.cos((CENTER.lat * Math.PI) / 180),
-  -(lat - CENTER.lat) * M_PER_DEG_LAT,     // -z is north
-];
+//
+// This is the same local Web Mercator plane ground.js draws. Using a
+// different metres-per-degree approximation here put the north edge of
+// the old model about 29 m away from the street printed underneath it.
+const mercatorUnit = (lat, lon) => {
+  const latRad = lat * Math.PI / 180;
+  return {
+    x: (lon + 180) / 360,
+    y: (1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2,
+  };
+};
+const CENTER_MERCATOR = mercatorUnit(CENTER.lat, CENTER.lon);
+const CENTER_SCALE = EARTH_CIRCUMFERENCE_M * Math.cos(CENTER.lat * Math.PI / 180);
+const toXY = (lat, lon) => {
+  const p = mercatorUnit(lat, lon);
+  return [
+    (p.x - CENTER_MERCATOR.x) * CENTER_SCALE,
+    (p.y - CENTER_MERCATOR.y) * CENTER_SCALE, // -z is north
+  ];
+};
 
 function shoelace(pts) {
   let a = 0;
@@ -251,48 +298,77 @@ function simplify(points, tol) {
 }
 
 // ── Heights ─────────────────────────────────────────────────────
-function heightOf(tags, stats) {
+function parseLength(raw) {
+  const text = String(raw).trim().toLowerCase();
+  const feetInches = text.match(/^(\d+(?:\.\d+)?)\s*'\s*(?:(\d+(?:\.\d+)?)\s*(?:"|in))?$/);
+  if (feetInches) return (+feetInches[1] + (+(feetInches[2] || 0) / 12)) * 0.3048;
+  const value = Number.parseFloat(text.replace(',', '.'));
+  if (!Number.isFinite(value)) return NaN;
+  if (/\b(?:ft|feet|foot)\b/.test(text)) return value * 0.3048;
+  if (/\bcm\b/.test(text)) return value / 100;
+  return value; // OSM height values without a unit are metres.
+}
+
+function heightOf(tags) {
   if (tags.height) {
-    const v = parseFloat(String(tags.height).replace(/[^\d.\-]/g, ''));
-    if (Number.isFinite(v) && v > 0) { stats.fromHeight++; return v; }
+    const v = parseLength(tags.height);
+    if (Number.isFinite(v) && v > 0) return { value: v, source: 'height' };
   }
   if (tags['building:levels']) {
     const v = parseFloat(String(tags['building:levels']).replace(/[^\d.\-]/g, ''));
-    if (Number.isFinite(v) && v > 0) { stats.fromLevels++; return v * LEVELS_M; }
+    if (Number.isFinite(v) && v > 0) return { value: v * LEVELS_M, source: 'levels' };
   }
   const type = tags.building;
   const def = TYPE_HEIGHT[type];
-  if (def) { stats.fromType++; return def; }
-  stats.fromDefault++;
-  return DEFAULT_HEIGHT;
+  if (def) return { value: def, source: 'type' };
+  return { value: DEFAULT_HEIGHT, source: 'default' };
+}
+
+function stitchOuterRings(rel, wayById) {
+  const unused = rel.members
+    .filter((m) => m.type === 'way' && m.role === 'outer')
+    .map((m) => wayById.get(m.ref))
+    .filter(Boolean)
+    .map((w) => w.refs.slice());
+  const rings = [];
+  while (unused.length) {
+    const ring = unused.shift();
+    while (ring.length > 2 && ring[0] !== ring[ring.length - 1]) {
+      const end = ring[ring.length - 1];
+      const at = unused.findIndex((refs) => refs[0] === end || refs[refs.length - 1] === end);
+      if (at < 0) break;
+      const next = unused.splice(at, 1)[0];
+      if (next[next.length - 1] === end) next.reverse();
+      ring.push(...next.slice(1));
+    }
+    if (ring.length >= 4 && ring[0] === ring[ring.length - 1]) rings.push(ring);
+  }
+  return rings;
 }
 
 // ── The build ────────────────────────────────────────────────────
 const seen = new Map();          // way id → building
-const failed = [];
-let tiles = 0;
+const source = await sourceFiles();
 
-for (let j = 0; j < rows; j++) {
-  for (let i = 0; i < cols; i++) {
-    let got;
-    try {
-      got = await fetchTile(i, j);
-    } catch (err) {
-      failed.push(`${i},${j} (${err.message})`);
-      console.error(`  tile ${i},${j}: ${err.message}`);
-      continue;
-    }
-    tiles++;
-    if (!got.cached) await sleep(PAUSE_MS);
-    const xml = readFileSync(got.file, 'utf8');
+for (const file of source.files) {
+    const xml = readFileSync(file, 'utf8');
     const { nodes, ways, relations } = parseOsm(xml);
-
-    const stats = { fromHeight: 0, fromLevels: 0, fromType: 0, fromDefault: 0 };
+    const wayById = new Map(ways.map((w) => [w.id, w]));
+    const stitchedRelations = relations
+      .filter((rel) => rel.tags?.building && rel.tags.building !== 'no'
+        && rel.tags.building !== 'roof' && rel.tags.building !== 'part')
+      .map((rel) => ({ rel, rings: stitchOuterRings(rel, wayById) }))
+      .filter(({ rings }) => rings.length);
+    const relationMembers = new Set(stitchedRelations
+      .flatMap(({ rel }) => rel.members
+        .filter((m) => m.type === 'way' && m.role === 'outer')
+        .map((m) => m.ref)));
 
     for (const way of ways) {
       const t = way.tags;
       if (!t || !t.building) continue;
       if (t.building === 'no' || t.building === 'roof' || t.building === 'part') continue;
+      if (relationMembers.has(way.id)) continue;
       if (way.refs.length < 3) continue;
       const pts = [];
       for (const ref of way.refs) {
@@ -301,35 +377,30 @@ for (let j = 0; j < rows; j++) {
         pts.push(toXY(n[0], n[1]));
       }
       if (pts.length < 3) continue;
-      seen.set(way.id, { pts, tags: t, height: heightOf(t, stats) });
+      const height = heightOf(t);
+      seen.set(way.id, { pts, tags: t, height: height.value, heightSource: height.source });
     }
 
-    for (const rel of relations) {
+    for (const { rel, rings } of stitchedRelations) {
       const t = rel.tags;
-      if (!t || !t.building) continue;
-      if (t.building === 'no' || t.building === 'roof' || t.building === 'part') continue;
-      const outer = rel.members.filter((m) => m.type === 'way' && m.role === 'outer');
-      if (!outer.length) continue;
-      // The first outer ring of a multipolygon. A relation with several
-      // outers is a building with a courtyard or a courtyard building;
-      // the ring we keep is the outer wall, which is what the massing
-      // shows anyway.
-      const way = ways.find((w) => w.id === outer[0].ref);
-      if (!way || way.refs.length < 3) continue;
-      const pts = [];
-      for (const ref of way.refs) {
-        const n = nodes.get(ref);
-        if (!n) { pts.length = 0; break; }
-        pts.push(toXY(n[0], n[1]));
-      }
-      if (pts.length < 3) continue;
-      seen.set(`r${rel.id}`, { pts, tags: t, height: heightOf(t, stats) });
+      const height = heightOf(t);
+      rings.forEach((refs, ringIndex) => {
+        const pts = [];
+        for (const ref of refs) {
+          const n = nodes.get(ref);
+          if (!n) { pts.length = 0; break; }
+          pts.push(toXY(n[0], n[1]));
+        }
+        if (pts.length < 3) return;
+        seen.set(`r${rel.id}:${ringIndex}`, {
+          pts, tags: t, height: height.value, heightSource: height.source,
+        });
+      });
     }
-  }
 }
 
 const all = [...seen.values()];
-console.log(`\ntiles: ${tiles} fetched${failed.length ? `, ${failed.length} FAILED` : ''}`);
+console.log(`\nsource files: ${source.files.length} cached snapshot file(s)`);
 console.log(`buildings seen: ${all.length}`);
 
 // ── Keep the massing ────────────────────────────────────────────
@@ -369,6 +440,12 @@ kept.sort((a, b) => b.h - a.h
 // The tallest building, QUANTISED the way the pack quantises it — so
 // the number the site reads back is the number the site prints.
 const MAXH = Math.round(kept.reduce((m, b) => Math.max(m, b.h), 0) * 4) / 4;
+const HEIGHT_SOURCES = Object.freeze({
+  height: kept.filter((b) => b.heightSource === 'height').length,
+  levels: kept.filter((b) => b.heightSource === 'levels').length,
+  type: kept.filter((b) => b.heightSource === 'type').length,
+  default: kept.filter((b) => b.heightSource === 'default').length,
+});
 
 // The model's true extent.
 //
@@ -405,7 +482,6 @@ for (const b of kept) {
 const packed = Buffer.concat(records);
 
 // ── The file ─────────────────────────────────────────────────────
-const day = new Date().toISOString().slice(0, 10);
 const body = `// ═══════════════════════════════════════════════════════════════════════════
 // THE CITY MASSING — Bangkok, as it actually stands.
 //
@@ -413,20 +489,19 @@ const body = `// ═════════════════════
 //   node tools/build-citymass.mjs
 //
 // The real building footprints and heights of central Bangkok, taken
-// from OpenStreetMap and baked down to the massing: the largest
-// ${kept.length} buildings by footprint-times-height, plus every building over
-// ${TALL_KEEP_M} metres, which are the towers that make a skyline.
+// from OpenStreetMap and baked down to the massing: the largest buildings
+// by footprint-times-height, every building over ${TALL_KEEP_M} metres, and
+// the smaller buildings within ${OWN_BLOCK_M} metres of the model centre.
 //
 //   Building footprints, heights and positions: © OpenStreetMap
 //   contributors, available under the Open Database Licence (ODbL) —
-//   https://www.opdb.org/
-//   Retrieved from https://api.openstreetmap.org/api/0.6/map on ${day}.
+//   https://www.openstreetmap.org/copyright
+//   Retrieved from ${source.source} on ${source.day}.
 //
-// The heights are NOT all measured. OpenStreetMap knows the height of
-// some of these buildings and the number of floors of rather more; the
-// rest are estimated from the building's type (${DEFAULT_HEIGHT} m for an
-// unknown type, ${LEVELS_M} m per floor where floors are known). The
-// site says so, where it shows the model.
+// The heights are NOT all measured. ${HEIGHT_SOURCES.height} buildings have an OSM height;
+// ${HEIGHT_SOURCES.levels} have a floor count. The remaining ${HEIGHT_SOURCES.type + HEIGHT_SOURCES.default} heights are estimated from
+// building type (${DEFAULT_HEIGHT} m for an unknown type, ${LEVELS_M} m per floor where floors are
+// known). The site says so, where it shows the model.
 //
 // Packed, little-endian: per building a uint16 point count, a uint16
 // height in quarter-metres, then the ring's points as int16 pairs in
@@ -445,6 +520,12 @@ export const MODEL_RADIUS_M = ${RADIUS};
 
 /** The tallest building in the model, in real metres. */
 export const MODEL_MAX_H = ${MAXH.toFixed(2)};
+
+/** How each shipped height was obtained. */
+export const MODEL_HEIGHT_SOURCES = Object.freeze(${JSON.stringify(HEIGHT_SOURCES)});
+
+/** The date of the baked OpenStreetMap snapshot. */
+export const MODEL_RETRIEVED_ON = '${source.day}';
 
 /** The packed model. */
 export const PACKED =
@@ -486,6 +567,7 @@ writeFileSync(OUT, body);
 
 // ── The report ───────────────────────────────────────────────────
 console.log(`kept: ${kept.length} buildings (tallest ${MAXH.toFixed(1)} m)`);
+console.log(`heights: ${HEIGHT_SOURCES.height} OSM height + ${HEIGHT_SOURCES.levels} OSM levels + ${HEIGHT_SOURCES.type} type estimates + ${HEIGHT_SOURCES.default} defaults`);
 console.log(`packed: ${(packed.length / 1024).toFixed(1)} KB → ${(body.length / 1024).toFixed(1)} KB as a file`);
 console.log(`file: ${OUT.pathname}`);
 
@@ -494,11 +576,9 @@ const top = kept.slice().sort((a, b) => b.h - a.h).slice(0, 20);
 console.log('\nthe twenty tallest in the model:');
 for (const b of top) {
   const [x, z] = b.simplified[0];
-  const lon = CENTER.lon + x / (M_PER_DEG_LON * Math.cos((CENTER.lat * Math.PI) / 180));
-  const lat = CENTER.lat - z / M_PER_DEG_LAT;
+  const unitX = CENTER_MERCATOR.x + x / CENTER_SCALE;
+  const unitY = CENTER_MERCATOR.y + z / CENTER_SCALE;
+  const lon = unitX * 360 - 180;
+  const lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * unitY))) * 180 / Math.PI;
   console.log(`  ${b.h.toFixed(1).padStart(6)} m  ${lat.toFixed(4)}, ${lon.toFixed(4)}  ${Math.round(b.area)} m²`);
-}
-if (failed.length) {
-  console.log(`\nWARNING — ${failed.length} tile(s) could not be fetched: ${failed.join(', ')}`);
-  console.log('The model has holes where those tiles are. Re-run to fill them.');
 }

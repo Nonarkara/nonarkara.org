@@ -10,8 +10,16 @@
 //   3. The only thing that is not to scale is the height, and the
 //      factor is a number the site prints.
 import assert from 'node:assert';
-import { MODEL_CENTER, MODEL_MAX_H, MODEL_RADIUS_M, decodeCityModel } from './citymass.js';
-import { cityInside, cityOffset, reliefFor } from './city-model.js';
+import {
+  MODEL_CENTER,
+  MODEL_MAX_H,
+  MODEL_RADIUS_M,
+  MODEL_HEIGHT_SOURCES,
+  MODEL_RETRIEVED_ON,
+  decodeCityModel,
+} from './citymass.js';
+import { cityInside, cityOffset, cityScale, reliefFor } from './city-model.js';
+import { tileXY, tileMetres } from './ground.js';
 
 const model = decodeCityModel();
 const SITE = { lat: MODEL_CENTER.lat, lon: MODEL_CENTER.lon };
@@ -21,6 +29,14 @@ assert(model.count > 1000, `the model should hold thousands of buildings, has ${
 assert.equal(model.offsets.length, model.count + 1);
 assert.equal(model.offsets[model.count] * 2, model.points.length,
   'the offsets must address every point exactly once');
+assert.equal(Object.values(MODEL_HEIGHT_SOURCES).reduce((sum, n) => sum + n, 0), model.count,
+  'every building height must state where it came from');
+assert(MODEL_HEIGHT_SOURCES.height + MODEL_HEIGHT_SOURCES.levels > 0,
+  'the model should preserve OSM-supplied height evidence');
+assert(MODEL_HEIGHT_SOURCES.type + MODEL_HEIGHT_SOURCES.default > 0,
+  'estimated heights must be counted rather than presented as measured');
+assert(/^\d{4}-\d{2}-\d{2}$/.test(MODEL_RETRIEVED_ON),
+  'the baked source snapshot must state when it was retrieved');
 
 {
   let min = Infinity, max = 0;
@@ -45,13 +61,29 @@ assert.equal(model.offsets[model.count] * 2, model.points.length,
   // The offset is where the model's CENTRE is, seen from the visitor.
   // So a visitor standing NORTH of the centre puts the centre to their
   // south — and south is +z, because the tile grid counts southward.
-  const north = cityOffset({ lat: SITE.lat + 0.01, lon: SITE.lon });
+  const northSite = { lat: SITE.lat + 0.01, lon: SITE.lon };
+  const north = cityOffset(northSite);
   assert(north.z > 0, 'south is +z: the tile grid counts southward');
-  assert(Math.abs(north.z - 1105.74) < 2, `a degree of latitude is 110574 m, got ${north.z}`);
 
-  const east = cityOffset({ lat: SITE.lat, lon: SITE.lon + 0.01 });
+  const eastSite = { lat: SITE.lat, lon: SITE.lon + 0.01 };
+  const east = cityOffset(eastSite);
   assert(east.x < 0, 'a visitor east of the centre puts the centre to their west');
-  assert(Math.abs(east.x + 1082.5) < 2, `a degree of longitude at Bangkok is about 1082 m, got ${east.x}`);
+
+  // Same projection, not merely approximately the same scale. A second
+  // metres-per-degree formula once put the city 29 m off its streets at
+  // the model edge while both layers still looked plausible in isolation.
+  for (const visitor of [northSite, eastSite, { lat: SITE.lat - 0.025, lon: SITE.lon + 0.02 }]) {
+    const here = tileXY(visitor.lat, visitor.lon, 16);
+    const centre = tileXY(SITE.lat, SITE.lon, 16);
+    const span = tileMetres(visitor.lat, 16);
+    const expected = { x: (centre.x - here.x) * span, z: (centre.y - here.y) * span };
+    const actual = cityOffset(visitor);
+    assert(Math.abs(actual.x - expected.x) < 0.001 && Math.abs(actual.z - expected.z) < 0.001,
+      `city and map must share Web Mercator metres: ${JSON.stringify({ visitor, actual, expected })}`);
+    const expectedScale = tileMetres(visitor.lat, 16) / tileMetres(SITE.lat, 16);
+    assert(Math.abs(cityScale(visitor) - expectedScale) < 1e-9,
+      'the baked model must scale with the visitor-centred map plate');
+  }
 }
 
 // ── It is drawn only where it is true ─────────────────────────────

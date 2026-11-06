@@ -50,6 +50,16 @@ const listOf = (name) => {
 const CODE = new Set(listOf('CODE'));
 const SHELL = listOf('SHELL');
 
+// ── Lazy views stay lazy ─────────────────────────────────────────
+//
+// CODE means network-first after use; SHELL means downloaded during
+// service-worker installation. The city is a quarter-megabyte ground-only
+// payload, so putting it in both lists quietly defeats the dynamic import.
+for (const lazy of ['/citymass.js', '/city-model.js']) {
+  assert(CODE.has(lazy), `${lazy} must be network-first after it is requested`);
+  assert(!SHELL.includes(lazy), `${lazy} must not download before the visitor opens the ground view`);
+}
+
 // ── Every module the site can load is network-first ──────────────
 {
   const modules = readdirSync(ROOT)
