@@ -2994,6 +2994,80 @@ body[data-mode="guest"] .plan-card-guest:focus-visible {
       color: var(--dim); flex: 0 0 auto;
     }
 
+    /* AGENDA — the host's day, ruled like the rest of the desk.
+       Absent for everyone else, including a reader who has not chosen. */
+    #agenda { display: none !important; }
+    body[data-mode="host"] #agenda {
+      display: block !important;
+      border-bottom: 1px solid var(--line);
+      margin: 0 0 22px;
+      padding: 4px 0 2px;
+    }
+    .agenda-head {
+      display: flex; align-items: baseline; gap: 12px;
+      margin-bottom: 4px;
+    }
+    .agenda-meta {
+      margin-left: auto;
+      font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--dim); font-variant-numeric: tabular-nums;
+    }
+    .agenda-device, .agenda-keep {
+      background: none; border: 0; padding: 0;
+      font: inherit; font-size: 9px; letter-spacing: 0.22em;
+      text-transform: uppercase; color: var(--dim); cursor: pointer;
+    }
+    .agenda-device:hover, .agenda-device:focus-visible,
+    .agenda-keep:hover, .agenda-keep:focus-visible { color: var(--fg); outline: none; }
+    .agenda-state {
+      font-size: 13px; letter-spacing: 0.04em;
+      color: var(--dim); padding: 6px 0 8px;
+    }
+    .agenda-form {
+      display: flex; flex-wrap: wrap; align-items: baseline;
+      gap: 10px 16px; margin: 0 0 8px;
+      width: max-content; max-width: 100%;
+    }
+    .agenda-form[hidden] { display: none !important; }
+    .agenda-input {
+      flex: 0 1 24rem; width: 24rem; min-width: 0; max-width: 100%;
+      background: transparent; border: 0;
+      border-bottom: 1px solid var(--line);
+      color: var(--fg); font: inherit; font-size: 12px;
+      padding: 6px 0; cursor: text;
+      user-select: text; -webkit-user-select: text;
+    }
+    #agenda-token { flex-basis: 10rem; width: 10rem; }
+    .agenda-input:focus { outline: none; border-bottom-color: var(--fg); }
+    .agenda-kicker {
+      font-size: 9px; font-weight: 300; letter-spacing: 0.32em;
+      text-transform: uppercase; color: var(--dim);
+      margin: 12px 0 0;
+    }
+    .agenda-rows { list-style: none; padding: 0; margin: 0; }
+    .agenda-row {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      column-gap: 16px; align-items: baseline;
+      padding: 7px 0;
+      border-top: 1px solid var(--line);
+    }
+    .agenda-when {
+      font-size: 12px; font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .agenda-title {
+      display: block; font-size: 13px; letter-spacing: 0.02em;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .agenda-where, .agenda-hold {
+      display: block; margin-top: 3px;
+      font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase;
+      color: var(--dim);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .agenda-hold { color: var(--amber); }
+
     /* HOME GRID — hairline-separated tiles, each carrying its own state */
     /* Hairlines live on the tiles, not in the grid gap — guest mode hides
        three tiles and a gap-coloured background would leave a filled

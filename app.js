@@ -554,7 +554,10 @@ const HAS_ROOM = (() => {
 // 4.60 (2026-11-06) the city and map share one Web Mercator plane;
 //                  height provenance is visible and the city payload is
 //                  truly deferred until the visitor looks down.
-const NON_VERSION = '4.60';
+// 4.61 (2026-11-10) the host desk can read today's agenda and the travel
+//                  still ahead. The day stays on the desk machine. A guest
+//                  does not see the section and does not fetch it.
+const NON_VERSION = '4.61';
 window.NON_VERSION = NON_VERSION;
 // The build identity. 'dev' locally; ship.sh stamps the git short hash
 // into the deployed copy. Exists because version numbers are typed by

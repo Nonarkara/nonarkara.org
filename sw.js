@@ -6,14 +6,14 @@
  * for same-origin, so a stale version means users keep the old shell.
  */
 
-const CACHE_VERSION = 'non-2026-11-06-v4.60';
+const CACHE_VERSION = 'non-2026-11-10-v4.61';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 // The app's own code. These are always revalidated when online so a
 // deploy is visible on the next load, not the load after the load after.
 const CODE = new Set([
   '/', '/index.html', '/mixedtape',
-  '/styles.css', '/app.js', '/boot.js', '/desk.js', '/common.js', '/discover.js', '/sky.js', '/ground.js',
+  '/styles.css', '/app.js', '/boot.js', '/desk.js', '/agenda.js', '/agenda-model.js', '/common.js', '/discover.js', '/sky.js', '/ground.js',
   '/entrance.css',                    // the door's own type and colour — it is not in styles.css
   '/vendor-three-0.160.0.js',         // pinned by name, but still the app's own code
   '/starcat.js',                      // 5,021 real stars, fetched on the first look up
@@ -179,6 +179,10 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
+
+  // The desk machine. Its answers are a private day. This worker does
+  // not store them and does not answer for them.
+  if (url.hostname.endsWith('.local')) return;
 
   // Audio and range requests go straight to the network, never the cache:
   // media elements ask for byte ranges, and a 206 Partial Content response
