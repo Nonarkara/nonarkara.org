@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { tokenOk, allowedOrigin, DEFAULT_ORIGINS, hostOk, syncMinutes, machineBusy } from './lib.mjs';
+import { tokenOk, allowedOrigin, DEFAULT_ORIGINS, hostGate, syncMinutes, machineBusy } from './lib.mjs';
 import { pullCalendars } from './sync.mjs';
 
 const JSON_HEADERS = {
@@ -157,9 +157,17 @@ async function main() {
     console.error('agenda sidecar: AGENDA_TOKEN is required. Refusing to listen.');
     process.exit(1);
   }
-  const expectHost = process.env.AGENDA_EXPECT_HOST || 'Agentics-MacBook-Air-5.local';
-  if (process.env.AGENDA_ALLOW_OTHER_HOST !== '1' && !hostOk(os.hostname(), expectHost)) {
-    console.error(`agenda sidecar: this host is ${os.hostname()}, expected ${expectHost}. Refusing to start.`);
+  const gate = hostGate({
+    hostname: os.hostname(),
+    expectHost: process.env.AGENDA_EXPECT_HOST,
+    allowOther: process.env.AGENDA_ALLOW_OTHER_HOST,
+  });
+  if (gate === 'missing') {
+    console.error('agenda sidecar: AGENDA_EXPECT_HOST is required. Refusing to start.');
+    process.exit(1);
+  }
+  if (gate === 'mismatch') {
+    console.error('agenda sidecar: AGENDA_EXPECT_HOST does not match this machine. Refusing to start.');
     process.exit(1);
   }
   if (!(await machineOk())) {

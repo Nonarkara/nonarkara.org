@@ -8,7 +8,7 @@ Real events, tokens, OAuth client secrets, and any TripIt ICS URL stay on the M3
 
 ## FloodDash comes first
 
-This machine (`Agentics-MacBook-Air-5.local`) is the FloodDash origin until a Mac Studio arrives. The sidecar is built to stay out of its way:
+The desk machine is the FloodDash origin until a Mac Studio arrives. The sidecar is built to stay out of its way:
 
 - It does not install a login item, a launch agent, or a cron job. Start it by hand when you want it. Stop it with `SIGINT` / `SIGTERM` (the process title is `non-agenda`) the moment FloodDash needs the machine.
 - It binds to `127.0.0.1` unless you set `AGENDA_BIND`.
@@ -56,8 +56,8 @@ Names only. Values live on the M3.
 | `GOOGLE_REFRESH_TOKEN` | yes, to sync | From `auth.mjs`. Scope is `calendar.readonly`. |
 | `TRIPIT_ICS_URL` | no | Optional ICS fallback. Ignored when Google already lists the TripIt calendar. Never commit the value. |
 | `AGENDA_MACHINE_ID` | no | If set, the process reads this Mac’s `IOPlatformUUID` and exits when it differs. The value stays in the environment. |
-| `AGENDA_EXPECT_HOST` | no | Default `Agentics-MacBook-Air-5.local`. Any other hostname refuses to start unless `AGENDA_ALLOW_OTHER_HOST=1`. |
-| `AGENDA_ALLOW_OTHER_HOST` | no | Set to `1` only when you mean to run somewhere else. |
+| `AGENDA_EXPECT_HOST` | yes, unless the override below is set | Hostname this process may run on. Unset, it refuses to start. There is no default. |
+| `AGENDA_ALLOW_OTHER_HOST` | no | Set to `1` to start without that hostname check. |
 | `AGENDA_BIND` | no | Default `127.0.0.1`. |
 | `AGENDA_PORT` | no | Default `8741`. Do not use FloodDash’s port. |
 | `AGENDA_SYNC_MINUTES` | no | Default 30. Clamped to 15–180. |
@@ -71,12 +71,7 @@ Names only. Values live on the M3.
 
 The live pavilion is HTTPS, and its content-security policy upgrades insecure requests. A page on `https://nonarkara.org` cannot call `http://127.0.0.1:8741`.
 
-Terminate TLS on the desk (both `AGENDA_TLS_CERT` and `AGENDA_TLS_KEY`) or put an HTTPS name in front of the loopback port. The committed policy allows:
-
-- `https://agentics-macbook-air-5.local`
-- `https://agentics-macbook-air-5.local:8741`
-
-A tunnel or Tailscale name is a different origin. Add that exact origin to `connect-src` in `_headers` or the browser will refuse the fetch. Chrome may also ask before a public page may touch a private-network address; the listener answers the private-network preflight for an allowed origin.
+Terminate TLS on the desk (both `AGENDA_TLS_CERT` and `AGENDA_TLS_KEY`) or put an HTTPS name in front of the loopback port. The public content-security policy does not name that origin. When one is chosen, add it to `connect-src` in `_headers` or the browser will refuse the fetch. Chrome may also ask before a public page may touch a private-network address; the listener answers the private-network preflight for an allowed origin.
 
 ## On the device
 

@@ -13,7 +13,7 @@ import {
   formatClock, formatTravelWhen,
 } from './agenda-model.js';
 import {
-  tokenOk, hostOk, syncMinutes, machineBusy, classify, chooseCalendars,
+  tokenOk, hostOk, hostGate, syncMinutes, machineBusy, classify, chooseCalendars,
   shouldReadIcs, buildView, parseIcs, fromGoogle, allowedOrigin,
 } from './sidecar/agenda/lib.mjs';
 import { pullCalendars } from './sidecar/agenda/sync.mjs';
@@ -44,8 +44,7 @@ const ignore = read('./.deployignore');
   assert(desk.includes("dataset.mode !== 'host'") && desk.indexOf("dataset.mode !== 'host'") < desk.indexOf("import('./agenda.js')"),
     'a guest never imports the agenda');
   assert(ignore.split('\n').includes('sidecar/'), 'the listener must not be served from the public site');
-  assert(headers.includes('https://agentics-macbook-air-5.local'),
-    'the pavilion policy has to name the desk machine or the browser will refuse it');
+  assert(!/connect-src[^;]*\.local/i.test(headers), 'public connect-src must not list a .local origin');
   for (const file of ['./agenda.js', './agenda-model.js', './sidecar/agenda/server.mjs', './sidecar/agenda/sync.mjs', './sidecar/agenda/lib.mjs', './sidecar/agenda/README.md', './sidecar/agenda/env.example']) {
     assert(!/AGENDA_MACHINE_ID=\s*\S/.test(read(file)),
       `${file} must not carry a machine id value`);
@@ -98,6 +97,10 @@ const ignore = read('./.deployignore');
   assert.deepEqual(classify('Leave the house', 'primary'), { kind: 'leave', hold: 'leave-the-house' });
   assert.deepEqual(classify('Leave for the airport', 'primary'), { kind: 'leave', hold: 'leave-for-airport' });
   assert.deepEqual(classify('Leave for airport', 'work'), { kind: 'leave', hold: 'leave-for-airport' });
+  assert.deepEqual(classify('Leave for Example Field', 'primary'), { kind: 'leave', hold: 'leave-for-airport' });
+  assert.deepEqual(classify('Leave for Example Field — extra note', 'primary'), { kind: 'leave', hold: 'leave-for-airport' });
+  assert.equal(classify('Please Leave for Example Field', 'primary').kind, 'event');
+  assert.equal(classify('Leave for', 'primary').kind, 'event');
   assert.equal(classify('Department sync', 'primary').kind, 'event');
   assert.equal(classify('household supplies', 'primary').kind, 'event');
   assert.equal(classify('Example departure', 'tripit').kind, 'travel');
@@ -178,15 +181,32 @@ const ignore = read('./.deployignore');
       start: { dateTime: '2026-11-12T05:00:00+07:00' },
       end: { dateTime: '2026-11-12T05:40:00+07:00' },
     }, 'work'),
+    fromGoogle({
+      id: 'e5', summary: 'Leave for Example Field',
+      start: { dateTime: '2026-11-12T04:00:00+07:00' },
+      end: { dateTime: '2026-11-12T04:30:00+07:00' },
+    }, 'primary'),
+    fromGoogle({
+      id: 'e6', summary: 'Leave for Example Field — extra note',
+      start: { dateTime: '2026-11-11T09:00:00+07:00' },
+      end: { dateTime: '2026-11-11T09:20:00+07:00' },
+    }, 'primary'),
   ].filter(Boolean);
   const view = buildView(items, now);
   assert.equal(view.ok, true);
   assert.equal(view.tz, 'Asia/Bangkok');
   assert.deepEqual(view.today.map((e) => e.title), ['Leave the house', 'Example block']);
-  assert.deepEqual(view.travel.map((e) => e.title), ['Leave for the airport', 'Example departure']);
+  assert.deepEqual(view.travel.map((e) => e.title), [
+    'Leave for Example Field — extra note',
+    'Leave for Example Field',
+    'Leave for the airport',
+    'Example departure',
+  ]);
   assert.equal(view.travel[0].hold, 'leave-for-airport');
-  assert.equal(view.travel[1].kind, 'travel');
-  assert.equal(view.travel[1].where, 'Example gate');
+  assert.equal(view.travel[1].hold, 'leave-for-airport');
+  assert.equal(view.travel[2].hold, 'leave-for-airport');
+  assert.equal(view.travel[3].kind, 'travel');
+  assert.equal(view.travel[3].where, 'Example gate');
   assert.equal(JSON.stringify(view).includes('person@example.invalid'), false);
   assert.equal(JSON.stringify(view).includes('must not be copied'), false);
   assert.equal(view.today[0].description, undefined);
@@ -197,8 +217,13 @@ const ignore = read('./.deployignore');
   assert.equal(tokenOk('test-token-not-a-secret', 'test-token-not-a-secret'), true);
   assert.equal(tokenOk('nope', 'test-token-not-a-secret'), false);
   assert.equal(tokenOk('', 'test-token-not-a-secret'), false);
-  assert.equal(hostOk('Agentics-MacBook-Air-5.local', 'agentics-macbook-air-5'), true);
-  assert.equal(hostOk('other.local', 'Agentics-MacBook-Air-5.local'), false);
+  assert.equal(hostOk('desk.example.test', 'desk.example.test'), true);
+  assert.equal(hostOk('Desk.Example.Test', 'desk.example.test'), true);
+  assert.equal(hostOk('other.example.test', 'desk.example.test'), false);
+  assert.equal(hostGate({ hostname: 'desk.example.test', expectHost: 'desk.example.test', allowOther: '' }), 'ok');
+  assert.equal(hostGate({ hostname: 'other.example.test', expectHost: 'desk.example.test', allowOther: '' }), 'mismatch');
+  assert.equal(hostGate({ hostname: 'desk.example.test', expectHost: '', allowOther: '' }), 'missing');
+  assert.equal(hostGate({ hostname: 'other.example.test', expectHost: '', allowOther: '1' }), 'allow');
   assert.equal(syncMinutes(undefined), 30);
   assert.equal(syncMinutes(1), 15);
   assert.equal(syncMinutes(500), 180);

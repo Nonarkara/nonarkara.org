@@ -23,6 +23,16 @@ export function hostOk(actual, expected) {
   return Boolean(norm(actual)) && norm(actual) === norm(expected);
 }
 
+// AGENDA_EXPECT_HOST is required. Nothing in the repo names the machine.
+// AGENDA_ALLOW_OTHER_HOST=1 is the only way to start without that check.
+export function hostGate({ hostname, expectHost, allowOther }) {
+  if (String(allowOther || '') === '1') return 'allow';
+  const expected = String(expectHost || '').trim();
+  if (!expected) return 'missing';
+  if (!hostOk(hostname, expected)) return 'mismatch';
+  return 'ok';
+}
+
 export function syncMinutes(raw) {
   const n = Number(raw);
   if (!Number.isFinite(n)) return 30;
@@ -50,6 +60,9 @@ export function classify(summary, role) {
   const s = String(summary || '');
   if (/leave\s+the\s+house\b/i.test(s)) return { kind: 'leave', hold: 'leave-the-house' };
   if (/leave\s+for\s+(the\s+)?airport\b/i.test(s)) return { kind: 'leave', hold: 'leave-for-airport' };
+  // "Leave for <place>" and "Leave for <place> — …". The place is not
+  // the word airport; those titles are still leave-for-airport holds.
+  if (/^leave\s+for\s+[^\s—–-]/i.test(s.trim())) return { kind: 'leave', hold: 'leave-for-airport' };
   if (role === 'tripit' || /\b(flight|airport|boarding)\b/i.test(s)) {
     return { kind: 'travel', hold: null };
   }
