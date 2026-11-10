@@ -448,3 +448,20 @@ function askRoom(detail) {
   try { document.dispatchEvent(new CustomEvent('desk:open', { detail })); }
   catch (_) { /* no room listening yet — the click does nothing */ }
 }
+
+// The agenda is the host's day. A guest never downloads it, and the
+// desk does not ask the listener until this device has chosen NON OS.
+function bootAgenda() {
+  const start = () => {
+    if (document.body?.dataset.mode !== 'host') return;
+    import('./agenda.js').then((m) => m.startAgenda()).catch(() => {});
+  };
+  start();
+  try {
+    new MutationObserver(start).observe(document.body, {
+      attributes: true,
+      attributeFilter: ['data-mode'],
+    });
+  } catch (_) { /* no desk yet */ }
+}
+bootAgenda();

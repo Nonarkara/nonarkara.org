@@ -19,7 +19,7 @@ A personal civic site. Two surfaces, one origin. They are not the same page with
 
 **The Pavilion** is the guest surface: a walkable memory palace (Three.js, built to load on a phone). You find out who he is by looking — screens open real work; furniture opens CV, LinkedIn, contact. Barcelona Pavilion at the origin; Glass House, Villa Savoye, Farnsworth, Fallingwater around it.
 
-**NON OS** is the host surface: the personal operating system he keeps open during the day. Clock (Bangkok), fleet health, signals, notes. Visitors land in the Pavilion, not in a private dashboard.
+**NON OS** is the host surface: the personal operating system he keeps open during the day. Clock (Bangkok), fleet health, signals, notes, and — once that device has been pointed at it — today's agenda and the travel still ahead. The agenda is not stored in this repository. Visitors land in the Pavilion, not in a private dashboard.
 
 Plan view is there if WebGL is not.
 

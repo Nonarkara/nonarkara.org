@@ -18,6 +18,9 @@
 # max-age=14400. Until that zone setting is "Respect Existing Headers",
 # /heal + self-heal is what actually clears a visitor's disk cache.
 # ship.sh warns when the custom domain still serves the 4h header.
+#
+# The desk's agenda listener is not a public page. Its origin is not
+# named in this policy.
 
 /*
   Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-KjvXuU7VYcmB0RpHzrHOox5Ubf/YtLMhpnytgS5RB7g=' 'sha256-NqizBrOnYS9ghKUw9h5To7QoyURzCnoYX/49t64nBlk=' 'sha256-yOyz/D9clGDz3gh2oDqJER98DA8Tm0WD+sl0RDOkMuE=' https://cdn.jsdelivr.net https://static.cloudflareinsights.com; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://tile.openstreetmap.de https://tile.openstreetmap.org https://a.tile.openstreetmap.fr; media-src 'self' blob: https://api.nonarkara.org; connect-src 'self' https://api.nonarkara.org https://open.er-api.com https://api.open-meteo.com https://air-quality-api.open-meteo.com https://hacker-news.firebaseio.com https://api.github.com https://cloudflareinsights.com; frame-src https://games.nonarkara.org; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests

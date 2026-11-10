@@ -639,6 +639,25 @@
       <span class="os-focus" id="os-focus-today"></span>
     </section>
 
+    <!-- AGENDA — the host's day. Hidden unless this device chose NON OS.
+         The blocks themselves are not in the page: the desk asks a
+         private listener, and a miss stays a miss. -->
+    <section id="agenda" class="agenda" aria-label="Agenda" aria-hidden="true">
+      <header class="agenda-head">
+        <h2 class="os-lbl" data-i18n="agenda_label">agenda</h2>
+        <span class="agenda-meta" id="agenda-meta"></span>
+        <button type="button" class="agenda-device" id="agenda-device" data-i18n="agenda_device">this device</button>
+      </header>
+      <p class="agenda-state" id="agenda-state">not on this device</p>
+      <form id="agenda-form" class="agenda-form" hidden autocomplete="off">
+        <input id="agenda-base" class="agenda-input" type="url" inputmode="url"
+               autocapitalize="off" spellcheck="false" autocomplete="off" placeholder="https://">
+        <input id="agenda-token" class="agenda-input" type="password" autocomplete="off" placeholder="token">
+        <button type="submit" class="agenda-keep" data-i18n="agenda_keep">keep</button>
+      </form>
+      <div id="agenda-lists"></div>
+    </section>
+
     <!-- HOME GRID — the apps. Every tile carries its own state so the page
          answers "how did today go" without opening anything. -->
     <section class="os-grid" aria-label="NON OS applications">

@@ -21,3 +21,7 @@ yt-channel/
 .env
 .env.*
 !.env.example
+
+# Private agenda cache, if a sidecar is pointed at the repo by mistake.
+sidecar/agenda/cache.json
+sidecar/agenda/*.tmp

@@ -11,6 +11,7 @@ Two surfaces. One site. Do not collapse them into each other.
 The personal operating system. Pristine, dense, only Non needs to understand it at a glance.
 
 - Clock (Bangkok), today's intent, focus / steps
+- Today's agenda and upcoming travel — this device only; the day itself stays on the desk machine
 - Fleet console — health of every live system
 - Signals — markets + weather
 - Brain vitals (counts only; contents stay on the laptop)

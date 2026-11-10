@@ -48,6 +48,9 @@ portraits/IMG_4734.jpg
 yt-channel/
 .firecrawl/
 
+# The desk-machine agenda listener. It is not a page.
+sidecar/
+
 # Working documents and gate fixtures. They were being served to anyone who
 # asked (tasks/lessons.md, AGENTS.md, CLAUDE.md, the spatial baseline, the
 # probe injected by the gate): not secrets, but internal law and
